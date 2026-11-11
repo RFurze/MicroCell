@@ -4,12 +4,83 @@ The micro-cell solver of Rob Furze's transient multiscale mixed-lubrication mode
 standalone Python call: one periodic rough cell, a macro state in, homogenised corrections
 and fields out.  FEniCS 2019.1.0 (conda env `ehl-fenics`, `environment.yml`), run in WSL/Linux.
 
-Extracted from `MultiscaleMixedBallinSocket` at commit `2aaccad`.  State: WP4 of
-`docs/notes/micro_standalone_plan_2026-11-11.md` (the physics and hooks the plan dropped are
-pruned from five solver files in WP2, the helpers the solve does not reach are pruned or
-removed in WP3, and the settings and results are collapsed in WP4: each setting is defined
-once, each output is written once; all three are marked in the provenance table; the other
-files are verbatim copies).
+Extracted from `MultiscaleMixedBallinSocket` at commit `2aaccad`.  State: WP5, the last work
+package of `docs/notes/micro_standalone_plan_2026-11-11.md`.  WP2 pruned the physics and hooks
+the plan dropped.  WP3 pruned or removed the helpers the solve does not reach.  WP4 collapsed
+the settings and results: each setting is defined once, each output is written once.  WP5 put
+the files into the plan's layout and added the march from t = 0, the parent's invariant tests
+and the examples.  The provenance table marks what each work package did to each file.
+
+## The model
+
+One periodic rough cell, `xmax` by `ymax`, stands for one point of the bearing.  The macro
+state `zeta` gives the cell its mean film `H`, its pressure `P`, the mean (entrainment)
+velocity `U = (Ux, Uy)`, the macro pressure gradient `G = (dpdx, dpdy)`, and the rate of each.
+One surface is at rest in the cell frame and the other slides at `2 U`.
+
+**Film.**  `h = H + Hdot t + z + u_r + u_c`.
+
+- `z` is the roughness, a gap perturbation (`z < 0` is an asperity).  The roughness of the
+  stationary surface is fixed in the cell.  The roughness of the translating surface moves
+  with it, at `2 U`.
+- `u_r` is the ripple deformation and `u_c` the contact deformation.  Both have zero mean,
+  and each is zero when its part is off.
+
+**Pressure.**  `p = P + Pdot t + G . (x - x_c) + lambda + w`, with `x_c` the cell centre.
+`w` is periodic.  `lambda` is one number: the level of the cell's pressure against the macro
+pressure.  Both are unknowns.
+
+**Flow.**  The Reynolds equation on the cell, isoviscous with viscosity `eta0`:
+
+    div( h^3 / (12 eta0) grad p ) = div( U h ) + dh/dt
+
+The cell mean of `dh/dt` is subtracted, which a periodic problem needs to be solvable.  The
+time derivative is a backward difference on CFL steps: first order on the first step,
+second order (BDF2) after it.  A transient solve starts from a seed solve at the start of
+its window.  A steady solve drops `dh/dt` and the rates.
+
+**Cavitation.**  A penalty: the term `penalty_gamma * spos(-p)` pushes negative pressure
+back to zero.  `spos` is a smoothed positive part of width `eps_smooth`.  The `"spline"` form
+is zero at positive pressure; the `"sqrt"` form leaves `eps_smooth^2 / (4 p)` there.  `lambda`
+is closed by the same term: it is proportional to the cell mean of `spos(-p)`, so a cell that
+does not cavitate has no level shift from it.
+
+**Level constraint.**  `"whole_cell"`: `w` has zero mean over the cell, so the cell-mean
+pressure is `P + lambda`.  `"fluid_mean_v1"`: the mean is taken over the fluid region, so
+the fluid-region mean pressure is `P + lambda`.  The two are the same in a full-film cell.
+
+**Contact** (`settings.contact`; `None` is the full-film mode).  The surfaces touch where
+the gap would fall below `h_min`.  One periodic elastic half-space problem (FFT, modulus
+`E_star`) on the mesh nodes gives the contact pressure and `u_c`.  It is elastic only:
+`sigma_yield` sets `yield_flag` when the peak contact pressure passes it and never limits
+the pressure.  The flow is switched off in the contact region (its mobility is multiplied by
+`eps_solid`).  With `pattern_flux_contact`, the contact patch of a translating surface
+carries its film with it.  The asperity shear is `mu` times the contact pressure, along the
+sliding direction.
+
+**Ripple** (`settings.ripple`; `None` is off).  `u_r` is the zero-mean periodic half-space
+response (modulus `E_star`) to the cell's own fluid pressure.  It is held fixed during a
+pass and updated between passes.  A pass is accepted when `max|H[s] - u_r| <= ripple.tol * H`
+(`H[s]` the response to that pass's pressure), the residual has at least halved since the
+pass before, and the contact set at the end state did not change.  There are at most
+`ripple.maxpass` passes.
+
+**Outputs.**  All are the end state, in SI.
+
+| Output | Meaning |
+|---|---|
+| `Q` | cell-mean flux [m^2/s] |
+| `dQ` | `Q - Q_Reynolds`, with `Q_Reynolds = U H - H^3 G / (12 eta0)` of the smooth film at the end state |
+| `P_f` | fluid pressure integrated over the fluid region, per cell area [Pa] |
+| `dP` | `P_f - P` at the end state [Pa] |
+| `P_asp` | asperity load per cell area [Pa] |
+| `k_asp` | closure tangent `-dP_asp/dH` [Pa/m] |
+| `contact_frac`, `A_mech_frac` | obstructed area fraction; mechanical contact area fraction |
+| `tau_fluid` | mean over the cell area of `eta0 (2 U) / h + (h / 2) grad p` in the fluid region [Pa] |
+| `tau_asperity`, `tau_total` | sampled asperity shear mean, and fluid + asperity [Pa] |
+
+The frictional torque $\mathcal{T}$ of a bearing is a macroscale integral of the shear
+stress.  This package returns the cell's shear stress only.
 
 ## The call
 
@@ -28,17 +99,39 @@ out.fields["p_fluid"], out.fields["film"]                # (n+1, n+1) arrays [i_
 out.info["newton_iters"], out.info["shear_asperity_status"]   # everything else, each once
 ```
 
-- `steady=False` (default): the last `n_steps` CFL steps of the window ending at `t_end` are
-  solved; the outputs are the end state.  `zeta` is the state at t = 0 of the window, so the
-  end state is `zeta + rate * t_end`.  `steady=True`: one steady solve; rates and `t_end`
-  are not used.
-- The cell's surfaces slide at `2 Ux`.  Height arrays are gap perturbations `z[j_y, i_x]`
-  (`z < 0` is an asperity).
-- A stationary + translating pair takes one `offset=(o_x, o_y)` per call; loop to average.
-- `save_paraview=True` writes `cell.vts` and `cell.xdmf` (+ `.h5`) of the end state (the files
-  also carry `p_fluid_masked`, which `out.fields` does not).
+Conventions:
 
-Example: `python examples/run_cell.py`.
+- **Velocities.**  `Ux`, `Uy` are the mean (entrainment) velocities.  The moving surface
+  slides at `2 Ux`, `2 Uy`.
+- **Window.**  `zeta` is the state at t = 0, so the end state is `zeta + rate * t_end`.  The
+  outputs are the end state.  The CFL step is
+  `dt_cfl = cfl_target * min(xmax, ymax) / mesh_n / (2 max|U|)` (`t_end / 10` when U = 0).
+  - `n_steps=N` (default 3): the last `N` CFL steps ending at `t_end` are solved, from
+    `t_start = t_end - N dt_cfl`.  If they do not fit in `[0, t_end]`, the solve starts at
+    t = 0 and takes `ceil(t_end / dt_cfl)` equal steps.
+  - `n_steps=None`: the march from t = 0, in `ceil(t_end / dt_cfl)` equal steps.
+    `info["n_steps"]` reports the count.  There is no cap, and the cost grows with the
+    count: the default settings at `t_end = 0.02` s and `Ux = 0.02` m/s give 16000 steps,
+    about 11 minutes for the cell of `examples/run_cell.py` (an estimate from runs of 11 and
+    21 steps, about 0.04 s per step).
+  - `info["t_start"]` and `info["dt"]` report the window solved.
+- **Steady.**  `steady=True`: one steady solve.  Rates, `t_end` and `n_steps` are not used.
+- **Roughness.**  Height arrays are gap perturbations `z[j_y, i_x]` (`z < 0` is an asperity).
+  `moving=False` puts a surface on the stationary side, `moving=True` on the translating
+  side.  A stationary + translating pair takes one `offset=(o_x, o_y)` per call; loop to
+  average.
+- **ParaView.**  `save_paraview=True` writes `cell.vts` and `cell.xdmf` (+ `.h5`) of the end
+  state (the files also carry `p_fluid_masked`, which `out.fields` does not).
+
+Examples, one per kind of roughness.  Each prints its outputs with units and writes ParaView
+files under `examples/output/` (not tracked):
+
+| Script | Cell | Output folder |
+|---|---|---|
+| `examples/run_cell.py` | a generated Gaussian surface, Sa 40 nm, mixed contact with ripple; transient and steady | `gensa40_h130/` |
+| `examples/pair_cell.py` | a stationary + translating pair, composite Sa 10 nm, with an offset | `pair_sa10_h25/` |
+| `examples/array_cell.py` | a height array (one pocket), full film; on the stationary and on the translating surface | `pocket_stationary/`, `pocket_translating/` |
+| `examples/cosine_cell.py` | the analytic cosine cell, full film, with a film rate; transient and steady | `cosine_h120/` |
 
 ### Settings
 
@@ -95,15 +188,34 @@ values at the top of `microcell/solver_base.py`.
 ```bash
 cd /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell
 source scripts/ehl_env.sh
-python -m pytest tests/ -q -p no:cacheprovider      # the parity gate and the other tests, about 20 s
+python -m pytest tests/ -q -p no:cacheprovider      # the parity gate and the other tests, about 30 s
 python tests/test_parity.py                         # the gate as a script: exit 0 PASS, 1 FAIL, 2 INCOMPLETE
+python examples/run_cell.py                         # each example: under 10 s, exit 0 OK, 1 a solve failed
 ```
 
 The parity gate (`tests/test_parity.py`) solves each reference cell in `tests/references/`
 through `microsolver()` and compares every homogenised output and field with the parent's
 value to a relative 1e-12.  The references were made from the parent at `2aaccad` by
-`tools/make_references.py`.  `tests/test_settings.py` covers `MicroSettings.check()`;
-`tests/test_results.py` covers the layout of a failed result and the NaN-to-status rule.
+`tools/make_references.py`.
+
+The other tests:
+
+| File | Covers |
+|---|---|
+| `tests/test_settings.py` | `MicroSettings.check()` |
+| `tests/test_results.py` | the layout of a failed result and the NaN-to-status rule |
+| `tests/test_march.py` | `n_steps=None`: the march from t = 0 |
+| `tests/test_micro_phase_neutral_steady.py` | the parent's steady checks of the full-film cell (the plan's "steady conservation checks") |
+| `tests/test_fft_micro_fenics.py` | the parent's checks of the elastic contact solve in the cell |
+| `tests/test_fluid_mean_fenics.py` | the parent's checks of the fluid-mean level constraint |
+| `tests/test_ripple_micro_fenics.py` | the parent's checks of the ripple deformation |
+
+The four files of the parent's tests are copied with the settings renamed and the expected
+numbers and tolerances unchanged.  They set the parent's test-time values explicitly
+(`tests/parent_fixtures.py`).  The tests of the parent that need something this repo does
+not have are left out; the list, with reasons, is in
+`docs/notes/micro_standalone_wp5_implementation_log_2026-11-11.md`.  The two tests marked
+`slow` run in the default suite.
 
 ## Layout
 
@@ -122,7 +234,8 @@ value to a relative 1e-12.  The references were made from the parent at `2aaccad
 | `microcell/shear.py` | shear traction: reduction, fluid, asperity and total (was `shear_reduce.py` + `fluid_shear.py` + `contact_shear.py`) |
 | `microcell/roughness/` | `generation.py` and `quantiles.py` (the Gaussian IAAFT generator), `evaluator.py`, `runtime.py` and `pair.py` (the surface field and its motion), `frontend.py` (`Roughness`, new) |
 | `microcell/form_compiler.py`, `microcell/process_settings.py` | the process state set before the first form |
-| `tests/` | the parity gate and its references |
+| `tests/` | the parity gate and its references, and the other tests (see Running) |
+| `examples/` | one script per kind of roughness; `examples/output/` is not tracked |
 | `tools/` | `make_references.py` (run from the parent's root), `show_references.py` |
 | `docs/notes/` | the plan, the session prompts and the implementation logs |
 
