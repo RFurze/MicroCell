@@ -1,0 +1,6 @@
+........................................................................ [ 64%]
+........................................                                 [100%]
+112 passed in 27.89s
+bin/Documents/code/RefactorRefactor/MicroCell
+  DIJITSO    /home/robin/.cache/dijitso
+wslrun: [ehl-fenics] /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell $ python -m pytest tests/ -q -p no:cacheprovider -rfE --tb=short 

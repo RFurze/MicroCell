@@ -1,0 +1,9 @@
+[reference] c9_gensa10_h26_rates: OK  mesh 100  wall 1.1 s  dP -507121.6353639662  Pasp 82689182.98564312  contact_frac 0.013899999999999912
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 5 unused database options. They are:
+Option left: name:-ksp_error_if_not_converged value: true source: code
+Option left: name:-ksp_gmres_restart value: 100 source: code
+Option left: name:-ksp_initial_guess_nonzero value: true source: code
+Option left: name:-ksp_max_it value: 80 source: code
+Option left: name:-ksp_rtol value: 1e-5 source: code

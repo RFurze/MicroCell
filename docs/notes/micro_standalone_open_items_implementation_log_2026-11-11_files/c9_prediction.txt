@@ -1,0 +1,10 @@
+Prediction for the added reference c9_gensa10_h26_rates, written 11 Nov 2026 before the reference was made.
+(MicroCell at 4a83a4b + the c9 entry in tools/make_references.py; parent at 2aaccad, clean.)
+
+1. The reference is made by the parent with status OK and contact (contact fraction > 0): the standalone at the
+   same Sa, film and arrangement but zero rates gave contact_frac 0.008850 (probe_translating_realistic.tsv,
+   row pend / 10 / stationary / 26 / 1e-05).
+2. tests/test_parity.py passes on c9 at relative 1e-12 with no change to microcell/ or to the test: 9 of 9 cells.
+3. The eight existing references are not touched: their sha256 stay those of references_sha256_before_c9.txt.
+4. The fast gate goes from 110 to 110 + the tests parametrised over the reference list; no test fails.
+If 2 fails: report the number, one cause and one fix, and wait; the reference is not re-made and no tolerance changes.

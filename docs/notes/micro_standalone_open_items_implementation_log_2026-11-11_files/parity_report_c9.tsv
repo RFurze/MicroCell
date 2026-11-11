@@ -1,0 +1,10 @@
+cell	status	wall_s	n_setting	n_setting_exact	max_rel_setting	worst_setting	n_scalar	n_scalar_exact	max_rel_scalar	worst_scalar	n_diagnostic	n_diagnostic_exact	max_rel_diagnostic	worst_diagnostic	n_field	n_field_exact	max_rel_field	worst_field	failed
+c1_gensa40_h200_ripple	PASS	0.6666102409362793	45	45	0.0		71	71	0.0		12	12	0.0		16	16	0.0		
+c2_gensa40_h130_ripple	PASS	0.6421072483062744	45	45	0.0		71	71	0.0		12	12	0.0		16	16	0.0		
+c3_gensa40_h130_noripple	PASS	0.50077223777771	45	45	0.0		71	71	0.0		12	12	0.0		15	15	0.0		
+c4_wangpair10_h25_offset	PASS	1.5857257843017578	45	45	0.0		70	70	0.0		12	12	0.0		16	16	0.0		
+c5_cosine_fullfilm	PASS	0.1822834014892578	30	30	0.0		71	71	0.0		10	10	0.0		9	9	0.0		
+c6_cosine_fft_sqrt	PASS	0.5604672431945801	44	44	0.0		71	71	0.0		12	12	0.0		15	15	0.0		
+c7_gensa40_h130_ripple_steady	PASS	0.4880037307739258	45	45	0.0		71	71	0.0		12	12	0.0		16	16	0.0		
+c8_cosine_fullfilm_steady	PASS	0.1349186897277832	30	30	0.0		71	71	0.0		10	10	0.0		9	9	0.0		
+c9_gensa10_h26_rates	PASS	0.8993909358978271	45	45	0.0		71	71	0.0		12	12	0.0		16	16	0.0		

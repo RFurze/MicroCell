@@ -119,6 +119,11 @@ CELLS = {
     "c8_cosine_fullfilm_steady": dict(
         case=BASELINE, variant="ms", H=120e-9, P=40.8e6, steady=True, gradients=True,
         covers="steady solve: cosine, full film, gradients"),
+    # open item 8 (Rob, 11 Nov 2026): added, the eight above are not re-made
+    "c9_gensa10_h26_rates": dict(
+        case=GENROUGH, variant="GenSa10-ripple-tdfc", H=26e-9, P=40.8e6, rates=True,
+        covers="one generated surface (Sa 10 nm, the pendulum production recipe), ripple on, contact, "
+               "gradients and rates"),
 }
 
 U_DEFAULT = 0.02

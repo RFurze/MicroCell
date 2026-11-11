@@ -1,0 +1,34 @@
+ehl env ready: /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MultiscaleMixedBallinSocket
+  conda env  ehl-fenics  (/home/robin/miniforge3/envs/ehl-fenics/bin/python)
+  PYTHONPATH /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MultiscaleMixedBallinSocket
+  DIJITSO    /home/robin/.cache/dijitso
+wslrun: [ehl-fenics] /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MultiscaleMixedBallinSocket $ python ../MicroCell/tools/make_references.py --cell c9_gensa10_h26_rates 
+Traceback (most recent call last):
+  File "/mnt/c/Users/Robin/Documents/code/RefactorRefactor/MultiscaleMixedBallinSocket/../MicroCell/tools/make_references.py", line 530, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/mnt/c/Users/Robin/Documents/code/RefactorRefactor/MultiscaleMixedBallinSocket/../MicroCell/tools/make_references.py", line 524, in main
+    return run_cell(a.cell[0], out, store)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/Robin/Documents/code/RefactorRefactor/MultiscaleMixedBallinSocket/../MicroCell/tools/make_references.py", line 313, in run_cell
+    case, mc0, mc, changes = _micro_case(spec)
+                             ^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/Robin/Documents/code/RefactorRefactor/MultiscaleMixedBallinSocket/../MicroCell/tools/make_references.py", line 210, in _micro_case
+    mc0 = MicroCase.from_case(case)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/Robin/Documents/code/RefactorRefactor/MultiscaleMixedBallinSocket/ehl/micro_case.py", line 200, in from_case
+    kw[name] = FIELD_MAP[(obj, attr)].get(case)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/Robin/Documents/code/RefactorRefactor/MultiscaleMixedBallinSocket/ehl/translate.py", line 231, in <lambda>
+    (lambda f: lambda c: _rough(c, f))(f))
+                         ^^^^^^^^^^^^
+  File "/mnt/c/Users/Robin/Documents/code/RefactorRefactor/MultiscaleMixedBallinSocket/ehl/translate.py", line 197, in _rough
+    return load_arrangement(r).envelope_m
+           ^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/Robin/Documents/code/RefactorRefactor/MultiscaleMixedBallinSocket/ehl/roughness/case.py", line 165, in load_arrangement
+    raise SurfaceNotPreparedError(
+ehl.roughness.case.SurfaceNotPreparedError: gaussian_generated_Sa10nm_seed1000: the stationary surface is not prepared (no /mnt/c/Users/Robin/Documents/code/RefactorRefactor/_to_delete/micro_standalone_2026-11-11/surface_store/81bd1839e2483e9a.json); run 'python -m ehl surface prepare <case.py>' first
+[reference] started c9_gensa10_h26_rates
+[reference] finished c9_gensa10_h26_rates: exit 0  [reference] c9_gensa10_h26_rates: OK  mesh 100  wall 1.1 s  dP -507121.6353639662  Pasp 82689182.98564312  contact_frac 0.013899999999999912
+[reference] 1 cells in 5 s: 1 OK, 0 failed, 0 incomplete -> /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/tests/references
+tor/MultiscaleMixedBallinSocket $ python ../MicroCell/tools/make_references.py --all --cell c9_gensa10_h26_rates --procs 1 
