@@ -114,7 +114,7 @@ class RippleSettings:
 #: WP1 only: fields of the copied settings dataclasses / MicroPhysicalParameters that the plan's
 #: MicroSettings does not list, with the GenSa40-ripple case's values.  Removed at WP4.
 LEGACY_DEFAULTS: Dict[str, Any] = dict(
-    beta=1.0, delta_h=0.0, eps_solid=1e-8, eps_smooth=1e-3, k_spring=0.0,
+    beta=1.0, delta_h=0.0, eps_solid=1e-8, eps_smooth=1e-3,
     patch_pin=None, patch_pin_kappa=1.0,
 )
 
@@ -459,7 +459,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
         Ux=Ux, Uy=Uy, eta0=st.eta0, rho0=st.rho0, penalty_gamma=float(st.penalty_gamma),
         xmax=st.xmax, ymax=st.ymax, p0=P, dpdx=gx, dpdy=gy, H0=H,
         h_min=(float(st.h_min) if mixed else 0.0),      # 0.0 keeps the mixed masking off (full film)
-        HT=Hdot, PT=Pdot, Tend=tend, k_spring=st.legacy_value("k_spring"),
+        HT=Hdot, PT=Pdot, Tend=tend,
         UxT=UxT, UyT=UyT, dpdx_dot=gxd, dpdy_dot=gyd, roughness_velocity_ratio=ratio,
     )
     solver_settings = _solver_settings(st, mixed, pair)

@@ -261,7 +261,7 @@ def _film_at_points(solver, lam, cells, film_dofs_m):
         Pq = np.einsum("qk,ckd->qcd", lam, X[cells])                    # the points, unit cell
         rigid = desc.height(Pq[..., 0], Pq[..., 1], p.xmax, p.ymax, solver.H0_const, solver.HT_const,
                             solver.T_dim_const, solver._Ux_dim_const, solver._Uy_dim_const)
-        nod = np.full(X.shape[0], float(solver.hd_nd_const))
+        nod = np.zeros(X.shape[0])
         for f in _cg1_film_parts(solver):
             nod = nod + f.vector().get_local()[v_per]
         return rigid + lam @ (float(p.H0) * nod)[cells].T, FILM_ANALYTIC

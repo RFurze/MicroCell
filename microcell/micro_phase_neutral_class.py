@@ -105,7 +105,6 @@ class MicroPhysicalParameters:
     HT: float
     PT: float
     Tend: float
-    k_spring: float
     UxT: float = 0.0
     UyT: float = 0.0
     dpdx_dot: float = 0.0
@@ -252,9 +251,9 @@ LEVEL_CONSTRAINT_FLUID_MEAN = "fluid_mean_v1"
 #: [option H] the per-run counters ``_reset_timers`` zeroes; the pass loop sums
 #: them over the passes of one task so callers read task totals, as before.
 _PASS_COUNTERS = (
-    "_t_newton_solve", "_t_spring_coupling", "_t_history_update",
+    "_t_newton_solve", "_t_history_update",
     "_t_diagnostics", "_t_step_overhead", "_t_init", "_n_newton_calls",
-    "_n_spring_iters_total", "_t_asm_total", "_t_lin_total",
+    "_t_asm_total", "_t_lin_total",
     "_t_upd_total", "_n_newton_iters_total", "_n_newton_backtracks_total",
     # [fluid-mean WP2 (S6)] Newton solves per constraint path
     "_n_lc_whole_cell", "_n_lc_fluid_mean", "_n_lc_no_fluid",
@@ -415,7 +414,7 @@ class MicroPhaseNeutralSolver:
         self.settings = solver_settings
         # [WP-G 2026-09-15] Which sub-solve is running, for the worker's
         # [MICRO-FAIL-PN] report: "steady" | "transient-seed" |
-        # "step k/N" (+ "/spring i" inside a spring fixed point).  A
+        # "step k/N".  A
         # label only -- nothing branches on it.
         self._phase = "init"
         # [WP-B 2026-09-15] Cavitation-smoothing form, resolved ONCE per
@@ -444,11 +443,6 @@ class MicroPhaseNeutralSolver:
         # No point-constraint BC — Schur complement handles the null mode.
         self._solver_needs_rebuild: bool = True
         self._build_nonlinear_solver()
-
-        # ---- spring-film coupling settings ----
-        self.spring_max_iter: int = 20
-        self.spring_rtol: float = 1e-6
-        self._area_total: float = 1.0
 
         if auto_solve:
             self.run_steady()
@@ -503,7 +497,6 @@ class MicroPhaseNeutralSolver:
         # --- mirror _setup_film_and_mask ---
         self.hmin_nd_const.assign(self.hmin_nd)
         self.delta_h_nd_const.assign(self.delta_h_nd)
-        self.hd_nd_const.assign(0.0)
         if self._ripple_on:                 # [option H] a task starts at u_r = 0 (local cell)
             self._ripple_reset()
         self.Ux_nd_const.assign(2.0 * self.Ux_nd)
@@ -539,7 +532,6 @@ class MicroPhaseNeutralSolver:
             _f.vector().zero()
             _f.vector().apply("insert")
         self._have_two_hist = False
-        self._area_total = 1.0
 
         # --- subclass extras (mixed pattern-flux constants etc.) ---
         self._reset_task_subclass()
@@ -554,13 +546,11 @@ class MicroPhaseNeutralSolver:
     # -------------------------
     def _reset_timers(self) -> None:
         self._t_newton_solve = 0.0
-        self._t_spring_coupling = 0.0
         self._t_history_update = 0.0
         self._t_diagnostics = 0.0
         self._t_step_overhead = 0.0
         self._t_init = 0.0
         self._n_newton_calls = 0
-        self._n_spring_iters_total = 0
         self._t_asm_total = 0.0
         self._t_lin_total = 0.0
         self._t_upd_total = 0.0
@@ -590,7 +580,6 @@ class MicroPhaseNeutralSolver:
         accounted = (
             self._t_init
             + self._t_newton_solve
-            + self._t_spring_coupling
             + self._t_history_update
             + self._t_diagnostics
             + self._t_step_overhead
@@ -626,13 +615,6 @@ class MicroPhaseNeutralSolver:
             f"calls={self._n_newton_calls}  ({self._n_newton_calls / max(n_time_steps, 1):.1f} avg/step)",
             f"    \u2514\u2500 Damping backtracks       : {self._n_newton_backtracks_total}",
         ]
-
-        if self._t_spring_coupling > 0.0:
-            lines.append(_row("Spring coupling (overhead)", self._t_spring_coupling, n_time_steps))
-            lines.append(
-                f"    \u2514\u2500 Spring iters total       : {self._n_spring_iters_total}  "
-                f"({self._n_spring_iters_total / max(n_time_steps, 1):.1f} avg/step)"
-            )
 
         lines += [
             _row("History update (project)", self._t_history_update, n_time_steps),
@@ -785,8 +767,7 @@ class MicroPhaseNeutralSolver:
 
         H_dim = self._call_ht(self.x, self.y)
         self.h_base_nd = H_dim / self.H0_const
-        self.hd_nd_const = Constant(0.0)
-        self.h_nd = self.h_base_nd + self.hd_nd_const
+        self.h_nd = self.h_base_nd
         # [option H, 17 Oct 2026] the ripple u_r / H0 on Vper, in the film only when the
         # option is on: the OFF graph is the one above, unchanged.
         self._ripple_setup()
@@ -1098,8 +1079,8 @@ class MicroPhaseNeutralSolver:
 
     def _update_squeeze_mean(self) -> None:
         """[Phase 2.4 seam S1] Refresh the squeeze-mean Constant from the
-        current squeeze source.  Extracted verbatim from the three call
-        sites in run() (seed, per-step, spring inner loop); the mixed
+        current squeeze source.  Extracted verbatim from the call
+        sites in run() (seed, per-step); the mixed
         contact variant overrides this with a pattern/legacy two-branch
         version."""
         if hasattr(self, "_squeeze_source"):
@@ -1218,105 +1199,15 @@ class MicroPhaseNeutralSolver:
             conditional(gt((-delta) - phi, 0.0), mask_core, mask_transition),
         )
 
-    # -------------------------
-    # Spring-film coupling helpers
-    # -------------------------
-    def _spring_enabled(self) -> bool:
-        try:
-            return float(self.params.k_spring) > 0.0
-        except Exception:
-            return False
-
-    def _cell_avg_positive_pressure_dim(self) -> float:
-        Ppos = conditional(gt(self.P_dim, Constant(0.0)), self.P_dim, Constant(0.0))
-        area = getattr(self, "_area_total", 1.0)
-        return float(assemble(Ppos * dx(domain=self.mesh_m)) / area)
-
-    def _target_hd_nd_from_Pst(self, Pst_dim: float) -> float:
-        kspring = float(self.params.k_spring)
-        if kspring <= 0.0:
-            return 0.0
-        Ppos = max(float(Pst_dim), 0.0)
-        hd_dim = Ppos / kspring
-        return float(hd_dim / float(self.params.H0))
-
-    # -------------------------
-    # [Mixed P1.0] spring-film coupling (ported verbatim from the root-tree
-    # monolith, July 2026).  _spring_solve_cell_avg is the verbatim
-    # EXTRACTION of the inline per-step loop that previously lived in
-    # run(); _solve_with_spring wraps it.  The steady solve and the transient seed remain raw
-    # solve() in this base class via the _steady_solve/_seed_solve hooks
-    # below (flag-OFF baselines are byte-identical); the mixed subclass
-    # overrides both hooks to _solve_with_spring() (monolith behaviour).
-    # -------------------------
-    def _spring_solve_cell_avg(self) -> int:
-        """Fixed-point loop for the CELL-AVERAGE (scalar) spring coupling.
-
-        Extracted verbatim from the transient loop (July 2026) so it can
-        also serve run_steady().  Adaptive secant-like relaxation clamped
-        to [0.01, 0.2]; returns the iteration count.
-        """
-        hd_old = float(self.hd_nd_const)
-        relax = 0.05
-        r_old = 0.0
-        n_it = 0
-        _phase_base = self._phase
-        for _it in range(int(self.spring_max_iter)):
-            n_it = _it + 1
-            self._phase = f"{_phase_base}/spring {n_it}"
-            self.solve()
-            Pst_dim = self._cell_avg_positive_pressure_dim()
-            hd_tgt = self._target_hd_nd_from_Pst(Pst_dim)
-            r_curr = hd_tgt - hd_old
-            if _it > 0:
-                diff = r_curr - r_old
-                if abs(diff) > 1e-14:
-                    relax = -relax * (r_old / diff)
-                relax = max(0.01, min(0.2, relax))
-            hd_new = hd_old + relax * r_curr
-            self.hd_nd_const.assign(hd_new)
-            self._update_squeeze_mean()
-            denom = 1.0 + abs(hd_old)
-            if abs(hd_new - hd_old) <= float(self.spring_rtol) * denom:
-                break
-            hd_old = hd_new
-            r_old = r_curr
-        return n_it
-
-    def _solve_with_spring(self) -> None:
-        """One solve at the current level: :meth:`_solve_with_spring_once`, or, in the pair branch of
-        the ripple ([phase-table WP3]), that solve repeated with u_r iterated to the ripple tolerance
-        (:meth:`_pair_solve_with_spring`).  Every call site (the step loop, the mixed subclass's seed
-        and steady solves) is unchanged; a one-member run never enters the branch."""
+    def _solve_level(self) -> None:
+        """One solve at the current level: the Newton solve, or, in the pair branch of the ripple
+        ([phase-table WP3]), that solve repeated with u_r iterated to the ripple tolerance
+        (:meth:`_pair_solve`).  Call sites: the step loop, the end-level pass, and the mixed
+        subclass's seed and steady solves; a one-member run never enters the branch."""
         if self._pair_active:
-            self._pair_solve_with_spring()
+            self._pair_solve()
             return
-        self._solve_with_spring_once()
-
-    def _solve_with_spring_once(self) -> None:
-        """One solve with the optional spring-film coupling wrapped around.
-
-        Dispatches: spring off -> plain Newton solve; spring on ->
-        cell-average fixed-point loop followed by a final
-        consistency solve.  Used by the per-step transient solve here, and
-        by BOTH run_steady() and the transient seed in the MIXED subclass
-        (steady coverage added July 2026 — previously the spring only
-        acted on transient steps).  Timing: Newton time inside the loop is
-        attributed to the Newton bucket; only the coupling overhead lands
-        in _t_spring_coupling.  Note _update_squeeze_mean inside the loops
-        is harmless in steady mode (the squeeze term is gated off by
-        transient_on = 0).
-        """
-        if not self._spring_enabled():
-            self.solve()
-            return
-        _t0_spring = time.perf_counter()
-        _newton_before = self._t_newton_solve
-        self._n_spring_iters_total += self._spring_solve_cell_avg()
         self.solve()
-        _newton_in_spring = self._t_newton_solve - _newton_before
-        self._t_spring_coupling += (
-            time.perf_counter() - _t0_spring) - _newton_in_spring
 
     def _refresh_geometry(self) -> None:
         """[fft_elastic_v1 seam, 16 Oct 2026] Re-evaluate state-dependent
@@ -1445,9 +1336,6 @@ class MicroPhaseNeutralSolver:
     def _ripple_check_task(self) -> None:
         """Per-task refusals (configuration errors, not micro failures)."""
         p = self.params
-        if float(p.k_spring) != 0.0:
-            raise ValueError(f"fluid_deformation='ripple_halfspace' needs k_spring = 0 (plan O4); "
-                             f"got {float(p.k_spring):.3g}")
         a = float(p.roughness_velocity_ratio)
         desc = getattr(self.ht_cb, "contact_cosine", None)
         # [phase-table WP3, 4 Nov 2026] R-e: a two-member generated field (stationary + translating) is
@@ -1629,7 +1517,7 @@ class MicroPhaseNeutralSolver:
 
         Why the end-level pass is exact (section 4.4): a film at a level depends
         only on the geometry and the time (the ripple is held fixed in the surface
-        frame, k_spring = 0 is enforced with the ripple on,
+        frame, the film does not depend on the pressure,
         the contact solve sees the film only), so rebuilding the two levels before
         the end reproduces the BDF history a full run gives the end level, and the
         end solve is warm-started from the previous pass's end level as every level
@@ -1795,7 +1683,7 @@ class MicroPhaseNeutralSolver:
         self._refresh_geometry()
         self._update_squeeze_mean()
 
-    def _pair_solve_with_spring(self) -> None:
+    def _pair_solve(self) -> None:
         """The level's sub-solve with u_r converged (ripple_s3 145-175)."""
         H0 = float(self.params.H0)
         tol = float(self.settings.ripple_tol) * H0
@@ -1803,7 +1691,7 @@ class MicroPhaseNeutralSolver:
         omega, r_old = 1.0, None
         fft = getattr(self.settings, "contact_model", None) == "fft_elastic_v1"
         for it in range(1, PAIR_RIPPLE_MAXIT + 1):
-            self._solve_with_spring_once()
+            self.solve()
             T = self._ripple_target()["T"]
             R = T - u
             if float(np.max(np.abs(R))) <= tol:
@@ -1836,10 +1724,8 @@ class MicroPhaseNeutralSolver:
     def _steady_solve(self) -> None:
         """[Mixed P1.0 seam] Solve site used by run_steady().
 
-        Base: raw Newton solve — byte-identical to the pre-port behaviour
-        (the base spring coupling acts only on transient steps).  The
-        mixed subclass overrides this to _solve_with_spring() (July 2026:
-        spring wraps the steady solve too).
+        Base: raw Newton solve.  The mixed subclass overrides this to
+        _solve_level(), which enters the pair branch of the ripple.
         """
         self.solve()
 
@@ -1847,9 +1733,8 @@ class MicroPhaseNeutralSolver:
         """[Mixed P1.0 seam] Solve site for the transient rolling-steady
         seed at T_start in run().
 
-        Base: raw Newton solve (pre-port behaviour).  The mixed subclass
-        overrides this to _solve_with_spring() — the spring-coupled seed
-        avoids the hd-from-zero jump at step 1.
+        Base: raw Newton solve.  The mixed subclass overrides this to
+        _solve_level(), which enters the pair branch of the ripple.
         """
         self.solve()
 
@@ -2369,9 +2254,8 @@ class MicroPhaseNeutralSolver:
         if hasattr(self, "transient_on"):
             self.transient_on.assign(0.0)
         self._refresh_geometry()         # [fft_elastic_v1 seam] base: no-op
-        # [Mixed P1.0 seam] base: raw solve (pre-port behaviour); mixed
-        # subclass overrides to _solve_with_spring() (July 2026: spring
-        # wraps the steady solve too).
+        # [Mixed P1.0 seam] base: raw solve; the mixed subclass overrides to
+        # _solve_level() (the pair branch of the ripple).
         if self._ripple_on:
             self._ripple_level_begin("steady")
         self._steady_solve()
@@ -2569,15 +2453,14 @@ class MicroPhaseNeutralSolver:
         ``_run_once`` builds it; BDF1 gives it a zero weight but it is filled the
         same way so the state matches).  A film at a level depends only on the
         geometry and the time: the ripple is held fixed in the surface frame,
-        ``k_spring = 0`` is enforced with the ripple
-        on (``_ripple_check_task``), and the contact solve sees
+the film does not depend on the pressure, and the contact solve sees
         the film only.  Rebuilding those two levels therefore reproduces that
         history; the end-level solve is then warm-started from the previous pass's
         end level, as every level of a full pass is.  Level times use the step
         loop's own expression ``T_start + j * dt`` through ``_set_time_level``, so
         every Constant is assigned the value the full run assigned.  The premise
-        fails with a pressure-dependent film (the spring), which the ripple refuses:
-        a future change to those refusals must revisit this method.
+        fails with a pressure-dependent film (the spring removed at WP2 was one):
+        a change that adds one must revisit this method.
 
         Cost: two history levels (2 contact solves, 4 projections), one solve, and
         the final history shift that leaves the solver as a full run leaves it
@@ -2602,7 +2485,7 @@ class MicroPhaseNeutralSolver:
         self._t_init = time.perf_counter() - _t0
         self._phase = f"step {n}/{n} (end level)"
         self._ripple_level_begin(n)
-        self._solve_with_spring()
+        self._solve_level()
         self._ripple_level_end(n)
         _t0 = time.perf_counter()
         self._advance_history()                   # leave the state a full run leaves: nm1 = h(T_end)
@@ -2712,8 +2595,8 @@ class MicroPhaseNeutralSolver:
 
         self._update_squeeze_mean()
 
-        # [Mixed P1.0 seam] base: raw solve (pre-port behaviour); mixed
-        # subclass overrides to _solve_with_spring() (spring-coupled seed).
+        # [Mixed P1.0 seam] base: raw solve; the mixed subclass overrides to
+        # _solve_level().
         self._phase = "transient-seed"
         if self._ripple_on:
             self._ripple_level_begin("seed")
@@ -2758,13 +2641,10 @@ class MicroPhaseNeutralSolver:
 
             self._t_step_overhead += time.perf_counter() - _t0
 
-            # --- Solve with optional spring-film coupling ---
-            # [Mixed P1.0] inline cell-average loop extracted verbatim to
-            # _spring_solve_cell_avg(); _solve_with_spring() dispatches
-            # (spring off -> raw solve; cell-avg unchanged).
+            # --- Solve (the pair branch of the ripple iterates u_r) ---
             if self._ripple_on:
                 self._ripple_level_begin(step)
-            self._solve_with_spring()
+            self._solve_level()
             if self._ripple_on:
                 self._ripple_level_end(step)
 

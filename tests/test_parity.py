@@ -2,6 +2,8 @@
 
 The references (``tests/references/*.npz``) were made by ``tools/make_references.py`` from the
 parent ``MultiscaleMixedBallinSocket`` at 2aaccad, one process per cell, at full double precision.
+``c5_cosine_fullfilm`` was re-made on 11 Nov 2026 with ``k_spring = 0`` (WP2, Rob's decision): the
+case's ``1e20`` "off" value still ran the parent's cell-average spring in that cell.
 
 The rule (plan D6; written before the first run, not fitted to it)
 ------------------------------------------------------------------
@@ -21,6 +23,8 @@ The rule (plan D6; written before the first run, not fitted to it)
   settings must not carry it.  A setting carried under another name and type
   (``REPLACED_SETTINGS``: the parent's ``phase_average`` tag is the flag ``pair_branch``) is
   checked value for value through its stated map.
+* The cell-average spring is removed (WP2).  ``case.k_spring`` passes when the parent's spring
+  did not act on the reference cell (``spring_acted``), whatever value the case stored.
 
 Not compared, by construction:
   ``wall_time``, ``contact_eval_s``, ``pid``, ``task_id``, ``task``     timings and bookkeeping
@@ -85,9 +89,23 @@ REPLACED_SETTINGS = {
 }
 _REPLACEMENT_KEYS = {new for new, _ in REPLACED_SETTINGS.values()}
 
+#: WP2 group 2: the cell-average spring (``k_spring`` of the parent's case) is removed.  The parent
+#: ran it in a transient cell of the full-film class with ``k_spring > 0``; its steady full-film
+#: solve was raw, and its contact class never ran the spring and refused a stiffness between 0 and
+#: this value.
+SPRING_OFF_IN_CONTACT_CLASS = 1e19
+
 #: WP2 group 3: ``contact_model`` of a full-film cell's result.  The parent's result carried its
 #: default tag there; that law is gone and the API reports "off".
 FULL_FILM_CONTACT_TAG = {"legacy_patch_v1": "off"}
+
+
+def spring_acted(ref: dict) -> bool:
+    """True when the parent's cell-average spring changed this reference cell."""
+    k = float(ref["micro_case"]["k_spring"])
+    if bool(ref["micro_case"]["mixed_enabled"]):
+        return 0.0 < k < SPRING_OFF_IN_CONTACT_CLASS
+    return k > 0.0 and bool(ref["meta"]["transient"])
 
 
 def reference_cells():
@@ -116,8 +134,7 @@ def settings_from_reference(ref: dict):
         k_asp_exponent=mc["k_asp_exponent"]) if mixed else None
     ripple = RippleSettings(E_star=mc["fluid_E_star"], tol=sj["ripple_tol"], maxpass=sj["ripple_maxpass"],
                             omega=sj["ripple_omega"]) if mc["fluid_deformation"] != "off" else None
-    legacy = dict(beta=mc["beta"], delta_h=mc["delta_h"], eps_solid=mc["eps_solid"], eps_smooth=mc["eps_smooth"],
-                  k_spring=mc["k_spring"])
+    legacy = dict(beta=mc["beta"], delta_h=mc["delta_h"], eps_solid=mc["eps_solid"], eps_smooth=mc["eps_smooth"])
     return MicroSettings(
         mesh_n=int(meta["mesh_used"]), xmax=mc["xmax"], ymax=mc["ymax"], eta0=mc["eta0"], rho0=mc["rho0"],
         penalty_gamma=mc["penalty_gamma"], h_min=mc["h_min"], spos_form=mc["spos_form"],
@@ -268,6 +285,12 @@ def run_cell(cell: str) -> dict:
             r["ok"] = False
         r["kind"] = "setting"
         records.append(r)
+    acted = spring_acted(ref)
+    records.append({"name": "case.k_spring", "kind": "setting", "rel": float("inf") if acted else 0.0,
+                    "ok": not acted,
+                    "note": "" if not acted else (
+                        f"removed option: the reference was made with k_spring = {ref['micro_case']['k_spring']!r}, "
+                        "under which the parent's cell-average spring acted on this cell")})
     if rough.kind == "surface":
         records.append(dict(compare_scalar("surface.envelope_m", ref["surface"]["envelope_m"],
                                            rough.field().envelope_m), kind="setting"))
@@ -381,6 +404,22 @@ def test_removed_setting_is_checked(monkeypatch):
     monkeypatch.setitem(REMOVED_SETTINGS, "spring_pointwise", True)
     res = run_cell("c8_cosine_fullfilm_steady")
     assert [r["name"] for r in res["records"] if not r["ok"]] == ["settings.spring_pointwise"]
+
+
+def test_removed_spring_is_checked(monkeypatch):
+    """Negative control of the removed spring: a transient full-film reference whose case carries a
+    positive ``k_spring`` (as c5 did before it was re-made) must FAIL on ``case.k_spring`` and on
+    nothing else."""
+    original = load_reference
+
+    def with_spring(cell):
+        ref = original(cell)
+        ref["micro_case"] = dict(ref["micro_case"], k_spring=1e20)
+        return ref
+
+    monkeypatch.setattr(sys.modules[__name__], "load_reference", with_spring)
+    res = run_cell("c5_cosine_fullfilm")
+    assert [r["name"] for r in res["records"] if not r["ok"]] == ["case.k_spring"]
 
 
 # ---------------------------------------------------------------------------------------

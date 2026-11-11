@@ -97,12 +97,6 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         self.contact_traction = sample_contact_traction(self)
         return out
 
-    def _spring_enabled(self):
-        # This milestone has prescribed geometry, including for the historical
-        # 1e20 Pa/m 'off' convention. No tiny residual spring iteration.
-        self._fft_validate()     # micro fluid deformation is off in stage 1 (D6)
-        return False
-
     # ------------------------------------------------------------------
     # fft_elastic_v1: film and mask graph, grid map, refresh (plan WP3)
     # ------------------------------------------------------------------
@@ -153,8 +147,6 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         s = self.settings
         if s.contact_E_star is None or not np.isfinite(s.contact_E_star) or s.contact_E_star <= 0:
             raise ValueError("fft_elastic_v1 requires an explicit positive two-body contact_E_star")
-        if 0 < self.params.k_spring < 1e19:
-            raise ValueError("fft_elastic_v1 stage 1 requires micro fluid deformation off (D6)")
         if s.k_asp_mode not in ("off", "closure"):
             raise ValueError("k_asp_mode must be 'off' or 'closure'")
         descriptor = getattr(self.ht_cb, "contact_cosine", None)

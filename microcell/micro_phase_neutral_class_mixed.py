@@ -22,12 +22,11 @@ Delta vs the base solver (all validated by tests/diagnose_contact_blowup.py):
 * Mask-weighted squeeze compensation in the legacy branch (MIXED FIX):
   removes the spurious O(1) dead-zone source that caused the uniform
   ~6e7 Pa post-contact blow-up.
-* ``chi_fluid``-restricted spring load (contact pressure must not load
-  the spring) and fluid-masked homogenisation outputs (incl. Pst_fluid).
+* Fluid-masked homogenisation outputs (incl. Pst_fluid).
 * ``record_homog`` / ``homog_history`` per-step homogenisation recording.
-* [Mixed P1.0, July 2026 port] spring coupling wraps the STEADY solve and
-  the transient SEED (``_steady_solve``/``_seed_solve`` overrides →
-  ``_solve_with_spring``).
+* The STEADY solve and the transient SEED go through ``_solve_level``
+  (``_steady_solve``/``_seed_solve`` overrides), so the pair branch of the
+  ripple covers them.
 
 All reductions hold: legacy masked model for h_min = 0; masked transport
 for static textures (v_p = 0).
@@ -492,37 +491,15 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
         return beta + gamma * spos_deriv_mean
 
     # ------------------------------------------------------------------
-    # Spring load: fluid pressure only (MIXED FIX)
-    # ------------------------------------------------------------------
-    def _cell_avg_positive_pressure_dim(self) -> float:
-        """Cell-averaged positive FLUID pressure (Pa).
-
-        The integrand is restricted to the fluid region via ``chi_fluid``
-        — contact-region pressures are fictitious and must not load the
-        spring.  Denominator stays the TOTAL cell area.  Identical to the
-        base when h_min = 0 (chi_fluid == 1).
-        """
-        Ppos = conditional(gt(self.P_dim, Constant(0.0)), self.P_dim, Constant(0.0))
-        area = getattr(self, "_area_total", 1.0)
-        return float(assemble(self.chi_fluid * Ppos * dx(domain=self.mesh_m)) / area)
-
-    # ------------------------------------------------------------------
-    # [Mixed P1.0] July-2026 spring coverage (ported from the root-tree
-    # monolith): the spring-film coupling wraps the STEADY solve and the
-    # transient rolling-steady SEED too — previously (and still, in the
-    # base class) the spring acted only on per-step transient solves.
-    # Steady coverage means run_steady() at k_spring > 0 converges the
-    # hd <-> P fixed point instead of solving at hd = 0; the seed
-    # coverage avoids the hd-from-zero jump at step 1 of a transient.
-    # Kept OUT of the base class deliberately: the production full-film
-    # worker instantiates the base with k_spring = 1e20, so a base-level
-    # port would shift the flag-OFF baselines (locked --exact gate).
+    # The steady solve and the transient rolling-steady seed go through
+    # _solve_level(), which enters the pair branch of the ripple; the base
+    # class solves them raw.
     # ------------------------------------------------------------------
     def _steady_solve(self) -> None:
-        self._solve_with_spring()
+        self._solve_level()
 
     def _seed_solve(self) -> None:
-        self._solve_with_spring()
+        self._solve_level()
 
     # ------------------------------------------------------------------
     # Runs: clear/record homogenisation history around the base loops

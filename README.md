@@ -71,7 +71,7 @@ Every file below started as the parent's file at commit
 `docs/notes/provenance.tsv`.
 
 The five files marked "pruned" were cut in WP2 (11 Nov 2026) and are no longer the parent's
-text: the pointwise spring mode, the `legacy_patch_v1` and `hertz_summit_v1` contact laws, the
+text: the spring film coupling (`k_spring`), the `legacy_patch_v1` and `hertz_summit_v1` contact laws, the
 Roelands and compressibility stubs, `gauge_lift`, the `c2` cavitation form, the solver's export
 hooks, the warm-start plumbing, the contact-table code and the solver's environment reads are
 gone.  What went, group by group, with the parity after each:
