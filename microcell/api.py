@@ -187,8 +187,15 @@ class MicroSettings:
 @dataclass
 class MicroResult:
     """One cell's outputs (SI).  ``status`` is ``"OK"`` or a ``FAILED_*`` code with ``reason``;
-    every homogenised output of a failed cell is NaN.  The asperity and total shear means of a
-    full-film cell are NaN with ``info["shear_asperity_status"] == "unavailable"``."""
+    every homogenised output of a failed cell is NaN and it has no fields.  The asperity and total
+    shear means of a full-film cell are NaN with ``info["shear_asperity_status"] == "unavailable"``.
+
+    Each output is in one place: the homogenised outputs below, the arrays in ``fields``, and
+    everything else in ``info`` under the parent's ``MicroTaskResult`` name -- the statuses and
+    formulation tags, the counters, the pressure ledger, the ripple and contact numbers, the
+    sampled shear statistics, the call (``mesh_n``, ``steady``, ``t_end``, ``n_steps``, ``offset``,
+    ``roughness_velocity_ratio``, ``t_start``, ``dt``), ``wall_time`` and the field diagnostics
+    (``info["fields"]``).  An OK and a failed result carry the same ``info`` entries."""
     status: str
     reason: str
     dQ: np.ndarray              # (2,) Q - Q_reynolds [m^2/s]
@@ -211,8 +218,6 @@ class MicroResult:
     yield_flag: int
     fields: Dict[str, np.ndarray] = field(default_factory=dict)
     info: Dict[str, Any] = field(default_factory=dict)
-    #: the outputs under the parent's ``MicroTaskResult`` field names (parity work; WP4 removes it)
-    raw: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
@@ -262,75 +267,55 @@ def reynolds_flux(steady: bool, zeta: Zeta, t_end: float, eta0: float) -> np.nda
     return np.column_stack((qx, qy))
 
 
-def _failed_raw(st: MicroSettings, mixed: bool, ripple_on: bool, lc_fields: dict, reason: str,
-                counters: dict, wall: float) -> dict:
-    """The worker's ``_nan_return`` by field name."""
+#: ``info`` numbers of the solve: NaN in a failed result
+_SOLVE_NUMBERS = ("Pst_fluid", "P_patch", "P_fluid_pos", "P_fluid_neg", "fmax", "fmin", "lambda_nd", "spos_mean",
+                  "A_patch_frac", "n_patches", "pasp_patch_max", "contact_residual", "contact_resolution")
+#: ``info`` numbers of the ripple: 0.0 without the ripple, NaN in a failed result with it
+_RIPPLE_NUMBERS = ("ripple_max", "ripple_resid", "ripple_mean_resid", "ripple_seam_mismatch", "ripple_proj_err")
+
+
+def _vec2(v) -> np.ndarray:
+    return np.asarray(v, dtype=float).reshape(-1)[:2].copy()
+
+
+def _full_film_contact_shear() -> dict:
+    """The asperity and total shear entries of a full-film cell: no contact law ran, so every
+    statistic is NaN with status ``unavailable`` (the parent's ``MicroTaskResult`` defaults)."""
     from microcell import contact_shear as _cshear
-    from microcell import ripple as _ripple
+
+    out = {k: _NAN for k in _cshear.FIELDS}
+    out.update(shear_asperity_mean_local_Pa=(_NAN, _NAN), shear_total_mean_local_Pa=(_NAN, _NAN),
+               shear_asperity_status=_cshear.UNAVAILABLE, shear_total_status=_cshear.UNAVAILABLE,
+               shear_contact_definition="unversioned", shear_contact_n_samples=0)
+    return out
+
+
+def _failed_result(status: str, reason: str, info: dict, mixed: bool, ripple_on: bool) -> MicroResult:
+    """The one place a failed result is built (the worker's ``_nan_return``).
+
+    Every named output is NaN (``yield_flag`` 0) and there are no fields.  ``info`` is the
+    caller's outcome-independent entries plus the entries an OK result adds, with NaN numbers
+    and ``failed`` statuses; the asperity and total shear of a full-film cell stay ``unavailable``."""
+    from microcell import contact_shear as _cshear
     from microcell.fluid_shear import failed_shear_fields
-    from microcell.pressure import DELTA_P_DEFINITION, EXTREMA_FAILED, PRESSURE_EXTREMA_DEFINITION
-
-    nan2 = np.array([np.nan, np.nan])
-    raw = dict(
-        delta_Q=nan2.copy(), delta_P=_NAN, delta_P_definition=DELTA_P_DEFINITION, Pst=_NAN, Q=nan2.copy(),
-        Fst=_NAN, tau_res=nan2.copy(), p_max=_NAN, p_min=_NAN, h_max=_NAN, h_min=_NAN, fmax=_NAN, fmin=_NAN,
-        wall_time=wall, lambda_nd=_NAN, spos_mean=_NAN, Pasp_hom=_NAN, contact_frac=_NAN, yield_flag=0,
-        mesh_used=int(st.mesh_n), A_patch_frac=_NAN, n_patches=_NAN, pasp_patch_max=_NAN, k_asp_hom=_NAN,
-        A_mech_frac=_NAN, contact_geometry_valid=0.0,
-        contact_model=CONTACT_FFT if mixed else CONTACT_OFF,
-        failure_reason=reason, contact_eval_s=counters["contact_s"], newton_iters=counters["newton"],
-        contact_iters=counters["contact"], contact_residual=_NAN, contact_resolution=_NAN,
-        ripple_passes=counters["ripple"],
-        ripple_max=_NAN if ripple_on else 0.0, ripple_resid=_NAN if ripple_on else 0.0,
-        ripple_mean_resid=_NAN if ripple_on else 0.0, ripple_seam_mismatch=_NAN if ripple_on else 0.0,
-        ripple_proj_err=_NAN if ripple_on else 0.0,
-        deformation_model=_ripple.RIPPLE_MODEL if ripple_on else "off",
-        P_f=_NAN, Pst_fluid=_NAN, P_patch=_NAN, P_fluid_pos=_NAN, P_fluid_neg=_NAN,
-        pressure_extrema_status=EXTREMA_FAILED, pressure_extrema_definition=PRESSURE_EXTREMA_DEFINITION,
-        **failed_shear_fields(),
-        **(_cshear.failed_contact_shear_fields() if mixed else {}),
-        **lc_fields,
-    )
-    return raw
-
-
-#: the parent's ``MicroTaskResult`` defaults of the appended fields a call may not fill
-_RAW_DEFAULTS: Dict[str, Any] = dict(
-    A_mech_frac=0.0, contact_geometry_valid=1.0, contact_model=CONTACT_OFF, failure_reason="",
-    contact_eval_s=0.0, newton_iters=0, contact_iters=0, contact_residual=0.0, contact_resolution=0.0,
-    ripple_passes=0, ripple_max=0.0, ripple_resid=0.0, ripple_mean_resid=0.0, ripple_seam_mismatch=0.0,
-    ripple_proj_err=0.0, deformation_model="off",
-    shear_asperity_mean_local_Pa=(_NAN, _NAN), shear_asperity_gx_min_Pa=_NAN, shear_asperity_gx_max_Pa=_NAN,
-    shear_asperity_gx_sample_mean_Pa=_NAN, shear_asperity_support_fraction=_NAN,
-    shear_asperity_status="unavailable",
-    shear_total_mean_local_Pa=(_NAN, _NAN), shear_total_gx_min_Pa=_NAN, shear_total_gx_max_Pa=_NAN,
-    shear_total_gx_sample_mean_Pa=_NAN, shear_total_status="unavailable",
-    shear_contact_overlap_fraction=_NAN, shear_contact_force_on_fluid_fraction=_NAN,
-    shear_contact_obstruction_without_pressure_fraction=_NAN, shear_contact_mean_check=_NAN,
-    shear_contact_definition="unversioned", shear_contact_n_samples=0,
-    level_constraint="whole_cell", n_whole_cell=0, n_fluid_mean=0, n_no_fluid=0,
-)
-
-
-def _result(status: str, reason: str, raw: dict, fields: dict, info: dict) -> MicroResult:
-    def vec(key):
-        return np.asarray(raw.get(key, (_NAN, _NAN)), dtype=float).reshape(-1)[:2].copy()
+    from microcell.pressure import EXTREMA_FAILED
 
     info = dict(info)
-    for key in ("pressure_extrema_status", "shear_extrema_status", "shear_asperity_status",
-                "shear_total_status", "deformation_model", "contact_model", "level_constraint"):
-        info[key] = raw.get(key)
+    info.update({k: _NAN for k in _SOLVE_NUMBERS})
+    info.update({k: (_NAN if ripple_on else 0.0) for k in _RIPPLE_NUMBERS})
+    info.update(contact_geometry_valid=0.0, pressure_extrema_status=EXTREMA_FAILED, p_fluid_n_samples=0,
+                fields={})
+    info.update(failed_shear_fields())
+    contact_shear = _cshear.failed_contact_shear_fields() if mixed else _full_film_contact_shear()
+    tau_asperity = _vec2(contact_shear.pop("shear_asperity_mean_local_Pa"))
+    tau_total = _vec2(contact_shear.pop("shear_total_mean_local_Pa"))
+    info.update(contact_shear)
+    nan2 = np.array([_NAN, _NAN])
     return MicroResult(
-        status=status, reason=reason,
-        dQ=vec("delta_Q"), dP=float(raw["delta_P"]), Q=vec("Q"), Pst=float(raw["Pst"]),
-        P_f=float(raw["P_f"]), Fst=float(raw["Fst"]),
-        tau_fluid=vec("tau_res"), tau_asperity=vec("shear_asperity_mean_local_Pa"),
-        tau_total=vec("shear_total_mean_local_Pa"),
-        P_asp=float(raw["Pasp_hom"]), contact_frac=float(raw["contact_frac"]),
-        A_mech_frac=float(raw["A_mech_frac"]), k_asp=float(raw["k_asp_hom"]),
-        p_max=float(raw["p_max"]), p_min=float(raw["p_min"]),
-        h_max=float(raw["h_max"]), h_min=float(raw["h_min"]),
-        yield_flag=int(raw["yield_flag"]), fields=fields, info=info, raw=raw)
+        status=status, reason=reason, dQ=nan2.copy(), dP=_NAN, Q=nan2.copy(), Pst=_NAN, P_f=_NAN, Fst=_NAN,
+        tau_fluid=nan2.copy(), tau_asperity=tau_asperity, tau_total=tau_total,
+        P_asp=_NAN, contact_frac=_NAN, A_mech_frac=_NAN, k_asp=_NAN, p_max=_NAN, p_min=_NAN,
+        h_max=_NAN, h_min=_NAN, yield_flag=0, fields={}, info=info)
 
 
 # ----------------------------------------------------------------------------------------
@@ -436,12 +421,6 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     counters = dict(newton=0, contact=0, ripple=0, contact_s=0.0)
     lc_counts = [0, 0, 0]
 
-    def lc_fields() -> dict:
-        if lc_tag == "whole_cell":
-            return {}
-        return dict(level_constraint=lc_tag, n_whole_cell=int(lc_counts[0]),
-                    n_fluid_mean=int(lc_counts[1]), n_no_fluid=int(lc_counts[2]))
-
     out_dir = Path(output_dir) if output_dir is not None else Path(os.getcwd()) / "microcell_output"
     solver = SolverCls(
         mesh_m=mesh, zeta=task, t_end=tend, settings=st, ht=ht_cb, velocity_ratio=ratio, pair=pair,
@@ -449,14 +428,25 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     )
     ci_seen = int(getattr(solver, "_contact_iterations", 0))
 
-    base_info = dict(mesh_n=int(st.mesh_n), steady=steady, t_end=tend, n_steps=(0 if steady else n_steps),
-                     offset=offset, roughness_velocity_ratio=float(ratio))
+    def info_now() -> dict:
+        """The ``info`` entries that do not depend on the solve's outcome, as they stand now."""
+        # the parent reports no level-constraint counts with "whole_cell"
+        counts = (0, 0, 0) if lc_tag == "whole_cell" else lc_counts
+        return dict(
+            mesh_n=int(st.mesh_n), steady=steady, t_end=tend, n_steps=(0 if steady else n_steps), offset=offset,
+            roughness_velocity_ratio=float(ratio),
+            t_start=(None if steady else float(getattr(solver, "T_start", _NAN))),
+            dt=(None if steady else float(getattr(solver, "dt_dim_run", _NAN))),
+            contact_model=CONTACT_FFT if mixed else CONTACT_OFF,
+            deformation_model=_ripple.RIPPLE_MODEL if ripple_on else "off",
+            level_constraint=lc_tag, n_whole_cell=int(counts[0]), n_fluid_mean=int(counts[1]),
+            n_no_fluid=int(counts[2]),
+            delta_P_definition=DELTA_P_DEFINITION, pressure_extrema_definition=PRESSURE_EXTREMA_DEFINITION,
+            newton_iters=counters["newton"], contact_iters=counters["contact"], ripple_passes=counters["ripple"],
+            contact_eval_s=counters["contact_s"], wall_time=time.time() - start)
 
     def failed(status: str, reason: str) -> MicroResult:
-        raw = _failed_raw(st, mixed, ripple_on, lc_fields(), reason, counters, time.time() - start)
-        info = dict(base_info, newton_iters=counters["newton"], contact_iters=counters["contact"],
-                    ripple_passes=counters["ripple"], wall_time=raw["wall_time"])
-        return _result(status, reason, raw, {}, info)
+        return _failed_result(status, reason, info_now(), mixed, ripple_on)
 
     # --- solve -----------------------------------------------------------------------------
     try:
@@ -539,47 +529,9 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     extrema = union_pressure_extrema([extrema_phase])
     shear = union_fluid_traction([traction_phase])
     contact_shear = _cshear.union_contact_traction([contact_phase]) if contact_phase is not None else None
-    inv_n = 1.0
-    Qx, Qy, Pst, Fst = Qx * inv_n, Qy * inv_n, Pst * inv_n, Fst * inv_n
-    taust_x, taust_y = taust_x * inv_n, taust_y * inv_n
-
     Q = np.column_stack((Qx, Qy))
-    tau_res = np.array([taust_x, taust_y])
     Q_re = reynolds_flux(steady, zeta, tend, st.eta0)
     P_re = P if steady else (P + Pdot * tend)
-    delta_Q = Q - Q_re
-    delta_P = ledger["P_f"] - P_re
-
-    raw = dict(_RAW_DEFAULTS)
-    raw.update(
-        delta_Q=delta_Q, delta_P=delta_P, Pst=Pst, Q=Q, Fst=Fst, tau_res=tau_res,
-        p_max=extrema["p_max"], p_min=extrema["p_min"], h_max=h_max * inv_n, h_min=h_min * inv_n,
-        fmax=fmax * inv_n, fmin=fmin * inv_n, wall_time=time.time() - start,
-        lambda_nd=lambda_nd * inv_n, spos_mean=spos_mean * inv_n,
-        Pasp_hom=Pasp * inv_n, contact_frac=contact_frac * inv_n, yield_flag=int(yield_flag),
-        mesh_used=int(st.mesh_n), A_patch_frac=A_patch * inv_n, n_patches=n_patches * inv_n,
-        pasp_patch_max=pasp_patch_max, k_asp_hom=k_asp * inv_n, A_mech_frac=A_mech * inv_n,
-        contact_geometry_valid=geometry_valid,
-        contact_model=CONTACT_FFT if mixed else CONTACT_OFF,
-        contact_eval_s=counters["contact_s"], newton_iters=counters["newton"],
-        contact_iters=counters["contact"], contact_residual=contact_residual,
-        contact_resolution=contact_resolution,
-        **{k: ledger[k] for k in PRESSURE_FIELDS if k != "Pst"},
-        delta_P_definition=DELTA_P_DEFINITION,
-    )
-    if ripple_on:
-        raw.update(ripple_passes=int(ripple_info["passes"]), ripple_max=float(ripple_info["max"]),
-                   ripple_resid=float(ripple_info["resid"]), ripple_mean_resid=float(ripple_info["mean_resid"]),
-                   ripple_seam_mismatch=float(ripple_info["seam_mismatch"]),
-                   ripple_proj_err=float(ripple_info["proj_err"]), deformation_model=str(ripple_info["model"]))
-    raw.update(p_fluid_sample_max_Pa=extrema["p_max"], p_fluid_sample_min_Pa=extrema["p_min"],
-               pressure_extrema_status=extrema["status"], pressure_extrema_definition=PRESSURE_EXTREMA_DEFINITION,
-               p_max_phase_mean=extrema["p_max_phase_mean"], p_min_phase_mean=extrema["p_min_phase_mean"],
-               p_fluid_n_samples=int(extrema["n_fluid_samples"]))
-    raw.update(shear_fields(shear))
-    if contact_shear is not None:
-        raw.update(_cshear.contact_shear_fields(contact_shear))
-    raw.update(lc_fields())
 
     # --- fields ------------------------------------------------------------------------------
     shown, cell_fields, field_info = _fields.extract_fields(solver, mixed)
@@ -589,19 +541,41 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     fields["x"], fields["y"] = np.meshgrid(xs, ys, indexing="ij")
     fields["chi_fluid_dg0"] = cell_fields["chi_fluid_dg0"]      # per mesh cell (DG0 dof order), not a grid
 
-    info = dict(base_info)
-    info.update(newton_iters=counters["newton"], contact_iters=counters["contact"],
-                ripple_passes=int(raw["ripple_passes"]), contact_residual=contact_residual,
-                contact_resolution=contact_resolution, lambda_nd=lambda_nd, spos_mean=spos_mean,
-                t_start=(None if steady else float(getattr(solver, "T_start", _NAN))),
-                dt=(None if steady else float(getattr(solver, "dt_dim_run", _NAN))),
-                fields=field_info)
+    paraview = None
     if save_paraview:
         out_dir.mkdir(parents=True, exist_ok=True)
         Lx_um, Ly_um = float(st.xmax) * 1e6, float(st.ymax) * 1e6
         _fields.write_vts(out_dir / "cell.vts", shown, Lx_um, Ly_um)
         _fields.write_xdmf(out_dir / "cell.xdmf", solver, shown, cell_fields, Lx_um, Ly_um)
-        info["paraview"] = [str(out_dir / "cell.vts"), str(out_dir / "cell.xdmf")]
-    raw["wall_time"] = time.time() - start
-    info["wall_time"] = raw["wall_time"]
-    return _result(OK, "", raw, fields, info)
+        paraview = [str(out_dir / "cell.vts"), str(out_dir / "cell.xdmf")]
+
+    # --- the result: each output once ------------------------------------------------------------
+    info = info_now()
+    info.update(
+        **{k: ledger[k] for k in PRESSURE_FIELDS if k not in ("Pst", "P_f")},
+        fmax=fmax, fmin=fmin, lambda_nd=lambda_nd, spos_mean=spos_mean,
+        A_patch_frac=A_patch, n_patches=n_patches, pasp_patch_max=pasp_patch_max,
+        contact_geometry_valid=geometry_valid, contact_residual=contact_residual,
+        contact_resolution=contact_resolution,
+        pressure_extrema_status=extrema["status"], p_fluid_n_samples=int(extrema["n_fluid_samples"]),
+        fields=field_info)
+    if ripple_on:
+        info.update(ripple_passes=int(ripple_info["passes"]),
+                    **{k: float(ripple_info[k[len("ripple_"):]]) for k in _RIPPLE_NUMBERS})
+    else:
+        info.update({k: 0.0 for k in _RIPPLE_NUMBERS})
+    info.update(shear_fields(shear))
+    contact_shear = (_cshear.contact_shear_fields(contact_shear) if contact_shear is not None
+                     else _full_film_contact_shear())
+    tau_asperity = _vec2(contact_shear.pop("shear_asperity_mean_local_Pa"))
+    tau_total = _vec2(contact_shear.pop("shear_total_mean_local_Pa"))
+    info.update(contact_shear)
+    if paraview is not None:
+        info["paraview"] = paraview
+    return MicroResult(
+        status=OK, reason="", dQ=_vec2(Q - Q_re), dP=float(ledger["P_f"] - P_re), Q=_vec2(Q), Pst=float(Pst),
+        P_f=float(ledger["P_f"]), Fst=float(Fst), tau_fluid=_vec2((taust_x, taust_y)),
+        tau_asperity=tau_asperity, tau_total=tau_total,
+        P_asp=float(Pasp), contact_frac=float(contact_frac), A_mech_frac=float(A_mech), k_asp=float(k_asp),
+        p_max=float(extrema["p_max"]), p_min=float(extrema["p_min"]), h_max=float(h_max), h_min=float(h_min),
+        yield_flag=int(yield_flag), fields=fields, info=info)

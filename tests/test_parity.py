@@ -11,8 +11,8 @@ The rule (plan D6; written before the first run, not fitted to it)
   reference's recorded case and settings, the roughness from the reference's stored surface
   arrays (or cosine parameters), ``Zeta.from_task`` of its task tuple, its time window, its
   ``n_steps`` and its offset.
-* Homogenised outputs (every field of the parent's ``MicroTaskResult``, by name) and the
-  field diagnostics: floats and each component of a vector pass when
+* Homogenised outputs (every field of the parent's ``MicroTaskResult``, read from where a
+  ``MicroResult`` holds it now: ``RESULT_NOW``, WP4) and the field diagnostics: floats and each component of a vector pass when
   ``|a - b| <= 1e-12 * max(|a|, |b|)``; a NaN must be a NaN on both sides; integers and
   strings must be equal.
 * Fields (the ``_extract_fields`` arrays in SI, and the DG0 fluid indicator): same shape, the
@@ -154,6 +154,36 @@ SPRING_OFF_IN_CONTACT_CLASS = 1e19
 #: WP2 group 3: ``contact_model`` of a full-film cell's result.  The parent's result carried its
 #: default tag there; that law is gone and the API reports "off".
 FULL_FILM_CONTACT_TAG = {"legacy_patch_v1": "off"}
+
+#: WP4: where a ``MicroResult`` holds each field of the parent's ``MicroTaskResult``.  A value is a
+#: named output of ``MicroResult`` or ``info.<key>``; a field not listed is ``info[<the same name>]``.
+#: Four of the parent's fields are no longer written because, with one phase per call, they are a
+#: second copy of an extremum (the parent wrote ``p_max`` twice, and its mean over the phases of
+#: the phase extrema is the extremum of the one phase); they are still compared, against the one
+#: place the number is held.
+RESULT_NOW = {
+    "delta_Q": "dQ", "delta_P": "dP", "Q": "Q", "Pst": "Pst", "P_f": "P_f", "Fst": "Fst",
+    "tau_res": "tau_fluid",
+    "shear_asperity_mean_local_Pa": "tau_asperity", "shear_total_mean_local_Pa": "tau_total",
+    "Pasp_hom": "P_asp", "contact_frac": "contact_frac", "A_mech_frac": "A_mech_frac", "k_asp_hom": "k_asp",
+    "p_max": "p_max", "p_min": "p_min", "h_max": "h_max", "h_min": "h_min", "yield_flag": "yield_flag",
+    "p_fluid_sample_max_Pa": "p_max", "p_max_phase_mean": "p_max",     # second copies, one phase per call
+    "p_fluid_sample_min_Pa": "p_min", "p_min_phase_mean": "p_min",
+    "failure_reason": "reason",
+    "mesh_used": "info.mesh_n",
+}
+#: ``info`` entries that are not a field of the parent's result: the call, and the field diagnostics
+INFO_OF_THE_CALL = ("steady", "t_end", "n_steps", "offset", "roughness_velocity_ratio", "t_start", "dt",
+                    "fields", "paraview")
+_MISSING = object()
+
+
+def result_now(out, key: str):
+    """The parent's result field ``key`` as the ``MicroResult`` holds it (``_MISSING`` if it does not)."""
+    where = RESULT_NOW.get(key, "info." + key)
+    if where.startswith("info."):
+        return out.info.get(where[len("info."):], _MISSING)
+    return getattr(out, where)
 
 
 def spring_acted(ref: dict) -> bool:
@@ -405,10 +435,17 @@ def run_cell(cell: str) -> dict:
     for key in sorted(result):
         if key in NOT_COMPARED or (pair and key in PAIR_NOT_COMPARED):
             continue
-        if key not in out.raw:
+        got = result_now(out, key)
+        if got is _MISSING:
             records.append({"name": key, "kind": "scalar", "rel": float("inf"), "ok": False, "note": "missing"})
             continue
-        records.append(compare_scalar(key, result[key], out.raw[key]))
+        records.append(compare_scalar(key, result[key], got))
+    # each output once: nothing in info but the parent's fields (compared or listed as not) and the call
+    held = {RESULT_NOW.get(k, "info." + k) for k in result}
+    unknown = sorted(k for k in out.info if "info." + k not in held and k not in INFO_OF_THE_CALL)
+    if unknown:
+        records.append({"name": "info", "kind": "scalar", "rel": float("inf"), "ok": False,
+                        "note": f"info entries that are neither a field of the parent's result nor the call: {unknown}"})
     for key in sorted(ref["info"]):
         got = out.info.get("fields", {}).get(key)
         records.append(dict(compare_scalar(f"info.{key}", ref["info"][key], got), kind="diagnostic")
