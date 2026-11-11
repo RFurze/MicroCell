@@ -33,13 +33,14 @@ NaN on OK results are the asperity and total shear of the two full-film cells, `
 
 **Changed test expectations:** six, all in how the gate reads the code, none in a number (§8).
 
-**Departures:** six (§9). Two are Rob's to accept or reverse: 9.2 (a failed result's `info`
-has every entry of an OK result) and 9.5 (`check()` refuses three values the solver accepted).
+**Departures:** six (§9). Two were Rob's to accept or reverse, 9.2 (a failed result's `info` has
+every entry of an OK result) and 9.5 (`check()` refuses three values the solver accepted):
+he kept both, 11 Nov 2026 ("Keep both").
 
 **Not measured, by code reading only:** the statuses `no_fluid` and `phase_invalid` explain a
 NaN in `NAN_STATUS` but no reference cell or test reaches them (§5).
 
-**For Rob.** Push `main` when he chooses. Decide 9.2 and 9.5 (recommendation: keep both).
+**For Rob.** Push `main` when he chooses.
 WP5 in a fresh session: it starts with the renames (answer 6) and builds `n_steps=None`
 (answer 5).
 
@@ -357,7 +358,7 @@ result. Three values differ from the base (measured: the forced-failure rows of
 reading `api.py`): `shear_asperity_status` and `shear_total_status` of a failed full-film solve
 were `None` and are `unavailable`; `level_constraint` of a failed `whole_cell` solve was `None`
 and is `whole_cell`. Not put to Rob as a question. To reverse: set the three in
-`api._failed_result()`.
+`api._failed_result()`. **Kept by Rob, 11 Nov 2026.**
 
 9.3 **A test file was added in group 3**, `tests/test_results.py`; the brief places the new
 test in group 4. Group 4 extended it.
@@ -368,7 +369,7 @@ replaces it.
 9.5 **`check()` refuses more than the solver did** (2b): `delta_h`, `eps_solid`, `eps_smooth`
 not finite or negative. The solver accepted any value of the three legacy keys. None of the
 eight cells or the example is affected (they pass). Not put to Rob as a question. To reverse:
-three lines of `check()` and three cases of `tests/test_settings.py`.
+three lines of `check()` and three cases of `tests/test_settings.py`. **Kept by Rob, 11 Nov 2026.**
 
 9.6 **An infinity is treated as a NaN** by `FAILED_NONFINITE`. Answer 3 spoke of NaN.
 
@@ -394,7 +395,7 @@ three lines of `check()` and three cases of `tests/test_settings.py`.
 ## 11. Open items
 
 1. Rob pushes `main`.
-2. Rob: accept or reverse departures 9.2 and 9.5.
+2. Departures 9.2 and 9.5: closed, Rob kept both (11 Nov 2026).
 3. WP5, fresh session: renames as the first commit (answer 6); `n_steps=None` with its own test
    (answer 5); the candidates of §10.
 4. No test reaches `no_fluid` or `phase_invalid` (§5).
