@@ -36,6 +36,10 @@ from typing import Any, Dict, Optional, Tuple
 import numpy as np
 
 OK = "OK"
+#: ``contact_model`` of a result: the one contact law, or "off" for a full-film cell
+#: (the parent's result carried its default tag ``legacy_patch_v1`` there; WP2 dropped that law)
+CONTACT_FFT = "fft_elastic_v1"
+CONTACT_OFF = "off"
 FAILED_NEWTON = "FAILED_NEWTON"
 FAILED_RIPPLE = "FAILED_RIPPLE"
 FAILED_CONTACT = "FAILED_CONTACT"
@@ -88,13 +92,13 @@ class ContactSettings:
     """Elastic asperity contact (``fft_elastic_v1``).  ``MicroSettings.contact = None`` is the
     full-film mode."""
     E_star: float = 203775203775.2038       # reduced modulus [Pa]
-    nu: float = 0.26
+    nu: float = 0.26                        # not read since WP2 (E_star carries it); kept until WP4
     tol: float = 1e-11                      # contact solve tolerance (1e-11 for h_min near 1e-11 m)
     maxit: int = 500
     sigma_yield: float = 250e6              # [Pa]
     mu: float = 0.8                         # boundary friction coefficient of the asperity traction
     k_asp_mode: str = "closure"
-    k_asp_exponent: float = 1.5
+    k_asp_exponent: float = 1.5             # not read since WP2 (the dropped legacy closure only); kept until WP4
 
 
 @dataclass(frozen=True)
@@ -111,8 +115,7 @@ class RippleSettings:
 #: MicroSettings does not list, with the GenSa40-ripple case's values.  Removed at WP4.
 LEGACY_DEFAULTS: Dict[str, Any] = dict(
     beta=1.0, delta_h=0.0, eps_solid=1e-8, eps_smooth=1e-3, k_spring=0.0,
-    contact_E=380e9, contact_model="fft_elastic_v1", use_reduced_modulus=False,
-    overclosure_measure="patch_max", patch_pin=None, patch_pin_kappa=1.0,
+    patch_pin=None, patch_pin_kappa=1.0,
 )
 
 
@@ -272,15 +275,10 @@ def _solver_settings(st: MicroSettings, mixed: bool, pair: bool):
     c = st.contact
     return PhaseNeutralContactSettings(
         **common,
-        contact_E=float(st.legacy_value("contact_E")),
-        contact_nu=float(c.nu),
-        contact_model=str(st.legacy_value("contact_model")),
+        contact_model=CONTACT_FFT,
         contact_E_star=c.E_star,
-        use_reduced_modulus=bool(st.legacy_value("use_reduced_modulus")),
-        overclosure_measure=str(st.legacy_value("overclosure_measure")),
         sigma_yield=float(c.sigma_yield),
         k_asp_mode=str(c.k_asp_mode),
-        k_asp_exponent=float(c.k_asp_exponent),
         pattern_flux_contact=bool(st.pattern_flux_contact),
         contact_tol=float(c.tol),
         contact_maxit=int(c.maxit),
@@ -307,7 +305,7 @@ def _failed_raw(st: MicroSettings, mixed: bool, ripple_on: bool, lc_fields: dict
         wall_time=wall, lambda_nd=_NAN, spos_mean=_NAN, Pasp_hom=_NAN, contact_frac=_NAN, yield_flag=0,
         mesh_used=int(st.mesh_n), A_patch_frac=_NAN, n_patches=_NAN, pasp_patch_max=_NAN, k_asp_hom=_NAN,
         A_mech_frac=_NAN, contact_geometry_valid=0.0,
-        contact_model=str(st.legacy_value("contact_model")) if mixed else "legacy_patch_v1",
+        contact_model=CONTACT_FFT if mixed else CONTACT_OFF,
         failure_reason=reason, contact_eval_s=counters["contact_s"], newton_iters=counters["newton"],
         contact_iters=counters["contact"], contact_residual=_NAN, contact_resolution=_NAN,
         ripple_passes=counters["ripple"],
@@ -326,7 +324,7 @@ def _failed_raw(st: MicroSettings, mixed: bool, ripple_on: bool, lc_fields: dict
 
 #: the parent's ``MicroTaskResult`` defaults of the appended fields a call may not fill
 _RAW_DEFAULTS: Dict[str, Any] = dict(
-    A_mech_frac=0.0, contact_geometry_valid=1.0, contact_model="legacy_patch_v1", failure_reason="",
+    A_mech_frac=0.0, contact_geometry_valid=1.0, contact_model=CONTACT_OFF, failure_reason="",
     contact_eval_s=0.0, newton_iters=0, contact_iters=0, contact_residual=0.0, contact_resolution=0.0,
     ripple_passes=0, ripple_max=0.0, ripple_resid=0.0, ripple_mean_resid=0.0, ripple_seam_mismatch=0.0,
     ripple_proj_err=0.0, deformation_model="off",
@@ -408,8 +406,6 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
                          "translating pair; this roughness is not a pair")
     mixed = st.contact is not None
     ripple_on = st.ripple is not None
-    if mixed and str(st.legacy_value("contact_model")) != "fft_elastic_v1" and (ripple_on or roughness.kind == "surface"):
-        raise ValueError("ripple deformation and generated / array surfaces need contact_model 'fft_elastic_v1'")
 
     _ensure_process()
     from dolfin import Constant, UnitSquareMesh, assemble, dx
@@ -470,7 +466,6 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     )
     solver_settings = _solver_settings(st, mixed, pair)
     SolverCls = MicroPhaseNeutralContactSolver if mixed else MicroPhaseNeutralSolver
-    fft = mixed and str(st.legacy_value("contact_model")) == "fft_elastic_v1"
     lc_tag = str(solver_settings.level_constraint)
     counters = dict(newton=0, contact=0, ripple=0, contact_s=0.0)
     lc_counts = [0, 0, 0]
@@ -516,7 +511,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
             lc_counts[j] += int(getattr(solver, name, 0))
         if ripple_on:
             counters["ripple"] = int(getattr(solver, "_ripple_pass", 0))
-        if fft:
+        if mixed:
             ci_now = int(getattr(solver, "_contact_iterations", 0))
             counters["contact"] += ci_now - ci_seen
     if return_failed is not None:
@@ -566,14 +561,11 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
         n_patches += float(asp["n_patches_loaded"])
         pasp_patch_max = max(pasp_patch_max, float(asp["pasp_max"]))
         k_asp += float(asp.get("k_asp_hom", 0.0))
-        if st.legacy_value("contact_model") in ("hertz_summit_v1", "fft_elastic_v1"):
-            A_mech += asp["A_mech_frac"]
-            geometry_valid = min(geometry_valid, float(asp["contact_geometry_valid"]))
-        if fft:
-            contact_residual = max(contact_residual, float(asp["contact_residual_m"]))
-            if asp["contact_min_patch_nodes"] > 0:
-                contact_resolution = float(asp["contact_min_patch_nodes"])
-    if fft:
+        A_mech += asp["A_mech_frac"]
+        geometry_valid = min(geometry_valid, float(asp["contact_geometry_valid"]))
+        contact_residual = max(contact_residual, float(asp["contact_residual_m"]))
+        if asp["contact_min_patch_nodes"] > 0:
+            contact_resolution = float(asp["contact_min_patch_nodes"])
         counters["contact_s"] += float(getattr(solver, "_contact_solve_s", 0.0))
 
     # one phase per call: the worker's phase reductions with one member
@@ -602,7 +594,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
         mesh_used=int(st.mesh_n), A_patch_frac=A_patch * inv_n, n_patches=n_patches * inv_n,
         pasp_patch_max=pasp_patch_max, k_asp_hom=k_asp * inv_n, A_mech_frac=A_mech * inv_n,
         contact_geometry_valid=geometry_valid,
-        contact_model=str(st.legacy_value("contact_model")) if mixed else "legacy_patch_v1",
+        contact_model=CONTACT_FFT if mixed else CONTACT_OFF,
         contact_eval_s=counters["contact_s"], newton_iters=counters["newton"],
         contact_iters=counters["contact"], contact_residual=contact_residual,
         contact_resolution=contact_resolution,

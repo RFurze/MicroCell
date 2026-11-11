@@ -401,9 +401,7 @@ def sample_contact_traction(solver):
     * ``fft_elastic_v1``: ``p_a`` of the stored solution if its state key is current (no refresh here:
       it would change the mask the fluid was solved with), checked against the grid and the solution's
       own ``Pasp_hom`` (``ehl.contact_shear.MEAN_CHECK_BUDGET``), then M3a's ``reduce_contact_and_total``
-      in the local frame (the means) and, with the task's ``R_inv``, along global x (the envelopes);
-    * ``hertz_summit_v1`` / ``legacy_patch_v1``: ``unsupported_model`` (the means are completed by
-      :func:`finish_contact_traction` from the extraction's ``Pasp_hom``).
+      in the local frame (the means) and, with the task's ``R_inv``, along global x (the envelopes).
     """
     from microcell import contact_shear as cs
     from microcell.shear_reduce import GLOBAL_X, VALID_STATUSES as _FLUID_OK
@@ -431,8 +429,6 @@ def sample_contact_traction(solver):
         contact = sample_contact(sol, smp.xy, contact_model=model)
         if contact.valid:
             check = cs.mean_check(contact.p, smp.weight, contact.Pasp_hom)
-    elif model in cs.UNSUPPORTED_MODELS:
-        contact = sample_contact(None, smp.xy, contact_model=model)
     else:
         raise ValueError(f"unknown contact model {model!r}")
     mu = float(getattr(solver.settings, "mu_material", float("nan")))
@@ -440,10 +436,6 @@ def sample_contact_traction(solver):
         # a caller that gave no friction coefficient (direct callers of the class, older settings):
         # nothing is published, nothing raised -- the statistics are absent, not wrong
         return cs.invalid_phase(cs.UNAVAILABLE, n, model, u_hat, fluid_mean, solution=sol)
-    if contact.status == cs.UNSUPPORTED:
-        return cs.phase_from_reductions(None, None, contact_status=cs.UNSUPPORTED, contact_model=model,
-                                        fluid_state_valid=fluid_ok, mean_check_rel=check, u_hat=u_hat,
-                                        fluid_mean=fluid_mean, n_samples=n)
     if not contact.valid:
         return cs.invalid_phase(cs.STATE_INVALID, n, model, u_hat, fluid_mean, solution=sol)
     fv = np.all(np.isfinite(smp.t), axis=1)
@@ -461,14 +453,11 @@ def sample_contact_traction(solver):
 def finish_contact_traction(solver, asperity_load: dict):
     """After ``compute_asperity_load`` of the same phase (contact class): recheck the shared state --
     an ``fft_elastic_v1`` extraction that refreshed the stored solution after the samples were taken makes
-    the phase ``state_mismatch`` -- and complete an unsupported model's means from the extraction's
-    ``Pasp_hom`` (``mu Pasp_hom U_hat``).  Returns the phase (None when the phase had none)."""
+    the phase ``state_mismatch``.  Returns the phase (None when the phase had none)."""
     from microcell import contact_shear as cs
     ph = getattr(solver, "contact_traction", None)
     if ph is None:
         return None
-    if ph.contact_model == cs.FFT_MODEL:
-        if ph.solution is not None and getattr(solver, "_contact_solution", None) is not ph.solution:
-            return cs.mismatch(ph)
-        return ph
-    return cs.finish_unsupported(ph, float(asperity_load["Pasp_hom"]), float(solver.settings.mu_material))
+    if ph.solution is not None and getattr(solver, "_contact_solution", None) is not ph.solution:
+        return cs.mismatch(ph)
+    return ph

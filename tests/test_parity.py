@@ -61,7 +61,22 @@ PAIR_NOT_COMPARED = ("contact_iters",)
 #: the removed option fails the gate here).
 REMOVED_SETTINGS = {
     "spring_pointwise": False,          # group 2: the pointwise spring mode
+    "use_reduced_modulus": False,       # group 3: fft_elastic_v1 refused True
+    "overclosure_measure": "patch_max",  # group 3: fft_elastic_v1 refused anything else
 }
+
+#: WP2 group 3: settings that only the removed ``legacy_patch_v1`` law read, so there is no value
+#: to freeze.  The check is that the reference's own contact law is the kept one.
+REMOVED_UNREAD_SETTINGS = {
+    "contact_E": "legacy_patch_v1 only (Young's modulus of its closure)",
+    "contact_nu": "legacy_patch_v1 only (with use_reduced_modulus)",
+    "k_asp_exponent": "legacy_patch_v1 only (its closure tangent; fft_elastic_v1 uses contact_tangent)",
+}
+KEPT_CONTACT_MODEL = "fft_elastic_v1"
+
+#: WP2 group 3: ``contact_model`` of a full-film cell's result.  The parent's result carried its
+#: default tag there; that law is gone and the API reports "off".
+FULL_FILM_CONTACT_TAG = {"legacy_patch_v1": "off"}
 
 
 def reference_cells():
@@ -91,8 +106,7 @@ def settings_from_reference(ref: dict):
     ripple = RippleSettings(E_star=mc["fluid_E_star"], tol=sj["ripple_tol"], maxpass=sj["ripple_maxpass"],
                             omega=sj["ripple_omega"]) if mc["fluid_deformation"] != "off" else None
     legacy = dict(beta=mc["beta"], delta_h=mc["delta_h"], eps_solid=mc["eps_solid"], eps_smooth=mc["eps_smooth"],
-                  k_spring=mc["k_spring"], contact_E=mc["E"], contact_model=mc["contact_model"],
-                  use_reduced_modulus=mc["use_reduced_modulus"], overclosure_measure=mc["overclosure_measure"])
+                  k_spring=mc["k_spring"])
     return MicroSettings(
         mesh_n=int(meta["mesh_used"]), xmax=mc["xmax"], ymax=mc["ymax"], eta0=mc["eta0"], rho0=mc["rho0"],
         penalty_gamma=mc["penalty_gamma"], h_min=mc["h_min"], spos_form=mc["spos_form"],
@@ -214,6 +228,15 @@ def run_cell(cell: str) -> dict:
             r["kind"] = "setting"
             records.append(r)
             continue
+        if k in REMOVED_UNREAD_SETTINGS:
+            used = want.get("contact_model")
+            ok = k not in built and used == KEPT_CONTACT_MODEL
+            records.append({"name": f"settings.{k}", "kind": "setting", "rel": 0.0 if ok else float("inf"), "ok": ok,
+                            "note": "" if ok else (
+                                "listed as removed but the built settings still carry it" if k in built else
+                                f"removed setting read by {REMOVED_UNREAD_SETTINGS[k]}; the reference's contact_model "
+                                f"is {used!r}")})
+            continue
         if k not in built or k not in want:
             records.append({"name": f"settings.{k}", "kind": "setting", "rel": float("inf"), "ok": False,
                             "note": "only on one side"})
@@ -238,6 +261,8 @@ def run_cell(cell: str) -> dict:
 
     pair = rough.is_pair
     result = dict(ref["result"])
+    if st.contact is None:                          # full film: the parent's default tag of a dropped law
+        result["contact_model"] = FULL_FILM_CONTACT_TAG.get(result["contact_model"], result["contact_model"])
     if pair:
         for key, src in PAIR_FROM_COUPLED.items():
             result[key] = ref["coupled"][src]
