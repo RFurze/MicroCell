@@ -94,8 +94,6 @@ Statuses (strings, never inferred from NaN)
 ``ok``                 ``fft_elastic_v1``, some contact pressure
 ``no_support``         ``fft_elastic_v1`` with ``p = 0`` everywhere: a valid state without the
                        contribution; p_a = 0 at every sample
-``unsupported_model``  ``hertz_summit_v1`` / ``legacy_patch_v1``: no resolved distribution, so p_a is
-                       NaN and never approximated
 ``state_invalid``      no stored solution, or arrays that are not a finite, non-negative grid: NaN
 """
 from __future__ import annotations
@@ -112,12 +110,9 @@ SAMPLER_DEFINITION = ("sol.p of the stored fft_elastic_v1 solution, periodic P1 
                       "'right'-diagonal grid (UnitSquareMesh cells), Pa")
 
 FFT_MODEL = "fft_elastic_v1"
-#: contact identities with no resolved pressure distribution (ehl/contact.py LEGACY, HERTZ)
-UNSUPPORTED_MODELS = ("legacy_patch_v1", "hertz_summit_v1")
 
 STATUS_OK = "ok"
 STATUS_NO_SUPPORT = "no_support"
-STATUS_UNSUPPORTED = "unsupported_model"
 STATUS_STATE_INVALID = "state_invalid"
 CONTACT_VALID_STATUSES = (STATUS_OK, STATUS_NO_SUPPORT)
 
@@ -223,14 +218,12 @@ def sample_contact(solution: Optional[object], xy, *, contact_model: str = FFT_M
 
     ``solution`` is the class's ``_contact_solution`` (anything with ``p`` and ``phi_c`` grids, as
     ``ehl.elastic_contact.ContactSolution``), or None.  ``contact_model`` is the task's identity:
-    only ``fft_elastic_v1`` has a resolved distribution (the others give ``unsupported_model``)."""
+    ``fft_elastic_v1``, the only one in this repo (any other raises)."""
     xy = np.asarray(xy, dtype=float)
     if xy.ndim != 2 or xy.shape[1] != 2:
         raise ValueError(f"sample coordinates must have shape (N, 2), got {xy.shape}")
     n = xy.shape[0]
     model = str(contact_model)
-    if model in UNSUPPORTED_MODELS:
-        return _empty(n, STATUS_UNSUPPORTED, model)
     if model != FFT_MODEL:
         raise ValueError(f"unknown contact model {model!r}")
     if solution is None:

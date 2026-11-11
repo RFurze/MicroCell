@@ -37,15 +37,12 @@ per phase (``microscale/src/functions/micro_diagnostics.py`` ``sample_contact_tr
 per task      means by phase weight (equal), extrema by union over the phases (``union_phases``); a phase
               whose state is invalid invalidates the task (``phase_invalid``).
 
-Contact models: ``fft_elastic_v1`` is supported.  ``hertz_summit_v1`` and ``legacy_patch_v1`` have no
-resolved pressure distribution (their ``p_asp_field`` is a display): their envelopes are
-``unsupported_model`` (NaN, never approximated); their asperity mean is the patch law's cell mean,
-``mu_material Pasp_hom U_hat`` -- the quantity the macro consumes -- and the total mean is the sampled fluid
-mean plus it.
+Contact model: ``fft_elastic_v1``, the only one in this repo (``micro_diagnostics.sample_contact_traction``
+raises for any other).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Optional, Sequence
 
 import numpy as np
@@ -62,16 +59,12 @@ CONTACT_SHEAR_DEFINITION = f"{CONTACT_SAMPLER}@{FLUID_SAMPLER}/global_x/phase_un
 MEAN_CHECK_BUDGET = 1e-12
 
 FFT_MODEL = "fft_elastic_v1"
-UNSUPPORTED_MODELS = ("legacy_patch_v1", "hertz_summit_v1")
 
 # ----------------------------------------------------------------------------------------- statuses
 #: per component (asperity, total), per phase and per task; a fixed-width string array per node
 OK = STATUS_OK                       # evaluated, some support
 NO_SUPPORT = STATUS_NO_SUPPORT       # a valid state without the contribution (asperity: p = 0 everywhere):
                                      # whole-cell mean / min / max are the physical zero
-UNSUPPORTED = "unsupported_model"    # hertz_summit_v1 / legacy_patch_v1: no resolved distribution; the
-                                     # envelope NaN, the means the patch law's cell mean (asperity) and the
-                                     # sampled fluid mean plus it (total)
 STATE_INVALID = "state_invalid"      # no current contact solution at the samples (missing, or its state key
                                      # stale), or a fluid sample without a finite traction (total): NaN
 STATE_MISMATCH = "state_mismatch"    # the extraction refreshed the contact solution after the samples were
@@ -98,7 +91,7 @@ class ContactTractionPhase:
     total_status: str
     asperity_mean_local: tuple            # (t_x, t_y) per total cell area
     total_mean_local: tuple
-    asperity: Optional[ShearReduction]    # the global-x reduction (None: no frame / invalid / unsupported)
+    asperity: Optional[ShearReduction]    # the global-x reduction (None: no frame / invalid)
     total: Optional[ShearReduction]
     asperity_support_fraction: float
     overlap_fraction: float
@@ -146,24 +139,12 @@ def mean_check(p, weights, pasp_hom: float) -> float:
 
 def phase_from_reductions(local, glob, *, contact_status: str, contact_model: str, fluid_state_valid: bool,
                           mean_check_rel: float, u_hat, fluid_mean, solution=None,
-                          grid_ok: bool = True, n_samples: Optional[int] = None) -> ContactTractionPhase:
+                          grid_ok: bool = True) -> ContactTractionPhase:
     """A phase from M3a's ``reduce_contact_and_total`` results on the common samples: ``local`` (no
     rotation: the local-frame means) and ``glob`` (with the task's ``R_inv``: the global-x envelope; None
     without a frame).  ``contact_status`` is the contact sampler's (``ok`` / ``no_support`` /
-    ``unsupported_model`` / ``state_invalid``); the checks of the module docstring are applied here.
-    ``local`` may be None for an unsupported model (``n_samples`` then gives the count)."""
-    n = int(n_samples) if local is None else int(local.asperity.n_samples)
-    if contact_status == UNSUPPORTED:
-        # no resolved distribution: the means are completed from Pasp_hom after the extraction
-        # (finish_unsupported); the envelopes are never approximated
-        nan = float("nan")
-        return ContactTractionPhase(
-            asperity_status=UNSUPPORTED, total_status=(UNSUPPORTED if fluid_state_valid else STATE_INVALID),
-            asperity_mean_local=_nan2(), total_mean_local=_nan2(), asperity=None, total=None,
-            asperity_support_fraction=nan, overlap_fraction=nan, force_on_fluid_fraction=nan,
-            obstruction_without_pressure_fraction=nan, mean_check=nan, n_samples=n,
-            contact_model=contact_model, u_hat_local=tuple(float(v) for v in u_hat),
-            fluid_mean_local=tuple(float(v) for v in fluid_mean), solution=solution)
+    ``state_invalid``); the checks of the module docstring are applied here."""
+    n = int(local.asperity.n_samples)
     if contact_status not in (OK, NO_SUPPORT):
         return invalid_phase(STATE_INVALID, n, contact_model, u_hat, fluid_mean, solution=solution)
     if not grid_ok or not (mean_check_rel <= MEAN_CHECK_BUDGET):
@@ -193,22 +174,6 @@ def phase_from_reductions(local, glob, *, contact_status: str, contact_model: st
         force_on_fluid_fraction=ff, obstruction_without_pressure_fraction=onp, mean_check=float(mean_check_rel),
         n_samples=n, contact_model=contact_model, u_hat_local=tuple(float(v) for v in u_hat),
         fluid_mean_local=tuple(float(v) for v in fluid_mean), solution=solution)
-
-
-def finish_unsupported(phase: ContactTractionPhase, pasp_hom: float, mu_material: float) -> ContactTractionPhase:
-    """``hertz_summit_v1`` / ``legacy_patch_v1`` after the extraction: the asperity mean is the patch law's
-    cell mean ``mu Pasp_hom U_hat`` (local frame), the total mean the sampled fluid mean plus it; the
-    envelopes stay NaN."""
-    if phase.asperity_status != UNSUPPORTED:
-        return phase
-    a = tuple(float(mu_material) * float(pasp_hom) * float(u) for u in phase.u_hat_local[:2])
-    if phase.total_status == UNSUPPORTED and all(np.isfinite(phase.fluid_mean_local)):
-        t = tuple(float(f) + float(x) for f, x in zip(phase.fluid_mean_local, a))
-    else:
-        t = _nan2()
-    if not all(np.isfinite(a)):
-        return replace(phase, asperity_status=STATE_INVALID, total_status=STATE_INVALID)
-    return replace(phase, asperity_mean_local=a, total_mean_local=t)
 
 
 def mismatch(phase: ContactTractionPhase) -> ContactTractionPhase:
@@ -246,12 +211,6 @@ def union_contact_traction(phases: Sequence[ContactTractionPhase], weights=None)
             return res
         means = [getattr(p, f"{name}_mean_local") for p in phases]
         res["mean_local"] = tuple(_wmean([m[c] for m in means], w) for c in range(2))
-        if all(s == UNSUPPORTED for s in st):
-            res["status"] = UNSUPPORTED
-            return res
-        if any(s == UNSUPPORTED for s in st):           # one model per task: cannot happen
-            res["mean_local"] = _nan2()
-            return res
         if any(s == NO_FRAME for s in st):
             res["status"] = NO_FRAME
             return res

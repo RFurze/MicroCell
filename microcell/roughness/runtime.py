@@ -270,11 +270,5 @@ class SurfaceContactHeight:
         s = self.motion.displacement(T) if self.field.translating else _ZERO
         return base + self.field.at_unit(x, y, s)
 
-    def __getitem__(self, i):
-        # hertz_summit_v1 reads the cosine identity (Ah, kx, ky, two_surface) by index;
-        # validation refuses it for generated surfaces, and so does this
-        raise TypeError("a generated surface has no cosine identity: hertz_summit_v1 and "
-                        "legacy_patch_v1 need the idealised cosine; generated cells use fft_elastic_v1")
-
     def __repr__(self) -> str:
         return f"SurfaceContactHeight({self.field.arrangement}, envelope {self.field.envelope_m:.4g} m)"

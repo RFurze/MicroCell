@@ -63,9 +63,9 @@ from typing import Any, Callable
 class CosineContactDescriptor(tuple):
     """``ht.contact_cosine``: the geometry identity that travels with the callback.
 
-    As a tuple it is exactly ``(Ah, kx, ky, two_surface)`` -- all that
-    ``hertz_summit_v1`` reads (``descriptor[:3]``, ``descriptor[3]``), so that
-    identity is unchanged.  [fft_elastic_v1, 16 Oct 2026] It also carries the
+    As a tuple it is exactly ``(Ah, kx, ky, two_surface)`` (:meth:`height`
+    and the ripple check of the solver class read the entries).
+    [fft_elastic_v1, 16 Oct 2026] It also carries the
     rest of the ``make_ideal_ht`` description -- the four phase objects (dolfin
     ``Constant`` or float, kept by reference and read at call time, so the
     worker's per-task ``.assign`` is seen), and ``static_moving`` -- and
