@@ -1,0 +1,13 @@
+output	where	status_entry	statuses_that_explain_nan	seen_nan_on_ok_results
+p_max	named	pressure_extrema_status	no_fluid, phase_invalid	
+p_min	named	pressure_extrema_status	no_fluid, phase_invalid	
+Pst_fluid	info	pressure_extrema_status	no_fluid	
+shear_fluid_mean_local_Pa	info	shear_extrema_status	phase_invalid	
+shear_fluid_support_fraction	info	shear_extrema_status	phase_invalid	
+tau_asperity	named	shear_asperity_status	unavailable, phase_invalid	c5 (unavailable); c8 (unavailable)
+shear_asperity_support_fraction	info	shear_asperity_status	unavailable, phase_invalid	c5 (unavailable); c8 (unavailable)
+shear_contact_overlap_fraction	info	shear_asperity_status	unavailable, phase_invalid	c5 (unavailable); c8 (unavailable)
+shear_contact_force_on_fluid_fraction	info	shear_asperity_status	unavailable, phase_invalid	c5 (unavailable); c8 (unavailable)
+shear_contact_obstruction_without_pressure_fraction	info	shear_asperity_status	unavailable, phase_invalid	c5 (unavailable); c8 (unavailable)
+shear_contact_mean_check	info	shear_asperity_status	unavailable, phase_invalid	c5 (unavailable); c8 (unavailable)
+tau_total	named	shear_total_status	unavailable, phase_invalid	c5 (unavailable); c8 (unavailable)

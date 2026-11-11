@@ -6,3 +6,8 @@ g2a	13 passed in 8.90s
 g2a_final	13 passed in 8.41s
 g3a	13 passed in 8.60s
 g3a_final	18 passed in 11.42s
+g2b	18 passed in 10.78s
+g2b_final	42 passed in 11.24s
+g3b	42 passed in 10.93s
+g4	60 passed in 17.38s
+g4_final	60 passed in 17.59s

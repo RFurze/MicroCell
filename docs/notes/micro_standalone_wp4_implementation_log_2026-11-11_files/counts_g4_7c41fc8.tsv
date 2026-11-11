@@ -1,0 +1,36 @@
+what	n
+settings: ContactSettings	5
+settings: MicroSettings	22
+settings: RippleSettings	3
+settings: Zeta	12
+settings: fixed value (solver module)	13
+settings: microsolver argument	6
+settings: all rows	61
+parent settings fields carried (SETTINGS_NOW)	36
+results: status	2
+results: named	18
+results: info	56
+results: info.fields	12
+results: fields	17
+results: all rows	105
+parent result fields in the references	96
+parent result fields not compared (NOT_COMPARED)	15
+parent result fields held under another name or place (RESULT_NOW)	24
+parent result fields removed from the result (REMOVED_RESULT_FIELDS)	11
+compared parent result fields with no place in a MicroResult	0
+reference fields formed by the gate from held fields (DERIVED_FIELDS)	1
+NaN on OK results: distinct names in named	2
+NaN on OK results: distinct names in info	5
+NaN on OK results: distinct names in info.fields	0
+NaN on OK results: distinct names in fields	0
+NaN in c2 forced contact_in_load (FAILED_CONTACT): names in named + info	42
+NaN in c2 forced contact_in_run (FAILED_CONTACT): names in named + info	44
+NaN in c2 forced newton (FAILED_NEWTON): names in named + info	44
+NaN in c5 forced newton_full_film (FAILED_NEWTON): names in named + info	39
+NaN in c2 forced ripple (FAILED_RIPPLE): names in named + info	44
+NaN in c2 forced nonfinite_field (FAILED_NONFINITE): names in named + info	42
+NaN in c2 forced nonfinite_number (FAILED_NONFINITE): names in named + info	42
+NaN in c5 forced nonfinite_number_full_film (FAILED_NONFINITE): names in named + info	37
+per-quantity statuses that differ from the reference's (8 cells x 4)	20
+NAN_STATUS: outputs listed	12
+NaN on OK results not in NAN_STATUS	0

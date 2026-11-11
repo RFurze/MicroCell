@@ -1,0 +1,106 @@
+where	name	parent_result_field	kind	in_cells	gate	nan_in_ok_cells	failed_mixed_ripple	failed_full_film
+status	status		str	8/8	compared (must be OK)		'FAILED_NEWTON'	'FAILED_NEWTON'
+status	reason	failure_reason	str	8/8	compared		"RuntimeError('forced')"	"RuntimeError('forced')"
+named	dQ	delta_Q	2 floats	8/8	compared		NaN	NaN
+named	dP	delta_P	float	8/8	compared		NaN	NaN
+named	Q	Q	2 floats	8/8	compared		NaN	NaN
+named	Pst	Pst	float	8/8	compared		NaN	NaN
+named	P_f	P_f	float	8/8	compared		NaN	NaN
+named	Fst	Fst	float	8/8	compared		NaN	NaN
+named	tau_fluid	tau_res	2 floats	8/8	compared		NaN	NaN
+named	tau_asperity	shear_asperity_mean_local_Pa	2 floats	8/8	compared	c5,c8	NaN	NaN
+named	tau_total	shear_total_mean_local_Pa	2 floats	8/8	compared	c5,c8	NaN	NaN
+named	P_asp	Pasp_hom	float	8/8	compared		NaN	NaN
+named	contact_frac	contact_frac	float	8/8	compared		NaN	NaN
+named	A_mech_frac	A_mech_frac	float	8/8	compared		NaN	NaN
+named	k_asp	k_asp_hom	float	8/8	compared		NaN	NaN
+named	p_max	p_fluid_sample_max_Pa, p_max, p_max_phase_mean	float	8/8	compared		NaN	NaN
+named	p_min	p_fluid_sample_min_Pa, p_min, p_min_phase_mean	float	8/8	compared		NaN	NaN
+named	h_max	h_max	float	8/8	compared		NaN	NaN
+named	h_min	h_min	float	8/8	compared		NaN	NaN
+named	yield_flag	yield_flag	int	8/8	compared		0	0
+info	mesh_n	mesh_used	int	8/8	compared		100	60
+info	steady		bool	8/8	not compared (the call)		False	False
+info	t_end		float	8/8	not compared (the call)		0.02	0.02
+info	n_steps		int	8/8	not compared (the call)		3	3
+info	offset		2 floats	8/8	not compared (the call)		(0.0, 0.0)	(0.0, 0.0)
+info	roughness_velocity_ratio		float	8/8	not compared (the call)		0.0	0.0
+info	t_start		NoneType/float	8/8	not compared (the call)		NaN	NaN
+info	dt		NoneType/float	8/8	not compared (the call)		NaN	NaN
+info	contact_model	contact_model	str	8/8	compared		'fft_elastic_v1'	'off'
+info	deformation_model	deformation_model	str	8/8	compared		'ripple_halfspace_v1'	'off'
+info	level_constraint	level_constraint	str	8/8	compared		'whole_cell'	'whole_cell'
+info	n_whole_cell	n_whole_cell	int	8/8	compared		0	0
+info	n_fluid_mean	n_fluid_mean	int	8/8	compared		0	0
+info	n_no_fluid	n_no_fluid	int	8/8	compared		0	0
+info	delta_P_definition	delta_P_definition	str	8/8	compared		'fluid_per_cell'	'fluid_per_cell'
+info	pressure_extrema_definition	pressure_extrema_definition	str	8/8	compared		'fluid_nodal_sharp_v1/phase_union'	'fluid_nodal_sharp_v1/phase_union'
+info	newton_iters	newton_iters	int	8/8	compared		0	0
+info	contact_iters	contact_iters	int	8/8	compared		0	0
+info	ripple_passes	ripple_passes	int	8/8	compared		0	0
+info	contact_eval_s	contact_eval_s	float	8/8	not compared		0.0	0.0
+info	wall_time	wall_time	float	8/8	not compared		0.07472562789916992	0.030091285705566406
+info	Pst_fluid	Pst_fluid	float	8/8	compared		NaN	NaN
+info	P_patch	P_patch	float	8/8	compared		NaN	NaN
+info	P_fluid_pos	P_fluid_pos	float	8/8	compared		NaN	NaN
+info	P_fluid_neg	P_fluid_neg	float	8/8	compared		NaN	NaN
+info	fmax	fmax	float	8/8	compared		NaN	NaN
+info	fmin	fmin	float	8/8	compared		NaN	NaN
+info	lambda_nd	lambda_nd	float	8/8	compared		NaN	NaN
+info	spos_mean	spos_mean	float	8/8	compared		NaN	NaN
+info	A_patch_frac	A_patch_frac	float	8/8	compared		NaN	NaN
+info	n_patches	n_patches	float	8/8	compared		NaN	NaN
+info	pasp_patch_max	pasp_patch_max	float	8/8	compared		NaN	NaN
+info	contact_geometry_valid	contact_geometry_valid	float	8/8	compared		0.0	0.0
+info	contact_residual	contact_residual	float	8/8	compared		NaN	NaN
+info	contact_resolution	contact_resolution	float	8/8	compared		NaN	NaN
+info	pressure_extrema_status	pressure_extrema_status	str	8/8	compared		'failed'	'failed'
+info	p_fluid_n_samples	p_fluid_n_samples	int	8/8	compared		0	0
+info	ripple_max	ripple_max	float	8/8	compared		NaN	0.0
+info	ripple_resid	ripple_resid	float	8/8	compared		NaN	0.0
+info	ripple_mean_resid	ripple_mean_resid	float	8/8	compared		NaN	0.0
+info	ripple_seam_mismatch	ripple_seam_mismatch	float	8/8	compared		NaN	0.0
+info	ripple_proj_err	ripple_proj_err	float	8/8	compared		NaN	0.0
+info	shear_fluid_mean_local_Pa	shear_fluid_mean_local_Pa	2 floats	8/8	compared		NaN	NaN
+info	shear_fluid_support_fraction	shear_fluid_support_fraction	float	8/8	compared		NaN	NaN
+info	shear_extrema_status	shear_extrema_status	str	8/8	compared		'failed'	'failed'
+info	shear_extrema_definition	shear_extrema_definition	str	8/8	compared		'fluid_quadrature_sharp_v1/global_x/phase_union'	'fluid_quadrature_sharp_v1/global_x/phase_union'
+info	shear_fluid_n_samples	shear_fluid_n_samples	int	8/8	compared		0	0
+info	shear_asperity_support_fraction	shear_asperity_support_fraction	float	8/8	compared	c5,c8	NaN	NaN
+info	shear_asperity_status	shear_asperity_status	str	8/8	compared		'failed'	'unavailable'
+info	shear_total_status	shear_total_status	str	8/8	compared		'failed'	'unavailable'
+info	shear_contact_overlap_fraction	shear_contact_overlap_fraction	float	8/8	compared	c5,c8	NaN	NaN
+info	shear_contact_force_on_fluid_fraction	shear_contact_force_on_fluid_fraction	float	8/8	compared	c5,c8	NaN	NaN
+info	shear_contact_obstruction_without_pressure_fraction	shear_contact_obstruction_without_pressure_fraction	float	8/8	compared	c5,c8	NaN	NaN
+info	shear_contact_mean_check	shear_contact_mean_check	float	8/8	compared	c5,c8	NaN	NaN
+info	shear_contact_definition	shear_contact_definition	str	8/8	compared		'fft_nodal_p1_periodic_v1@fluid_quadrature_sharp_v1/global_x/phase_union'	'unversioned'
+info	shear_contact_n_samples	shear_contact_n_samples	int	8/8	compared		0	0
+info.fields	n		int	8/8	compared		absent	absent
+info.fields	T_end_s		float	8/8	compared		absent	absent
+info.fields	film_vs_solver_max_nm		float	6/8	compared		absent	absent
+info.fields	contact_residual_m		float	6/8	compared		absent	absent
+info.fields	film_min_nm		float	8/8	compared		absent	absent
+info.fields	film_rigid_min_nm		float	8/8	compared		absent	absent
+info.fields	p_fluid_max_MPa		float	8/8	compared		absent	absent
+info.fields	p_contact_max_MPa		float	8/8	compared		absent	absent
+info.fields	contact_nodes		int	8/8	compared		absent	absent
+info.fields	u_ripple_maxabs_nm		float	8/8	compared		absent	absent
+info.fields	u_contact_maxabs_nm		float	8/8	compared		absent	absent
+info.fields	chi_dg0_mean		float	8/8	compared		absent	absent
+fields	p_contact		array	6/8	compared		absent	absent
+fields	clearance		array	6/8	compared		absent	absent
+fields	mask_level		array	6/8	compared		absent	absent
+fields	overclosure		array	6/8	compared		absent	absent
+fields	p_fluid		array	8/8	compared		absent	absent
+fields	p_total		array	8/8	compared		absent	absent
+fields	film		array	8/8	compared		absent	absent
+fields	film_rigid		array	8/8	compared		absent	absent
+fields	surface_height		array	8/8	compared		absent	absent
+fields	u_ripple		array	4/8	compared		absent	absent
+fields	u_contact		array	6/8	compared		absent	absent
+fields	u_total		array	6/8	compared		absent	absent
+fields	contact		array	8/8	compared		absent	absent
+fields	chi_fluid		array	8/8	compared		absent	absent
+fields	x		array	8/8	not compared (the grid)		absent	absent
+fields	y		array	8/8	not compared (the grid)		absent	absent
+fields	chi_fluid_dg0		20000 floats/7200 floats	8/8	compared		absent	absent

@@ -1,0 +1,62 @@
+container	name	default	defined_at	parent_settings_field
+Zeta	H	(required)	microcell/api.py:88	
+Zeta	P	(required)	microcell/api.py:89	
+Zeta	Ux	0.0	microcell/api.py:90	
+Zeta	Uy	0.0	microcell/api.py:91	
+Zeta	dpdx	0.0	microcell/api.py:92	
+Zeta	dpdy	0.0	microcell/api.py:93	
+Zeta	Hdot	0.0	microcell/api.py:94	
+Zeta	Pdot	0.0	microcell/api.py:95	
+Zeta	Uxdot	0.0	microcell/api.py:96	
+Zeta	Uydot	0.0	microcell/api.py:97	
+Zeta	dpdx_dot	0.0	microcell/api.py:98	
+Zeta	dpdy_dot	0.0	microcell/api.py:99	
+MicroSettings	mesh_n	100	microcell/api.py:145	
+MicroSettings	xmax	5e-06	microcell/api.py:146	
+MicroSettings	ymax	5e-06	microcell/api.py:147	
+MicroSettings	eta0	0.001	microcell/api.py:148	
+MicroSettings	penalty_gamma	10000000000.0	microcell/api.py:149	
+MicroSettings	h_min	1.0331e-11	microcell/api.py:150	
+MicroSettings	E_star	203775203775.2038	microcell/api.py:151	fluid_E_star, contact_E_star
+MicroSettings	delta_h	0.0	microcell/api.py:152	delta_h
+MicroSettings	eps_solid	1e-08	microcell/api.py:153	eps_solid
+MicroSettings	eps_smooth	0.001	microcell/api.py:154	eps_smooth
+MicroSettings	spos_form	'sqrt'	microcell/api.py:155	spos_form
+MicroSettings	level_constraint	'whole_cell'	microcell/api.py:156	level_constraint
+MicroSettings	pattern_flux_contact	True	microcell/api.py:157	pattern_flux_contact
+MicroSettings	jacobian_reg_eps	-1e-07	microcell/api.py:158	jacobian_reg_eps
+MicroSettings	relaxation_parameter	1.0	microcell/api.py:160	relaxation_parameter
+MicroSettings	max_iterations	300	microcell/api.py:161	max_iterations
+MicroSettings	abs_tolerance	1e-06	microcell/api.py:162	abs_tolerance
+MicroSettings	rel_tolerance	1e-06	microcell/api.py:163	rel_tolerance
+MicroSettings	contact	ContactSettings()	microcell/api.py:164	
+MicroSettings	ripple	RippleSettings()	microcell/api.py:165	
+MicroSettings	cfl_target	1.0	microcell/api.py:166	
+MicroSettings	roughness_velocity_ratio	None	microcell/api.py:167	
+ContactSettings	tol	1e-11	microcell/api.py:125	contact_tol
+ContactSettings	maxit	500	microcell/api.py:126	contact_maxit
+ContactSettings	sigma_yield	250000000.0	microcell/api.py:127	sigma_yield
+ContactSettings	mu	0.8	microcell/api.py:128	mu_material
+ContactSettings	k_asp_mode	'closure'	microcell/api.py:129	k_asp_mode
+RippleSettings	tol	1e-06	microcell/api.py:136	ripple_tol
+RippleSettings	maxpass	12	microcell/api.py:137	ripple_maxpass
+RippleSettings	omega	1.0	microcell/api.py:138	ripple_omega
+fixed value (solver module)	ADAPTIVE_DAMPING	True	microcell/micro_phase_neutral_class.py:155	adaptive_damping
+fixed value (solver module)	OMEGA_MIN	None	microcell/micro_phase_neutral_class.py:158	omega_min
+fixed value (solver module)	NEWTON_BACKTRACK_MAX	10	microcell/micro_phase_neutral_class.py:159	newton_backtrack_max
+fixed value (solver module)	NEWTON_BACKTRACK_TOL	2.0	microcell/micro_phase_neutral_class.py:160	newton_backtrack_tol
+fixed value (solver module)	NEWTON_BACKTRACK_WARMUP_ITERS	3	microcell/micro_phase_neutral_class.py:161	newton_backtrack_warmup_iters
+fixed value (solver module)	OMEGA_RECOVERY_FACTOR	1.2	microcell/micro_phase_neutral_class.py:162	omega_recovery_factor
+fixed value (solver module)	OMEGA_CAP_SHRINK_FACTOR	0.85	microcell/micro_phase_neutral_class.py:163	omega_cap_shrink_factor
+fixed value (solver module)	PRINT_NEWTON	False	microcell/micro_phase_neutral_class.py:165	print_newton
+fixed value (solver module)	PRINT_TIMING	False	microcell/micro_phase_neutral_class.py:166	print_timing
+fixed value (solver module)	TRACE_NEWTON	False	microcell/micro_phase_neutral_class.py:169	
+fixed value (solver module)	BETA	1.0	microcell/micro_phase_neutral_class.py:171	beta
+fixed value (solver module)	PATCH_PIN	None	microcell/micro_phase_neutral_class.py:173	patch_pin
+fixed value (solver module)	PATCH_PIN_KAPPA	1.0	microcell/micro_phase_neutral_class.py:174	patch_pin_kappa
+microsolver argument	t_end	None	microcell/api.py:367	
+microsolver argument	n_steps	3	microcell/api.py:367	
+microsolver argument	offset	(0.0, 0.0)	microcell/api.py:367	
+microsolver argument	steady	False	microcell/api.py:367	
+microsolver argument	save_paraview	False	microcell/api.py:367	
+microsolver argument	output_dir	None	microcell/api.py:367	

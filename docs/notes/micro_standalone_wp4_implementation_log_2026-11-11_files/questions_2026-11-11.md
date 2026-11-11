@@ -93,3 +93,18 @@ status); the shear means with `phase_invalid`; a non-finite solution that Newton
 Group 1 (`ContactSettings.nu`, `.k_asp_exponent`), and the 1:1 part of group 2 (the solver reads
 `Zeta`, `MicroSettings` and the call's values directly; the six legacy keys still travel in
 `MicroSettings.legacy` until question 1 is answered).
+
+## Rob's answers (11 Nov 2026)
+
+"A on all eight", given in the WP4 session after the interim log (f014d6a).
+
+| # | Answer | Built in |
+|---|---|---|
+| 1 | A: `delta_h`, `eps_solid`, `eps_smooth` are `MicroSettings` fields; `beta`, `patch_pin`, `patch_pin_kappa` are fixed values | group 2b |
+| 2 | A: the GenSa40-ripple defaults stay | no change |
+| 3 | A: per-quantity status table, new overall `FAILED_NONFINITE`, `p_fluid_masked` leaves `out.fields` | groups 3b, 4 |
+| 4 | A: the 11 `gx_*` outputs, `shear_frame` and the `rotation=` path are removed | group 3b |
+| 5 | A: `n_steps=None` is left for WP5 | not in WP4 |
+| 6 | A: renames are the first commit of WP5 | not in WP4 |
+| 7 | A: `MicroSettings.rho0` is removed | group 2b |
+| 8 | A: one `MicroSettings.E_star`; the contact and ripple moduli are removed | group 2b |

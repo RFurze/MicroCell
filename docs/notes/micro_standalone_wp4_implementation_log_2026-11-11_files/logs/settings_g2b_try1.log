@@ -1,0 +1,6 @@
+........................                                                 [100%]
+24 passed in 0.20s
+  (/home/robin/miniforge3/envs/ehl-fenics/bin/python)
+  PYTHONPATH /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell
+  DIJITSO    /home/robin/.cache/dijitso
+wslrun: [ehl-fenics] /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell $ python -m pytest tests/test_settings.py -q -p no:cacheprovider -rfE --tb=short 

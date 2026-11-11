@@ -13,6 +13,10 @@ Writes, beside this file:
                            NaN on an OK result, and what a failed result holds
   nan_observed_<tag>.tsv   every NaN seen: the 8 reference cells (OK) and the five forced failures of
                            tests/test_results.py, with the overall and the four per-quantity statuses
+  nan_status_<tag>.tsv     the table api.NAN_STATUS, with the cells and forced cases in which each
+                           listed output was seen NaN and the status it then had
+  statuses_<tag>.tsv       per reference cell: the four per-quantity statuses of the reference and
+                           of the result
   counts_<tag>.tsv         the counts the log quotes
 """
 import dataclasses
@@ -128,6 +132,10 @@ def test_tables(monkeypatch):
     outs = {sh: tr.solve(c) for c, sh in zip(cells, short)}
     assert all(o.status == "OK" for o in outs.values())
     forced = {case: tr.solve_forced(case, monkeypatch) for case in sorted(tr.FORCED)}
+    forced_cell = {case: tr.FORCED[case][0] for case in tr.FORCED}
+    for case in sorted(getattr(tr, "NONFINITE", {})):
+        forced["nonfinite_" + case] = tr.solve_nonfinite(case, monkeypatch)
+        forced_cell["nonfinite_" + case] = tr.NONFINITE[case][0]
     refs = {sh: tp.load_reference(c) for c, sh in zip(cells, short)}
     parent_fields = sorted(set().union(*[set(r["result"]) for r in refs.values()]))
     held = {}                                       # where -> the parent's result fields
@@ -202,10 +210,15 @@ def test_tables(monkeypatch):
                    "n": sum(1 for k in parent_fields if k in not_compared)})
     counts.append({"what": "parent result fields held under another name or place (RESULT_NOW)",
                    "n": sum(1 for k in parent_fields if k in tp.RESULT_NOW)})
-    unheld = [k for k in parent_fields if k not in not_compared
+    removed = set(getattr(tp, "REMOVED_RESULT_FIELDS", ()))
+    counts.append({"what": "parent result fields removed from the result (REMOVED_RESULT_FIELDS)",
+                   "n": sum(1 for k in parent_fields if k in removed)})
+    unheld = [k for k in parent_fields if k not in not_compared and k not in removed
               and (tp.RESULT_NOW.get(k, "info." + k)) not in {(n if w == "named" else "reason" if n == "reason" else f"info.{n}")
                                                               for w, n in order if w in ("named", "info", "status")}]
     counts.append({"what": "compared parent result fields with no place in a MicroResult", "n": len(unheld)})
+    counts.append({"what": "reference fields formed by the gate from held fields (DERIVED_FIELDS)",
+                   "n": len(getattr(tp, "DERIVED_FIELDS", {}))})
 
     # ---- observed NaN -------------------------------------------------------------------------
     nrows = []
@@ -223,7 +236,7 @@ def test_tables(monkeypatch):
     for sh in short:
         observe(sh, outs[sh])
     for case, out in forced.items():
-        observe(f"{tr.FORCED[case][0].split('_')[0]} forced {case}", out)
+        observe(f"{forced_cell[case].split('_')[0]} forced {case}", out)
     _write(f"nan_observed_{TAG}.tsv", ["case", "status", "where", "name", "n_nan", "n_values"] + list(STATUS_KEYS),
            nrows)
     ok_rows = [r for r in nrows if r["status"] == "OK"]
@@ -231,7 +244,30 @@ def test_tables(monkeypatch):
         counts.append({"what": f"NaN on OK results: distinct names in {w}",
                        "n": len({r["name"] for r in ok_rows if r["where"] == w})})
     for case, out in forced.items():
-        label = f"{tr.FORCED[case][0].split('_')[0]} forced {case}"
+        label = f"{forced_cell[case].split('_')[0]} forced {case}"
         counts.append({"what": f"NaN in {label} ({out.status}): names in named + info",
                        "n": sum(1 for r in nrows if r["case"] == label and r["where"] in ("named", "info"))})
+    # ---- the per-quantity statuses, reference against result -----------------------------------
+    strows = []
+    for sh in short:
+        for key in STATUS_KEYS:
+            want, got = refs[sh]["result"].get(key), outs[sh].info.get(key)
+            strows.append({"cell": sh, "status_entry": key, "reference": want, "result": got,
+                           "same": "yes" if want == got else "no"})
+    _write(f"statuses_{TAG}.tsv", ["cell", "status_entry", "reference", "result", "same"], strows)
+    counts.append({"what": "per-quantity statuses that differ from the reference's (8 cells x 4)",
+                   "n": sum(1 for r in strows if r["same"] == "no")})
+    # ---- the table in code ---------------------------------------------------------------------
+    table = getattr(api, "NAN_STATUS", {})
+    trows = []
+    for name, (key, explains) in table.items():
+        seen_nan = sorted({f"{r['case']} ({r[key]})" for r in nrows if r["name"] == name and r["status"] == "OK"})
+        trows.append({"output": name, "where": "named" if name in named else "info", "status_entry": key,
+                      "statuses_that_explain_nan": ", ".join(explains),
+                      "seen_nan_on_ok_results": "; ".join(seen_nan)})
+    _write(f"nan_status_{TAG}.tsv", ["output", "where", "status_entry", "statuses_that_explain_nan",
+                                    "seen_nan_on_ok_results"], trows)
+    counts.append({"what": "NAN_STATUS: outputs listed", "n": len(trows)})
+    counts.append({"what": "NaN on OK results not in NAN_STATUS",
+                   "n": len({r["name"] for r in ok_rows if r["name"] not in table})})
     _write(f"counts_{TAG}.tsv", ["what", "n"], counts)
