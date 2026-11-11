@@ -365,7 +365,7 @@ def unexplained_nonfinite(out: MicroResult) -> list:
 # The call
 # ----------------------------------------------------------------------------------------
 def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
-                settings: Optional[MicroSettings] = None, n_steps: int = 3,
+                settings: Optional[MicroSettings] = None, n_steps: Optional[int] = 3,
                 offset: Tuple[float, float] = (0.0, 0.0), steady: bool = False,
                 save_paraview: bool = False, output_dir=None) -> MicroResult:
     """Solve one micro cell and return its homogenised outputs and fields.
@@ -374,7 +374,14 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     t_end          the time window [s] of a transient solve (> 0); not used when ``steady``
     roughness      a :class:`microcell.Roughness`
     settings       :class:`MicroSettings` (default: ``MicroSettings()``)
-    n_steps        transient: the number of CFL steps solved, ending at ``t_end``
+    n_steps        transient: the number of CFL steps solved, ending at ``t_end`` (default 3: the
+                   last 3 steps of the window).  ``None``: march from t = 0 to ``t_end`` in
+                   ``N = ceil(t_end / dt_cfl)`` equal steps, ``dt_cfl = cfl_target * min(xmax, ymax)
+                   / mesh_n / (2 max|U|)`` (``t_end / 10`` when U = 0); ``info["n_steps"]`` is then N.
+                   There is no cap on N and the cost grows with it: the defaults at
+                   ``t_end = 0.02`` s and ``Ux = 0.02`` m/s give N = 16000, about 11 minutes
+                   for the cell of ``examples/run_cell.py`` (an estimate from 11 and 21 steps,
+                   about 0.04 s per step)
     offset         ``(o_x, o_y)`` [m], the translating surface's starting displacement; pairs only
     steady         True: one steady solve; False: the transient window
     save_paraview  write ``<output_dir>/cell.vts`` and ``cell.xdmf`` (+ ``.h5``) of the end state
@@ -394,11 +401,10 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
         if t_end is None or not float(t_end) > 0.0:
             raise ValueError("a transient solve needs t_end > 0 (pass steady=True for a steady solve)")
         tend = float(t_end)
-        if n_steps is None:
-            raise NotImplementedError("n_steps=None (march from t = 0, plan D3) is not implemented at WP1")
-        if int(n_steps) < 1:
-            raise ValueError("n_steps must be at least 1")
-        n_steps = int(n_steps)
+        if n_steps is not None:
+            if int(n_steps) < 1:
+                raise ValueError("n_steps must be at least 1")
+            n_steps = int(n_steps)
     offset = (float(offset[0]), float(offset[1]))
     pair = roughness.is_pair
     if offset != (0.0, 0.0) and not pair:
@@ -471,12 +477,26 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     )
     ci_seen = int(getattr(solver, "_contact_iterations", 0))
 
+    # n_steps=None (plan D3): the march from t = 0.  The solver starts its window at t = 0 whenever
+    # the steps asked for do not fit in [0, t_end], and then takes ceil(t_end / dt_cfl) equal steps.
+    # One step more than that count never fits, so asking for it runs the march.
+    n_march = None
+    if not steady and n_steps is None:
+        dt_cfl = solver._compute_cfl_dt(tend, float(st.cfl_target), T_start=0.0)
+        n_march = max(1, int(np.ceil(tend / dt_cfl)))
+
+    def n_steps_reported() -> int:
+        """``info["n_steps"]``: 0 for a steady solve, the count asked for, or the count marched."""
+        if steady:
+            return 0
+        return n_steps if n_march is None else int(getattr(solver, "n_steps_run", n_march))
+
     def info_now() -> dict:
         """The ``info`` entries that do not depend on the solve's outcome, as they stand now."""
         # the parent reports no level-constraint counts with "whole_cell"
         counts = (0, 0, 0) if lc_tag == "whole_cell" else lc_counts
         return dict(
-            mesh_n=int(st.mesh_n), steady=steady, t_end=tend, n_steps=(0 if steady else n_steps), offset=offset,
+            mesh_n=int(st.mesh_n), steady=steady, t_end=tend, n_steps=n_steps_reported(), offset=offset,
             roughness_velocity_ratio=float(ratio),
             t_start=(None if steady else float(getattr(solver, "T_start", _NAN))),
             dt=(None if steady else float(getattr(solver, "dt_dim_run", _NAN))),
@@ -496,7 +516,8 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
         if steady:
             solver.run_steady()
         else:
-            solver.run(Tf=tend, n_steps=n_steps, cfl_target=float(st.cfl_target))
+            solver.run(Tf=tend, n_steps=(n_steps if n_march is None else n_march + 1),
+                       cfl_target=float(st.cfl_target))
     except RuntimeError as exc:
         status = (FAILED_CONTACT if isinstance(exc, ContactResolutionError)
                   else FAILED_RIPPLE if isinstance(exc, _ripple.RippleNotConvergedError)
