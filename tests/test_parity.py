@@ -15,8 +15,15 @@ The rule (plan D6; written before the first run, not fitted to it)
   ``MicroResult`` holds it now: ``RESULT_NOW``, WP4) and the field diagnostics: floats and each component of a vector pass when
   ``|a - b| <= 1e-12 * max(|a|, |b|)``; a NaN must be a NaN on both sides; integers and
   strings must be equal.
+  The eleven global-x shear statistics of the parent's result (``REMOVED_RESULT_FIELDS``, WP4) are
+  not in a ``MicroResult`` and are not compared; a reference that held a finite one, or a result
+  that still carried one, fails.  With them the parent's ``no_frame`` status is gone: where a
+  reference has it, the result must hold the status the reference's own support fractions give
+  (``STATUS_WITHOUT_FRAME``).
 * Fields (the ``_extract_fields`` arrays in SI, and the DG0 fluid indicator): same shape, the
   same NaN pattern, and ``max|a - b| <= 1e-12 * max|reference|``.
+  ``p_fluid_masked`` is not held (``DERIVED_FIELDS``, WP4): the gate forms it from the held
+  ``p_fluid`` and ``chi_fluid`` and compares that with the reference's array.
 * Every field of the parent's settings dataclass that the reference stores must equal the value
   the solver reads now, read from where it reads it (``SETTINGS_NOW``, WP4: a ``MicroSettings``
   field, a fixed value of the solver module, or the call).  The ripple fields of a reference
@@ -174,6 +181,32 @@ RESULT_NOW = {
 #: ``info`` entries that are not a field of the parent's result: the call, and the field diagnostics
 INFO_OF_THE_CALL = ("steady", "t_end", "n_steps", "offset", "roughness_velocity_ratio", "t_start", "dt",
                     "fields", "paraview")
+
+#: WP4 (Rob, 11 Nov 2026): fields of the parent's result that left the result.  They are the
+#: global-x envelopes of the shear tractions, which need the macro frame ``R_inv``; a standalone
+#: cell has none, so each is NaN in every reference.  Not compared.  The gate fails a reference
+#: that holds a finite one (it would be an output this solver can no longer give) and a result
+#: that still carries one.
+REMOVED_RESULT_FIELDS = (
+    "shear_fluid_gx_min_Pa", "shear_fluid_gx_max_Pa", "shear_fluid_gx_sample_mean_Pa",
+    "shear_fluid_support_gx_min_Pa", "shear_fluid_support_gx_max_Pa",
+    "shear_asperity_gx_min_Pa", "shear_asperity_gx_max_Pa", "shear_asperity_gx_sample_mean_Pa",
+    "shear_total_gx_min_Pa", "shear_total_gx_max_Pa", "shear_total_gx_sample_mean_Pa",
+)
+#: WP4: the parent's status ``no_frame`` ("the local mean is computed, the global-x statistics are
+#: NaN") went with those statistics.  Where a reference stores it, the result holds the status of
+#: the local mean, which the reference's own support fractions fix: ``ok`` when one of the listed
+#: fractions is positive (the contribution is present at a sample), else ``no_support``.  Any
+#: other reference status is compared as it is.
+STATUS_WITHOUT_FRAME = {
+    "shear_extrema_status": ("shear_fluid_support_fraction",),
+    "shear_asperity_status": ("shear_asperity_support_fraction",),
+    "shear_total_status": ("shear_fluid_support_fraction", "shear_asperity_support_fraction"),
+}
+#: WP4: reference fields a ``MicroResult`` does not hold, formed here from the fields it holds
+DERIVED_FIELDS = {
+    "p_fluid_masked": lambda f: np.where(f["chi_fluid"] > 0.5, f["p_fluid"], np.nan),
+}
 _MISSING = object()
 
 
@@ -183,6 +216,14 @@ def result_now(out, key: str):
     if where.startswith("info."):
         return out.info.get(where[len("info."):], _MISSING)
     return getattr(out, where)
+
+
+def status_without_frame(result: dict, key: str) -> str:
+    """The reference's status ``result[key]`` with ``no_frame`` replaced (``STATUS_WITHOUT_FRAME``)."""
+    want = result[key]
+    if key in STATUS_WITHOUT_FRAME and want == "no_frame":
+        return "ok" if any(float(result[f]) > 0.0 for f in STATUS_WITHOUT_FRAME[key]) else "no_support"
+    return want
 
 
 def spring_acted(ref: dict) -> bool:
@@ -437,11 +478,18 @@ def run_cell(cell: str) -> dict:
     for key in sorted(result):
         if key in NOT_COMPARED or (pair and key in PAIR_NOT_COMPARED):
             continue
+        if key in REMOVED_RESULT_FIELDS:            # not a comparison: a record only when it does not hold
+            finite = bool(np.any(np.isfinite(np.asarray(result[key], dtype=float))))
+            if finite or key in out.info:
+                records.append({"name": key, "kind": "scalar", "rel": float("inf"), "ok": False,
+                                "note": (f"removed output: the reference holds {result[key]!r}" if finite
+                                         else "removed output still in info")})
+            continue
         got = result_now(out, key)
         if got is _MISSING:
             records.append({"name": key, "kind": "scalar", "rel": float("inf"), "ok": False, "note": "missing"})
             continue
-        records.append(compare_scalar(key, result[key], got))
+        records.append(compare_scalar(key, status_without_frame(result, key), got))
     # each output once: nothing in info but the parent's fields (compared or listed as not) and the call
     held = {RESULT_NOW.get(k, "info." + k) for k in result}
     unknown = sorted(k for k in out.info if "info." + k not in held and k not in INFO_OF_THE_CALL)
@@ -455,6 +503,13 @@ def run_cell(cell: str) -> dict:
                        {"name": f"info.{key}", "kind": "diagnostic", "rel": float("inf"), "ok": False,
                         "note": "missing"})
     for key in sorted(ref["fields"]):
+        if key in DERIVED_FIELDS:
+            if key in out.fields:
+                records.append({"name": key, "kind": "field", "rel": float("inf"), "ok": False,
+                                "note": "listed as derived but the result still holds it"})
+                continue
+            records.append(compare_field(key, ref["fields"][key], DERIVED_FIELDS[key](out.fields)))
+            continue
         records.append(compare_field(key, ref["fields"][key], out.fields.get(key)))
     extra = sorted(set(out.fields) - set(ref["fields"]) - {"x", "y"})
     if extra:

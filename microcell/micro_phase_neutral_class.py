@@ -2719,11 +2719,9 @@ the film does not depend on the pressure, and the contact solve sees
 
         # [extrema M2b, 23 Oct 2026] The fluid traction at the points of the quadrature rule of the
         # integrals above (micro_diagnostics.py; definition in ehl/fluid_shear.py): zero where the
-        # sharp level-set test says solid (every point is fluid when h_min = 0); the global-x
-        # envelope with the task's frame (self.shear_frame).  taust above stays the unmasked
-        # integral; the samples unweighted by any mask reproduce it (the sampler's check).
-        self.fluid_traction = sample_fluid_traction(
-            self, film_dofs_m=h_arr, existing_mask=None, frame=getattr(self, "shear_frame", None))
+        # sharp level-set test says solid (every point is fluid when h_min = 0).  taust above stays
+        # the unmasked integral; the samples unweighted by any mask reproduce it (the sampler's check).
+        self.fluid_traction = sample_fluid_traction(self, film_dofs_m=h_arr, existing_mask=None)
 
         # Store decomposition for diagnostics
         self.Qx_couette = Qx_couette

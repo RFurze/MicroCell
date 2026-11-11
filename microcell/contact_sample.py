@@ -358,11 +358,10 @@ class ContactTotalReduction:
 
 
 def reduce_contact_and_total(t_fluid, fluid_support, fluid_valid, contact: ContactSamples, mu_material: float,
-                             u_hat, weights, *, rotation=None, direction=GLOBAL_X,
+                             u_hat, weights, *, direction=GLOBAL_X,
                              fluid_state_valid: bool = True) -> ContactTotalReduction:
     """The three contributions on the same samples, each reduced by ``ehl.shear_reduce.reduce_traction``
-    (every sample rotated with ``rotation`` = the macro's ``R_inv`` and projected on ``direction`` before
-    anything is reduced).  The total is formed sample by sample first and reduced afterwards; extrema
+    (every sample projected on ``direction``, in the local basis, before anything is reduced).  The total is formed sample by sample first and reduced afterwards; extrema
     of the components are never added.
 
     ``t_fluid`` (N, 2|3) [Pa] is the fluid traction in the local basis (M2b), ``fluid_support`` its
@@ -377,19 +376,19 @@ def reduce_contact_and_total(t_fluid, fluid_support, fluid_valid, contact: Conta
     tf = _pad3(t_fluid, n, "t_fluid")
     if fv.shape != (n,) or w.shape != (n,) or contact.p.shape != (n,):
         raise ValueError("fluid arrays, weights and contact samples must have the same length")
-    fluid = reduce_traction(tf, w, fv, direction, support=fs, rotation=rotation, state_valid=fluid_state_valid)
+    fluid = reduce_traction(tf, w, fv, direction, support=fs, state_valid=fluid_state_valid)
 
     c_ok = contact.valid
     p = np.where(np.isfinite(contact.p), contact.p, 0.0) if c_ok else np.zeros(n)
     ta = asperity_traction(p, mu_material, u_hat)
     a_valid = np.isfinite(contact.p) if c_ok else np.zeros(n, dtype=bool)
-    asperity = reduce_traction(ta, w, a_valid, direction, support=contact.mech_support, rotation=rotation,
+    asperity = reduce_traction(ta, w, a_valid, direction, support=contact.mech_support,
                                state_valid=c_ok)
 
     ms = contact.mech_support
     tt = total_traction(tf, fs, ta, ms)
     t_valid = (fv | ~fs) & (a_valid | ~ms)
-    total = reduce_traction(tt, w, t_valid, direction, support=fs | ms, rotation=rotation,
+    total = reduce_traction(tt, w, t_valid, direction, support=fs | ms,
                             state_valid=bool(fluid_state_valid and c_ok))
     return ContactTotalReduction(fluid=fluid, asperity=asperity, total=total,
                                  support=support_report(fs, contact, w), contact=contact.summary())

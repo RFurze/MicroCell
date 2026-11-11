@@ -462,7 +462,6 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     solver.fluid_traction = None
     solver.fluid_traction_samples = None
     solver.contact_traction = None
-    solver.shear_frame = None           # no macro frame: the global-x shear statistics are "no_frame"
     (Qx, Qy, Pst, Fst, taust_x, taust_y,
      _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
 
@@ -520,6 +519,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     # --- fields ------------------------------------------------------------------------------
     shown, cell_fields, field_info = _fields.extract_fields(solver, mixed)
     fields = _fields.to_si(shown)
+    del fields["p_fluid_masked"]        # p_fluid where chi_fluid is 1, NaN elsewhere: kept in the ParaView files only
     n = int(st.mesh_n)
     xs, ys = np.linspace(0.0, float(st.xmax), n + 1), np.linspace(0.0, float(st.ymax), n + 1)
     fields["x"], fields["y"] = np.meshgrid(xs, ys, indexing="ij")

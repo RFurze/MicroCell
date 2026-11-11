@@ -41,8 +41,7 @@ Sampler ``fluid_quadrature_sharp_v1`` (Rob's choice of 23 Oct 2026 over the M1 v
   projection the class made, exact for a CG1 film);
 * fluid: M1's nodal level set interpolated linearly to the point, > 0 (the ``chi_fluid`` test
   there); the traction is zero outside the fluid (t_f = chi_f tau_f);
-* reduced by ``reduce_traction``: the local mean over the whole set and, with the task's frame
-  (``solver.shear_frame``, the macro's ``R_inv``), the global-x envelope.  The same samples
+* reduced by ``reduce_traction``: the local mean over the whole set.  The same samples
   weighted by the class's own mask of ``taust`` (DG0 ``chi`` / none) reproduce ``taust``: that
   is the check that the sampler evaluates the existing expression.
 
@@ -325,20 +324,11 @@ def fluid_traction_samples(solver, film_dofs_m=None, existing_mask=None) -> Flui
                                 degree=q, mask_source=s.mask_source, film_source=film_source, xy=xy)
 
 
-def _frame(frame):
-    """The task's 3 x 3 ``R_inv`` (local -> global) or None (absent, malformed or not finite)."""
-    if frame is None:
-        return None
-    r = np.asarray(frame, dtype=float)
-    return r if r.shape == (3, 3) and np.all(np.isfinite(r)) else None
-
-
-def sample_fluid_traction(solver, film_dofs_m=None, existing_mask=None, frame=None):
-    """The fluid traction statistics of the solver's current state (one phase); see the module
-    docstring and ``ehl/fluid_shear.py``.  ``frame``: the task's ``R_inv`` (3 x 3, the macro's
-    convention, applied as given); None gives the local mean only (status ``no_frame``)."""
-    from microcell.fluid_shear import SHEAR_NO_FRAME, SHEAR_SAMPLER, FluidTractionPhase
-    from microcell.shear_reduce import GLOBAL_X, VALID_STATUSES, reduce_traction
+def sample_fluid_traction(solver, film_dofs_m=None, existing_mask=None):
+    """The fluid traction statistics of the solver's current state (one phase), in the micro's
+    local frame; see the module docstring and ``fluid_shear.py``."""
+    from microcell.fluid_shear import SHEAR_SAMPLER, FluidTractionPhase
+    from microcell.shear_reduce import GLOBAL_X, reduce_traction
     smp = fluid_traction_samples(solver, film_dofs_m, existing_mask)
     # [extrema M3b] the phase's sample set, kept on the solver for the asperity / total traction of the
     # contact class (sample_contact_traction): one common set, not a second sampling
@@ -349,17 +339,8 @@ def sample_fluid_traction(solver, film_dofs_m=None, existing_mask=None, frame=No
     ew = smp.existing_weight * smp.weight
     sel = ew != 0.0                     # the points the existing integral weights (a contact cell's are 0)
     existing = tuple(float(v) for v in (ew[sel] @ smp.t[sel]) / total)
-    r = _frame(frame)
-    glob = (reduce_traction(smp.t, smp.weight, valid, GLOBAL_X, support=smp.fluid, rotation=r)
-            if r is not None else None)
-    if local.status not in VALID_STATUSES:
-        status = local.status
-    elif glob is None:
-        status = SHEAR_NO_FRAME
-    else:
-        status = glob.status
     return FluidTractionPhase(mean_local=(float(local.mean[0]), float(local.mean[1])),
-                              mean_existing_weights=existing, reduction=glob, status=status,
+                              mean_existing_weights=existing, status=local.status,
                               n_samples=int(local.n_samples), n_support=int(local.n_support),
                               support_fraction=float(local.support_fraction), quadrature_degree=smp.degree,
                               mask_source=smp.mask_source, film_source=smp.film_source,
@@ -395,8 +376,8 @@ def sample_contact_traction(solver):
 
     * ``fft_elastic_v1``: ``p_a`` of the stored solution if its state key is current (no refresh here:
       it would change the mask the fluid was solved with), checked against the grid and the solution's
-      own ``Pasp_hom`` (``ehl.contact_shear.MEAN_CHECK_BUDGET``), then M3a's ``reduce_contact_and_total``
-      in the local frame (the means) and, with the task's ``R_inv``, along global x (the envelopes).
+      own ``Pasp_hom`` (``contact_shear.MEAN_CHECK_BUDGET``), then M3a's ``reduce_contact_and_total``
+      in the local frame (the means).
     """
     from microcell import contact_shear as cs
     from microcell.shear_reduce import GLOBAL_X, VALID_STATUSES as _FLUID_OK
@@ -410,7 +391,7 @@ def sample_contact_traction(solver):
     n = int(smp.weight.size)
     u_hat = _local_sliding_direction(solver)
     fluid_mean = tuple(float(v) for v in fl.mean_local)
-    fluid_ok = fl.status in _FLUID_OK + ("no_frame",)
+    fluid_ok = fl.status in _FLUID_OK
     sol = None
     grid_ok, check = True, float("nan")
     if model == cs.FFT_MODEL:
@@ -434,13 +415,9 @@ def sample_contact_traction(solver):
     if not contact.valid:
         return cs.invalid_phase(cs.STATE_INVALID, n, model, u_hat, fluid_mean, solution=sol)
     fv = np.all(np.isfinite(smp.t), axis=1)
-    frame = _frame(getattr(solver, "shear_frame", None))
-    loc = reduce_contact_and_total(smp.t, smp.fluid, fv, contact, mu, u_hat, smp.weight, rotation=None,
+    loc = reduce_contact_and_total(smp.t, smp.fluid, fv, contact, mu, u_hat, smp.weight,
                                    direction=GLOBAL_X, fluid_state_valid=fluid_ok)
-    glob = (reduce_contact_and_total(smp.t, smp.fluid, fv, contact, mu, u_hat, smp.weight, rotation=frame,
-                                     direction=GLOBAL_X, fluid_state_valid=fluid_ok)
-            if frame is not None else None)
-    return cs.phase_from_reductions(loc, glob, contact_status=contact.status, contact_model=model,
+    return cs.phase_from_reductions(loc, contact_status=contact.status, contact_model=model,
                                     fluid_state_valid=fluid_ok, mean_check_rel=check, u_hat=u_hat,
                                     fluid_mean=fluid_mean, solution=sol, grid_ok=grid_ok)
 

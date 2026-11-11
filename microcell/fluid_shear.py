@@ -24,11 +24,9 @@ per phase (the sampler ``fluid_quadrature_sharp_v1``)
               ``h_nd - h_min``), interpolated linearly to the point, is > 0 -- the sharp
               ``chi_fluid`` test at the point; the traction is zero outside it (t_f = chi_f tau_f);
     reduced   by ``reduce_traction``: the local-frame mean over the whole set (per total cell
-              area), and -- with the task's frame ``R_inv`` (local -> global) -- the global-x
-              min / max / sample mean over the whole set (zero extension) and the fluid-only min /
-              max (``support_*``, conditional statistics);
-per task      means by phase weight (equal), extrema by union over the phases, any invalid phase
-              invalidates (``union_phases``).
+              area).  The parent's global-x envelope (min / max / sample mean, with the macro
+              frame ``R_inv``) is not produced: a standalone cell has no macro frame (WP4);
+per task      means by phase weight (equal); any invalid phase invalidates.
 
 The two cell means, kept apart (plan 3.2): ``micro_raw/mean_existing_integration`` is the existing
 ``taust`` (``assemble(chi_dg0 * tau)`` / area: the DG0-projected mask; ``tau_res`` -> ``taust_rot``),
@@ -45,23 +43,21 @@ Nothing rescales either.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Sequence
 
 import numpy as np
 
-from microcell.shear_reduce import (STATUS_INVALID_SAMPLES, STATUS_PHASE_INVALID, STATUS_STATE_INVALID,
-                              ShearReduction, union_phases)
+from microcell.shear_reduce import (STATUS_INVALID_SAMPLES, STATUS_NO_SUPPORT, STATUS_OK,
+                                    STATUS_PHASE_INVALID, STATUS_STATE_INVALID)
 
 SHEAR_SAMPLER = "fluid_quadrature_sharp_v1"
 SHEAR_EXTREMA_DEFINITION = SHEAR_SAMPLER + "/global_x/phase_union"
 
 # ------------------------------------------------------------------------------- statuses
-#: per-task status of the shear statistics: the union's own (``ok``, ``no_support``, from
-#: ``shear_reduce.union_phases``) or one of
+#: per-task status of the shear statistics: ``ok`` (a phase has fluid samples), ``no_support``
+#: (a valid state with no fluid sample: the mean is the physical zero) or one of
 SHEAR_PHASE_INVALID = STATUS_PHASE_INVALID  # a phase had a fluid point without a finite traction: NaN
 SHEAR_FAILED = "failed"                    # the micro solve failed
-SHEAR_NO_FRAME = "no_frame"                # the solve came without a frame: global-x statistics NaN,
-                                           # the local mean computed
 
 
 # ------------------------------------------------------------------------- one phase, the union
@@ -74,12 +70,10 @@ class FluidTractionPhase:
     ``mean_existing_weights``  (t_x, t_y) [Pa]: the same samples weighted by the class's own mask of
                          ``taust`` (the DG0 ``chi`` of the mixed classes; none in the base class): a
                          check that the sampler evaluates the existing expression -- ``taust`` to roundoff
-    ``reduction``        the global-x reduction (``ShearReduction``), None without a frame
-    ``status``           ``ok`` | ``no_support`` | ``invalid_samples`` | ``state_invalid`` | ``no_frame``
+    ``status``           ``ok`` | ``no_support`` | ``invalid_samples`` | ``state_invalid``
     """
     mean_local: tuple
     mean_existing_weights: tuple
-    reduction: Optional[ShearReduction]
     status: str
     n_samples: int
     n_support: int
@@ -94,19 +88,16 @@ _NAN2 = (float("nan"), float("nan"))
 
 
 def union_fluid_traction(phases: Sequence[FluidTractionPhase], weights=None) -> dict:
-    """The task's statistics from its phases (equal weights unless given): means by weight, extrema by
-    union (``ehl.shear_reduce.union_phases``); a phase whose samples are invalid invalidates the task
-    (``phase_invalid``, everything NaN); without a frame the global-x statistics are NaN
-    (``no_frame``) and the local mean is kept."""
+    """The task's statistics from its phases (equal weights unless given): means by weight; a phase
+    whose samples are invalid invalidates the task (``phase_invalid``, everything NaN); ``ok`` when a
+    phase has fluid samples, else ``no_support``."""
     phases = list(phases)
     if not phases:
         raise ValueError("no phase sample")
     w = np.ones(len(phases)) if weights is None else np.asarray(weights, dtype=float).reshape(-1)
     if w.shape != (len(phases),) or not np.all(np.isfinite(w)) or np.any(w <= 0.0):
         raise ValueError("one finite positive weight per phase is required")
-    nan = float("nan")
-    out = dict(status=SHEAR_PHASE_INVALID, mean_local=_NAN2, gx_min=nan, gx_max=nan, gx_mean=nan,
-               gx_support_min=nan, gx_support_max=nan, support_fraction=nan,
+    out = dict(status=SHEAR_PHASE_INVALID, mean_local=_NAN2, support_fraction=float("nan"),
                n_samples=int(sum(int(p.n_samples) for p in phases)))
     if any(p.status in (STATUS_INVALID_SAMPLES, STATUS_STATE_INVALID) for p in phases):
         return out
@@ -114,23 +105,13 @@ def union_fluid_traction(phases: Sequence[FluidTractionPhase], weights=None) -> 
     out["mean_local"] = tuple(float(sum(wi * p.mean_local[c] for wi, p in zip(w, phases)) / ws)
                               for c in range(2))
     out["support_fraction"] = float(sum(wi * p.support_fraction for wi, p in zip(w, phases)) / ws)
-    if any(p.reduction is None for p in phases):
-        out["status"] = SHEAR_NO_FRAME
-        return out
-    u = union_phases([p.reduction for p in phases], w)
-    out.update(status=u.status, gx_min=float(u.min), gx_max=float(u.max), gx_mean=float(u.sample_mean),
-               gx_support_min=float(u.support_min), gx_support_max=float(u.support_max))
+    out["status"] = STATUS_OK if any(p.status == STATUS_OK for p in phases) else STATUS_NO_SUPPORT
     return out
 
 
 def shear_fields(union: dict) -> dict:
     """The appended ``MicroTaskResult`` fields of a task's union (the worker's success return)."""
     return {"shear_fluid_mean_local_Pa": tuple(float(v) for v in union["mean_local"]),
-            "shear_fluid_gx_min_Pa": float(union["gx_min"]),
-            "shear_fluid_gx_max_Pa": float(union["gx_max"]),
-            "shear_fluid_gx_sample_mean_Pa": float(union["gx_mean"]),
-            "shear_fluid_support_gx_min_Pa": float(union["gx_support_min"]),
-            "shear_fluid_support_gx_max_Pa": float(union["gx_support_max"]),
             "shear_fluid_support_fraction": float(union["support_fraction"]),
             "shear_extrema_status": str(union["status"]),
             "shear_extrema_definition": SHEAR_EXTREMA_DEFINITION,
@@ -141,8 +122,6 @@ def failed_shear_fields() -> dict:
     """The worker's NaN return: every statistic NaN, status ``failed`` (run_micro's kNN fill then
     writes neighbour estimates, never measured statistics)."""
     nan = float("nan")
-    return {"shear_fluid_mean_local_Pa": _NAN2, "shear_fluid_gx_min_Pa": nan, "shear_fluid_gx_max_Pa": nan,
-            "shear_fluid_gx_sample_mean_Pa": nan, "shear_fluid_support_gx_min_Pa": nan,
-            "shear_fluid_support_gx_max_Pa": nan, "shear_fluid_support_fraction": nan,
+    return {"shear_fluid_mean_local_Pa": _NAN2, "shear_fluid_support_fraction": nan,
             "shear_extrema_status": SHEAR_FAILED, "shear_extrema_definition": SHEAR_EXTREMA_DEFINITION,
             "shear_fluid_n_samples": 0}

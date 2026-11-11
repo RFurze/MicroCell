@@ -25,17 +25,18 @@ per phase (``microscale/src/functions/micro_diagnostics.py`` ``sample_contact_tr
               term of the fluid traction; the macro's law ``calc_asp_friction``, unchanged); zero outside
               its mechanical support ``p_a > 0``; ``t_t = t_f + t_a`` at each sample, each contribution its
               physical zero outside its own support, both kept where they overlap;
-    reduced   by ``ehl.shear_reduce.reduce_traction``: the local-frame mean over the whole set (per total
-              cell area), and with the task's frame ``R_inv`` the global-x min / max / sample mean (every
-              sample rotated and projected first; the total formed per sample before it is reduced);
+    reduced   by ``shear_reduce.reduce_traction``: the local-frame mean over the whole set (per total
+              cell area; the total formed per sample before it is reduced).  The parent's global-x
+              envelope (with the macro frame ``R_inv``) is not produced: a standalone cell has no
+              macro frame (WP4);
     checks    the common-support construction is published only when (a) the contact grid is the micro
               mesh's n x n grid and (b) the sampled mean of ``p_a`` reproduces the solution's own
               ``Pasp_hom`` to ``MEAN_CHECK_BUDGET`` (M3a's gate-1 budget, stated before its comparison);
               otherwise ``check_failed``.  The supports' mismatch (fluid samples carrying contact pressure,
               obstruction without pressure, the contact force on fluid samples) is recorded, never
               suppressed;
-per task      means by phase weight (equal), extrema by union over the phases (``union_phases``); a phase
-              whose state is invalid invalidates the task (``phase_invalid``).
+per task      means by phase weight (equal); a phase whose state is invalid invalidates the task
+              (``phase_invalid``).
 
 Contact model: ``fft_elastic_v1``, the only one in this repo (``micro_diagnostics.sample_contact_traction``
 raises for any other).
@@ -43,12 +44,11 @@ raises for any other).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
+from typing import Sequence
 
 import numpy as np
 
-from microcell.shear_reduce import (STATUS_NO_SUPPORT, STATUS_OK,
-                              VALID_STATUSES, ShearReduction, union_phases)
+from microcell.shear_reduce import STATUS_NO_SUPPORT, STATUS_OK, VALID_STATUSES
 
 #: M3a's sampler (``contact_sample.CONTACT_SAMPLER``; equal by test) on M2b's sample set
 CONTACT_SAMPLER = "fft_nodal_p1_periodic_v1"
@@ -72,7 +72,6 @@ STATE_MISMATCH = "state_mismatch"    # the extraction refreshed the contact solu
 CHECK_FAILED = "check_failed"        # the common-support checks failed (grid, sampled mean vs Pasp_hom): NaN
 PHASE_INVALID = "phase_invalid"      # task: a phase was invalid (any of the three above)
 FAILED = "failed"                    # the micro solve failed (or, under dedup, its representative's)
-NO_FRAME = "no_frame"                # the batch came without the macro frames: global-x NaN, local means kept
 UNAVAILABLE = "unavailable"          # a result or a correction set without the fields (full film, older code)
 #: the phase statuses that invalidate a task
 _PHASE_BAD = (STATE_INVALID, STATE_MISMATCH, CHECK_FAILED)
@@ -85,14 +84,12 @@ def _nan2():
 # ------------------------------------------------------------------------------------ one phase
 @dataclass(frozen=True)
 class ContactTractionPhase:
-    """One phase's asperity and total traction on the fluid sample set.  Pa; local means in the micro's
-    frame, envelopes along global x (None without a frame)."""
+    """One phase's asperity and total traction on the fluid sample set.  Pa; means in the micro's
+    local frame."""
     asperity_status: str
     total_status: str
     asperity_mean_local: tuple            # (t_x, t_y) per total cell area
     total_mean_local: tuple
-    asperity: Optional[ShearReduction]    # the global-x reduction (None: no frame / invalid)
-    total: Optional[ShearReduction]
     asperity_support_fraction: float
     overlap_fraction: float
     force_on_fluid_fraction: float
@@ -118,7 +115,7 @@ def invalid_phase(status: str, n_samples: int, contact_model: str, u_hat=None, f
     nan = float("nan")
     return ContactTractionPhase(
         asperity_status=status, total_status=status, asperity_mean_local=_nan2(), total_mean_local=_nan2(),
-        asperity=None, total=None, asperity_support_fraction=nan, overlap_fraction=nan,
+        asperity_support_fraction=nan, overlap_fraction=nan,
         force_on_fluid_fraction=nan, obstruction_without_pressure_fraction=nan, mean_check=float(mean_check),
         n_samples=int(n_samples), contact_model=str(contact_model),
         u_hat_local=tuple(float(v) for v in (u_hat if u_hat is not None else (nan, nan, nan))),
@@ -137,12 +134,11 @@ def mean_check(p, weights, pasp_hom: float) -> float:
     return 0.0 if m == 0.0 else float("inf")
 
 
-def phase_from_reductions(local, glob, *, contact_status: str, contact_model: str, fluid_state_valid: bool,
+def phase_from_reductions(local, *, contact_status: str, contact_model: str, fluid_state_valid: bool,
                           mean_check_rel: float, u_hat, fluid_mean, solution=None,
                           grid_ok: bool = True) -> ContactTractionPhase:
-    """A phase from M3a's ``reduce_contact_and_total`` results on the common samples: ``local`` (no
-    rotation: the local-frame means) and ``glob`` (with the task's ``R_inv``: the global-x envelope; None
-    without a frame).  ``contact_status`` is the contact sampler's (``ok`` / ``no_support`` /
+    """A phase from M3a's ``reduce_contact_and_total`` result on the common samples (``local``: the
+    local-frame means).  ``contact_status`` is the contact sampler's (``ok`` / ``no_support`` /
     ``state_invalid``); the checks of the module docstring are applied here."""
     n = int(local.asperity.n_samples)
     if contact_status not in (OK, NO_SUPPORT):
@@ -155,21 +151,12 @@ def phase_from_reductions(local, glob, *, contact_status: str, contact_model: st
     t_st = local.total.status if fluid_state_valid else STATE_INVALID
     if t_st not in VALID_STATUSES:
         t_st = STATE_INVALID
-    if glob is None:
-        a_st = NO_FRAME
-        t_st = NO_FRAME if t_st in VALID_STATUSES else t_st
-    else:
-        a_st = glob.asperity.status if glob.asperity.status in VALID_STATUSES else STATE_INVALID
-        if t_st in VALID_STATUSES:
-            t_st = glob.total.status if glob.total.status in VALID_STATUSES else STATE_INVALID
     ov, ff, onp = _contact_support_numbers(local.support)
-    t_ok = t_st in VALID_STATUSES + (NO_FRAME,)
+    t_ok = t_st in VALID_STATUSES
     return ContactTractionPhase(
         asperity_status=a_st, total_status=t_st,
         asperity_mean_local=tuple(float(v) for v in local.asperity.mean[:2]),
         total_mean_local=(tuple(float(v) for v in local.total.mean[:2]) if t_ok else _nan2()),
-        asperity=(glob.asperity if glob is not None else None),
-        total=(glob.total if (glob is not None and t_ok) else None),
         asperity_support_fraction=float(local.asperity.support_fraction), overlap_fraction=ov,
         force_on_fluid_fraction=ff, obstruction_without_pressure_fraction=onp, mean_check=float(mean_check_rel),
         n_samples=n, contact_model=contact_model, u_hat_local=tuple(float(v) for v in u_hat),
@@ -189,8 +176,8 @@ def _wmean(vals, w):
 
 def union_contact_traction(phases: Sequence[ContactTractionPhase], weights=None) -> dict:
     """The task's asperity and total statistics from its phases (equal weights unless given): means by
-    weight, extrema by union (``ehl.shear_reduce.union_phases``), an invalid phase invalidates the task
-    (``phase_invalid``); without a frame the envelopes are NaN (``no_frame``) and the means kept."""
+    weight; an invalid phase invalidates the task (``phase_invalid``); ``ok`` when a phase has support,
+    else ``no_support``."""
     phases = list(phases)
     if not phases:
         raise ValueError("no phase sample")
@@ -203,7 +190,7 @@ def union_contact_traction(phases: Sequence[ContactTractionPhase], weights=None)
 
     def component(name):
         st = [getattr(p, f"{name}_status") for p in phases]
-        res = dict(status=PHASE_INVALID, mean_local=_nan2(), gx_min=nan, gx_max=nan, gx_mean=nan)
+        res = dict(status=PHASE_INVALID, mean_local=_nan2())
         if any(s in _PHASE_BAD for s in st):
             return res
         if any(s == UNAVAILABLE for s in st):            # not computed (no friction coefficient given)
@@ -211,16 +198,12 @@ def union_contact_traction(phases: Sequence[ContactTractionPhase], weights=None)
             return res
         means = [getattr(p, f"{name}_mean_local") for p in phases]
         res["mean_local"] = tuple(_wmean([m[c] for m in means], w) for c in range(2))
-        if any(s == NO_FRAME for s in st):
-            res["status"] = NO_FRAME
-            return res
-        u = union_phases([getattr(p, name) for p in phases], w)
-        res.update(status=u.status, gx_min=float(u.min), gx_max=float(u.max), gx_mean=float(u.sample_mean))
+        res["status"] = OK if any(s == OK for s in st) else NO_SUPPORT
         return res
 
     out["asperity"] = component("asperity")
     out["total"] = component("total")
-    asp_ok = out["asperity"]["status"] in (OK, NO_SUPPORT, NO_FRAME)
+    asp_ok = out["asperity"]["status"] in (OK, NO_SUPPORT)
     for key, attr in (("support_fraction", "asperity_support_fraction"), ("overlap", "overlap_fraction"),
                       ("force_on_fluid", "force_on_fluid_fraction"),
                       ("obstruction_without_pressure", "obstruction_without_pressure_fraction")):
@@ -232,10 +215,8 @@ def union_contact_traction(phases: Sequence[ContactTractionPhase], weights=None)
 
 # --------------------------------------------------------------------- the worker's result fields
 #: the appended ``MicroTaskResult`` fields, in their order (the worker's success and NaN returns)
-FIELDS = ("shear_asperity_mean_local_Pa", "shear_asperity_gx_min_Pa", "shear_asperity_gx_max_Pa",
-          "shear_asperity_gx_sample_mean_Pa", "shear_asperity_support_fraction", "shear_asperity_status",
-          "shear_total_mean_local_Pa", "shear_total_gx_min_Pa", "shear_total_gx_max_Pa",
-          "shear_total_gx_sample_mean_Pa", "shear_total_status", "shear_contact_overlap_fraction",
+FIELDS = ("shear_asperity_mean_local_Pa", "shear_asperity_support_fraction", "shear_asperity_status",
+          "shear_total_mean_local_Pa", "shear_total_status", "shear_contact_overlap_fraction",
           "shear_contact_force_on_fluid_fraction", "shear_contact_obstruction_without_pressure_fraction",
           "shear_contact_mean_check", "shear_contact_definition", "shear_contact_n_samples")
 
@@ -244,13 +225,10 @@ def contact_shear_fields(union: dict) -> dict:
     """The appended ``MicroTaskResult`` fields of a task's union."""
     a, t = union["asperity"], union["total"]
     return {"shear_asperity_mean_local_Pa": tuple(float(v) for v in a["mean_local"]),
-            "shear_asperity_gx_min_Pa": float(a["gx_min"]), "shear_asperity_gx_max_Pa": float(a["gx_max"]),
-            "shear_asperity_gx_sample_mean_Pa": float(a["gx_mean"]),
             "shear_asperity_support_fraction": float(union["support_fraction"]),
             "shear_asperity_status": str(a["status"]),
             "shear_total_mean_local_Pa": tuple(float(v) for v in t["mean_local"]),
-            "shear_total_gx_min_Pa": float(t["gx_min"]), "shear_total_gx_max_Pa": float(t["gx_max"]),
-            "shear_total_gx_sample_mean_Pa": float(t["gx_mean"]), "shear_total_status": str(t["status"]),
+            "shear_total_status": str(t["status"]),
             "shear_contact_overlap_fraction": float(union["overlap"]),
             "shear_contact_force_on_fluid_fraction": float(union["force_on_fluid"]),
             "shear_contact_obstruction_without_pressure_fraction": float(union["obstruction_without_pressure"]),

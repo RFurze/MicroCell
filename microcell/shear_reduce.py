@@ -15,9 +15,9 @@ One micro state (one phase), :func:`reduce_traction`:
   or quadrature weights: their sum is the measure of the whole sample set), which samples were
   evaluated (``valid``), where the contribution is physically present (``support``: the fluid
   samples for fluid traction) and a fixed unit direction ``d`` in the macro (global) frame;
-* every sample is rotated to the global frame first (``rotation`` is the macro's ``R_inv``,
-  local -> global) and projected on ``d``; only then is anything reduced.  Component extrema
-  are never rotated and extrema found at different samples are never combined;
+* every sample is projected on ``d`` in the frame the samples are given in (the micro's local
+  frame: a standalone cell has no macro frame, so the parent's rotation with ``R_inv`` is not
+  here, WP4); only then is anything reduced;
 * outside the support the contribution is the physical zero (zero extension), whatever was
   sampled there, so the whole-cell set contains 0 wherever the support does not cover it;
 * the result is the three-component weighted mean over the whole sample set (the mean per
@@ -25,11 +25,6 @@ One micro state (one phase), :func:`reduce_traction`:
   ``d . t`` over the whole sample set, and -- conditional, labelled ``support_*`` -- the min /
   max of ``d . t`` over the support samples alone.  A support-only band need not contain the
   whole-cell mean: that is a property of the two statistics, not an error.
-
-Several phases of one cell, :func:`union_phases`: means by phase weight, extrema by union (the
-least minimum and the largest maximum over the phases), and any phase whose status is not
-``ok`` / ``no_support`` invalidates the whole envelope.  An average of per-phase extrema is a
-different statistic and is not produced here.
 
 Statuses (strings; never inferred from NaN):
 
@@ -39,14 +34,12 @@ Statuses (strings; never inferred from NaN):
 ``invalid_samples``  a support sample was not evaluated (``valid`` False or non-finite): NaN
 ``state_invalid``    the state failed or is unsupported (``state_valid=False``) or has no
                      samples: no physical zero can be inferred, NaN
-``phase_invalid``    union only: a phase was ``invalid_samples`` / ``state_invalid`` /
-                     ``phase_invalid``: NaN
+``phase_invalid``    a task's status (``fluid_shear``, ``contact_shear``): one of its phases was
+                     ``invalid_samples`` / ``state_invalid``: NaN
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Sequence
-
 import numpy as np
 
 SHEAR_REDUCE_VERSION = "shear_reduce_v1"
@@ -60,7 +53,6 @@ STATUS_PHASE_INVALID = "phase_invalid"
 VALID_STATUSES = (STATUS_OK, STATUS_NO_SUPPORT)
 
 STATISTIC_SAMPLE = "sample_extremum"
-STATISTIC_PHASE_UNION = "phase_union_extremum"
 
 #: the default (and, by decision D5, the only production) direction: the macro frame's x axis,
 #: the axis of the existing friction force F_x and torque T_y = -Rc * F_x
@@ -74,7 +66,7 @@ _NAN3 = (float("nan"),) * 3
 
 @dataclass(frozen=True)
 class ShearReduction:
-    """One reduced traction distribution.  Pa; vectors in the macro (global) frame.
+    """One reduced traction distribution.  Pa; vectors in the frame of the samples.
 
     ``mean``          weighted mean vector over the whole sample set (zero outside the support)
     ``min``, ``max``  extrema of ``d . t`` over the whole sample set (the zero extension included)
@@ -122,20 +114,6 @@ def _direction(direction) -> np.ndarray:
     return d
 
 
-def _rotation(rotation) -> Optional[np.ndarray]:
-    """The macro's ``R_inv``, applied exactly as given.  Not required to be orthonormal: at
-    exactly zero tangential speed the macro's fallback frame (``e1`` = global x, not projected
-    on the tangent plane; ``ehl/macro/fe_problem.py`` 1128-1133) is orthonormal only where the
-    normal is perpendicular to x, and the reduction has to follow the mapping the macro applies
-    to the mean (``unrotate_taust``) to stay consistent with ``taust_rot``."""
-    if rotation is None:
-        return None
-    r = np.asarray(rotation, dtype=float)
-    if r.shape != (3, 3) or not np.all(np.isfinite(r)):
-        raise ValueError(f"rotation must be a finite 3 x 3 matrix, got shape {r.shape}")
-    return r
-
-
 def _invalid(status: str, d: np.ndarray, n: int, n_support: int, frac: float,
              statistic: str = STATISTIC_SAMPLE) -> ShearReduction:
     nan = float("nan")
@@ -146,14 +124,13 @@ def _invalid(status: str, d: np.ndarray, n: int, n_support: int, frac: float,
 
 
 def reduce_traction(vectors, weights, valid, direction=GLOBAL_X, *, support=None,
-                    rotation=None, state_valid: bool = True) -> ShearReduction:
+                    state_valid: bool = True) -> ShearReduction:
     """Reduce the traction sampled in one micro state.
 
     Parameters
     ----------
     vectors : (N, 2) or (N, 3) array, Pa
-        The sampled traction.  In the local basis when ``rotation`` is given, else in the
-        macro (global) frame.  Two columns are padded with a zero third component (the macro
+        The sampled traction, in the micro's local basis.  Two columns are padded with a zero third component (the macro
         sets the normal component of the micro traction to zero).
     weights : (N,) array
         Finite, positive sample weights.  The means are normalised by their sum over all N
@@ -162,18 +139,13 @@ def reduce_traction(vectors, weights, valid, direction=GLOBAL_X, *, support=None
         The sample was evaluated.  Samples outside the support need not be valid: their
         value is replaced by the physical zero and never read.
     direction : three floats, default ``GLOBAL_X``
-        Unit vector in the macro frame on which every sample is projected.
+        Unit vector, in the frame of the samples, on which every sample is projected.
     support : (N,) bool array, optional
         Where the contribution is physically present (default: every sample).
-    rotation : (3, 3) array, optional
-        ``R_inv``: v_global = R_inv @ v_local, the macro's convention
-        (``ehl/macro/fe_problem.py`` ``RotationMatrixInverse``, ``unrotate_taust``); applied
-        exactly as given (see ``_rotation``).
     state_valid : bool
         False for a failed or unsupported state: everything NaN, status ``state_invalid``.
     """
     d = _direction(direction)
-    r = _rotation(rotation)
     v = np.asarray(vectors, dtype=float)
     if v.ndim != 2 or v.shape[1] not in (2, 3):
         raise ValueError(f"vectors must have shape (N, 2) or (N, 3), got {v.shape}")
@@ -198,9 +170,7 @@ def reduce_traction(vectors, weights, valid, direction=GLOBAL_X, *, support=None
         return _invalid(STATUS_INVALID_SAMPLES, d, n, n_support, frac)
 
     t = np.where(sup[:, None], v, 0.0)          # zero extension: nothing outside the support is read
-    if r is not None:
-        t = t @ r.T                              # rotate every sample first: t_g = R_inv t_l
-    s = t @ d                                    # then project every sample on d
+    s = t @ d                                    # project every sample on d
     mean = tuple(float(c) for c in (w @ t) / total)
     sample_mean = float(w @ s / total)
     if n_support:
@@ -214,40 +184,3 @@ def reduce_traction(vectors, weights, valid, direction=GLOBAL_X, *, support=None
                           support_fraction=frac, n_samples=n, n_support=n_support, status=status,
                           direction=tuple(float(c) for c in d))
 
-
-def union_phases(phases: Sequence[ShearReduction], weights: Sequence[float]) -> ShearReduction:
-    """Combine the reductions of several phases of one cell: means by phase weight, extrema by
-    union.  Every phase must use the same direction.  Any phase whose status is not ``ok`` /
-    ``no_support`` gives status ``phase_invalid`` (everything NaN): a failed required phase
-    invalidates a claimed complete phase envelope (plan section 5, stage D)."""
-    phases = list(phases)
-    wk = np.asarray(weights, dtype=float).reshape(-1)
-    if not phases:
-        raise ValueError("union_phases needs at least one phase")
-    if wk.shape != (len(phases),) or not np.all(np.isfinite(wk)) or np.any(wk <= 0.0):
-        raise ValueError("one finite positive weight per phase is required")
-    d = np.asarray(phases[0].direction, dtype=float)
-    if any(tuple(p.direction) != tuple(phases[0].direction) for p in phases):
-        raise ValueError("phases reduced along different directions cannot be combined")
-    n = sum(int(p.n_samples) for p in phases)
-    n_support = sum(int(p.n_support) for p in phases)
-    wsum = float(np.sum(wk))
-    frac = float(sum(float(wi) * float(p.support_fraction) for wi, p in zip(wk, phases)) / wsum)
-    if any(p.status not in VALID_STATUSES for p in phases):
-        return _invalid(STATUS_PHASE_INVALID, d, n, n_support, frac, STATISTIC_PHASE_UNION)
-    mean = tuple(float(sum(float(wi) * float(p.mean[c]) for wi, p in zip(wk, phases)) / wsum)
-                 for c in range(3))
-    sample_mean = float(sum(float(wi) * float(p.sample_mean) for wi, p in zip(wk, phases)) / wsum)
-    with_support = [p for p in phases if p.status == STATUS_OK]
-    if with_support:
-        smin = min(float(p.support_min) for p in with_support)
-        smax = max(float(p.support_max) for p in with_support)
-        status = STATUS_OK
-    else:
-        smin = smax = float("nan")
-        status = STATUS_NO_SUPPORT
-    return ShearReduction(mean=mean, min=min(float(p.min) for p in phases),
-                          max=max(float(p.max) for p in phases), sample_mean=sample_mean,
-                          support_min=smin, support_max=smax, support_fraction=frac, n_samples=n,
-                          n_support=n_support, status=status,
-                          direction=tuple(float(c) for c in d), statistic=STATISTIC_PHASE_UNION)

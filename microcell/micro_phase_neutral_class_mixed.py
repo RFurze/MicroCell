@@ -682,12 +682,10 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
 
         # [extrema M2b, 23 Oct 2026] The fluid traction t_f = chi_f tau_f at the points of the
         # quadrature rule of the integrals above, fluid by the sharp level-set test there
-        # (micro_diagnostics.py; definition in ehl/fluid_shear.py): the sampled mean, and with the
-        # task's frame (self.shear_frame, the macro's R_inv) the global-x envelope.  taust above is
+        # (micro_diagnostics.py; definition in fluid_shear.py): the sampled mean.  taust above is
         # unchanged (micro_raw/mean_existing_integration); the samples weighted by chi_dg0
         # reproduce it, which is the sampler's check.
-        self.fluid_traction = sample_fluid_traction(
-            self, film_dofs_m=h_arr, existing_mask=chi_dg0, frame=getattr(self, "shear_frame", None))
+        self.fluid_traction = sample_fluid_traction(self, film_dofs_m=h_arr, existing_mask=chi_dg0)
 
         # Store decomposition for diagnostics
         self.Qx_couette = Qx_couette
