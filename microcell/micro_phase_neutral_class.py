@@ -45,7 +45,6 @@ from the template but is not tested here (Stage 2).
 from __future__ import annotations
 
 import logging
-import os
 import sys
 import time
 from dataclasses import dataclass
@@ -75,23 +74,15 @@ set_log_active(False)
 # -------------------------------------------------------------------
 # Logging / utilities
 # -------------------------------------------------------------------
-_DEBUG_LOG = os.environ.get("MICRO_DEBUG_LOG", "0").strip().lower() in ("1", "true", "yes", "y")
-# [WP-F 2026-09-15] Per-task nondimensionalisation summary ([PN nondim]).
-# Off by default (one line per micro task would drown a 1700-task batch);
-# turn it on for a replay of a failing task.
-_MICRO_NONDIM_DIAG = os.environ.get("MICRO_NONDIM_DIAG", "0").strip().lower() in ("1", "true", "yes", "y")
-
-if _DEBUG_LOG:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        filename="simulation_log_pn.log",
-        filemode="w",
-    )
-else:
-    logging.disable(logging.CRITICAL)
+# The parent switched a log file on with MICRO_DEBUG_LOG; unset, it disabled logging for the
+# process, which is what stays (MicroCell WP2: no environment reads in the solver).
+logging.disable(logging.CRITICAL)
 
 logger = logging.getLogger(__name__)
+
+#: cap of the cavitation smoothing width in nondimensional units (the parent's MICRO_EPSP_ND_CAP
+#: default; see ``_nondimensionalise``)
+_EPSP_ND_CAP = 1.0
 
 
 # -------------------------------------------------------------------
@@ -155,7 +146,6 @@ class MicroSolverSettings:
     #               the phase-neutral closure, which with eps_smooth = 1e5
     #               Pa put dP = 15.8 MPa on every low-pressure node of
     #               Wang2008-Mixed2 (fix plan 2026-09-15, fact F3).
-    # Overridable per run with the MICRO_SPOS_FORM env var.
     spos_form: str = "spline"
 
 
@@ -431,13 +421,8 @@ class MicroPhaseNeutralSolver:
         # [WP-B 2026-09-15] Cavitation-smoothing form, resolved ONCE per
         # solver instance (it selects the UFL graph, so it must be fixed
         # before _setup_pressure_expressions / _setup_forms run and must
-        # not change under reset_task).  Env override for A/B sweeps.
-        self._spos_form = str(
-            os.environ.get(
-                "MICRO_SPOS_FORM",
-                getattr(solver_settings, "spos_form", "spline"),
-            )
-        ).strip().lower()
+        # not change under reset_task).
+        self._spos_form = str(getattr(solver_settings, "spos_form", "spline")).strip().lower()
         if self._spos_form not in ("spline", "sqrt"):
             raise ValueError(
                 "spos_form must be 'spline' or 'sqrt', got %r"
@@ -729,32 +714,6 @@ class MicroPhaseNeutralSolver:
             p.p0 + dpt + dpx_end + dpy_end,
         ]
 
-        # ---- [WP-F 2026-09-15] Uref floor tied to the pressure scale ----
-        # OPT-IN (default OFF).  ``MICRO_UREF_FLOOR_OMEGA=W`` raises Uref
-        # until ``omega <= W``, i.e.
-        #     Uref >= H0^2 * p_corner / (6 * eta0 * Lx * W).
-        # This is the candidate fix from micro_failure_test_plan_2026-09-12
-        # T7: at a reversal the xi carries Ux ~ 1e-18, giving t0 ~ 1e13 s
-        # and omega ~ 5e17 for physics (pure Poiseuille) identical to
-        # Ux = 0, which takes Uref = 1.0.  It stays OFF by default because
-        # omega > 1 is the NORMAL state of a loaded contact (p_scale is
-        # the macro pressure, not p_rey), so a blanket omega <= 1 would
-        # rescale almost every task.  Run T7 / WP-F1 first, then pick W.
-        _uref_floor_w = float(os.environ.get("MICRO_UREF_FLOOR_OMEGA", "0") or 0.0)
-        self._uref_floored = False
-        if _uref_floor_w > 0.0:
-            _p_corner = max([abs(v) for v in (corner_vals_t0 + corner_vals_t1)])
-            if _p_corner > 0.0:
-                _uref_min = (p.H0 ** 2 * _p_corner) / (
-                    6.0 * p.eta0 * self.Lx * _uref_floor_w
-                )
-                if self.Uref < _uref_min:
-                    print(f"  [PN-SCALE-GUARD] Uref {self.Uref:.4e} -> "
-                          f"{_uref_min:.4e} m/s (omega cap {_uref_floor_w:g}, "
-                          f"p_corner={_p_corner:.4e} Pa)", flush=True)
-                    self.Uref = _uref_min
-                    self._uref_floored = True
-
         self.t0 = (2.0 * self.Lx) / self.Uref
 
         # Reynolds-equation pressure scale: the natural pressure the
@@ -781,13 +740,12 @@ class MicroPhaseNeutralSolver:
         # four corner tasks (447/492/539/589, H = c, P = 0) that failed in
         # EVERY batch of Wang2008-Mixed2 (fix plan F5e / WP-F).
         # A smoothing width WIDER than the pressure scale it smooths is
-        # meaningless in any case, so the cap is 1.0 by default; it can
-        # only bind where p_scale < eps_smooth.  MICRO_EPSP_ND_CAP=0
-        # restores the uncapped value.
-        _epsP_nd_cap = float(os.environ.get("MICRO_EPSP_ND_CAP", "1.0") or 0.0)
+        # meaningless in any case, so the cap is 1.0 (``_EPSP_ND_CAP``); it can
+        # only bind where p_scale < eps_smooth.
+        _epsP_nd_cap = _EPSP_ND_CAP
         self.epsP_nd = s.eps_smooth / self.p_scale
         self._epsP_nd_capped = False
-        if _epsP_nd_cap > 0.0 and self.epsP_nd > _epsP_nd_cap:
+        if self.epsP_nd > _epsP_nd_cap:
             print(f"  [PN-SCALE-GUARD] epsP_nd {self.epsP_nd:.4e} -> "
                   f"{_epsP_nd_cap:.4e} (eps_smooth={s.eps_smooth:.3e} Pa / "
                   f"p_scale={self.p_scale:.4e} Pa; H0={p.H0:.4e} m, "
@@ -802,21 +760,7 @@ class MicroPhaseNeutralSolver:
         _GAMMA_ND_CAP = 1e5
         gamma_nd_raw = p.penalty_gamma / self.p_scale
         self.gamma_nd = min(gamma_nd_raw, _GAMMA_ND_CAP)
-        self._gamma_nd_capped = (gamma_nd_raw > _GAMMA_ND_CAP)
         self.omega = (p.H0**2 * self.p_scale) / (6.0 * p.eta0 * self.Lx * self.Uref)
-
-        # Diagnostic: nondimensionalisation summary.
-        # [WP-F 2026-09-15] Re-enabled behind MICRO_NONDIM_DIAG=1 (it was
-        # commented out, which is why the [CAPPED] state of a failing task
-        # could not be read from any log — see the T7 decision map in
-        # micro_failure_test_plan_2026-09-12.md).
-        _cap_tag = "  [CAPPED]" if self._gamma_nd_capped else ""
-        if _MICRO_NONDIM_DIAG:
-            print(f"  [PN nondim] p_rey={p_rey:.4e}  p_scale={self.p_scale:.4e}  "
-                  f"omega={self.omega:.4e}  gamma_nd={self.gamma_nd:.4e}{_cap_tag}  "
-                  f"epsP_nd={self.epsP_nd:.4e}  Uref={self.Uref:.4e}  "
-                  f"H0={p.H0:.4e}  spos={getattr(self, '_spos_form', 'n/a')}")
-        sys.stdout.flush()
 
     def grad_phys(self, q):
         return as_vector((Dx(q, 0) * self.invLx, Dx(q, 1) * self.invLy))
@@ -1244,8 +1188,8 @@ class MicroPhaseNeutralSolver:
         )
 
     # ------------------------------------------------------------------
-    # spos form dispatch (instance level -- honours settings.spos_form /
-    # MICRO_SPOS_FORM, resolved once in __init__ as self._spos_form).
+    # spos form dispatch (instance level -- honours settings.spos_form,
+    # resolved once in __init__ as self._spos_form).
     # ------------------------------------------------------------------
     def _spos(self, z, eps):
         """Smoothed positive part in this solver's configured form."""
