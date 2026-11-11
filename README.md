@@ -4,9 +4,10 @@ The micro-cell solver of Rob Furze's transient multiscale mixed-lubrication mode
 standalone Python call: one periodic rough cell, a macro state in, homogenised corrections
 and fields out.  FEniCS 2019.1.0 (conda env `ehl-fenics`, `environment.yml`), run in WSL/Linux.
 
-Extracted from `MultiscaleMixedBallinSocket` at commit `2aaccad`.  State: WP1 of
-`docs/notes/micro_standalone_plan_2026-11-11.md` (the solver files are verbatim copies; pruning
-and the settings collapse are later work packages).
+Extracted from `MultiscaleMixedBallinSocket` at commit `2aaccad`.  State: WP2 of
+`docs/notes/micro_standalone_plan_2026-11-11.md` (the physics and hooks the plan dropped are
+pruned from five solver files, marked in the provenance table; the other files are verbatim
+copies; the settings collapse is a later work package).
 
 ## The call
 
@@ -63,21 +64,30 @@ The references were made from the parent at `2aaccad` by `tools/make_references.
 
 ## Provenance
 
-Every file below is the parent's file at commit `2aaccad2724c051c0f774cbe7b19b5183edf4720`,
-unchanged except for import paths (`ehl.` / `microscale.src.functions.` / `utils.` ->
-`microcell.`).  The blob is the parent's git blob id (first 10 characters); the full ids and
-line counts are in `docs/notes/provenance.tsv`.
+Every file below started as the parent's file at commit
+`2aaccad2724c051c0f774cbe7b19b5183edf4720`, unchanged except for import paths (`ehl.` /
+`microscale.src.functions.` / `utils.` -> `microcell.`).  The blob is the parent's git blob id
+(first 10 characters); the full ids and the parent's line counts are in
+`docs/notes/provenance.tsv`.
+
+The five files marked "pruned" were cut in WP2 (11 Nov 2026) and are no longer the parent's
+text: the pointwise spring mode, the `legacy_patch_v1` and `hertz_summit_v1` contact laws, the
+Roelands and compressibility stubs, `gauge_lift`, the `c2` cavitation form, the solver's export
+hooks, the warm-start plumbing, the contact-table code and the solver's environment reads are
+gone.  What went, group by group, with the parity after each:
+`docs/notes/micro_standalone_wp2_implementation_log_2026-11-11.md`.  The unmarked files are
+still the parent's.
 
 | File | Parent path | Parent blob |
 |---|---|---|
-| `microcell/micro_phase_neutral_class.py` | `microscale/src/functions/micro_phase_neutral_class.py` | ca5040d93a |
-| `microcell/micro_phase_neutral_class_mixed.py` | `microscale/src/functions/micro_phase_neutral_class_mixed.py` | 8feecdbaff |
-| `microcell/micro_phase_neutral_class_contact.py` | `microscale/src/functions/micro_phase_neutral_class_contact.py` | eea045cf74 |
-| `microcell/micro_diagnostics.py` | `microscale/src/functions/micro_diagnostics.py` | a09479ce6b |
+| `microcell/micro_phase_neutral_class.py` (pruned) | `microscale/src/functions/micro_phase_neutral_class.py` | ca5040d93a |
+| `microcell/micro_phase_neutral_class_mixed.py` (pruned) | `microscale/src/functions/micro_phase_neutral_class_mixed.py` | 8feecdbaff |
+| `microcell/micro_phase_neutral_class_contact.py` (pruned) | `microscale/src/functions/micro_phase_neutral_class_contact.py` | eea045cf74 |
+| `microcell/micro_diagnostics.py` (pruned) | `microscale/src/functions/micro_diagnostics.py` | a09479ce6b |
 | `microcell/contact_sample.py` | `microscale/src/functions/contact_sample.py` | 4f77a66bac |
 | `microcell/ideal_ht.py` | `microscale/src/functions/ideal_ht.py` | f314c7af1b |
 | `microcell/surface_ht.py` | `microscale/src/functions/surface_ht.py` | 6775f693ea |
-| `microcell/contact.py` | `ehl/contact.py` | 1ac7dff6ec |
+| `microcell/contact.py` (pruned) | `ehl/contact.py` | 1ac7dff6ec |
 | `microcell/elastic_contact.py` | `ehl/elastic_contact.py` | 95ed9d78bf |
 | `microcell/ripple.py` | `ehl/ripple.py` | a869e99b30 |
 | `microcell/pressure.py` | `ehl/pressure.py` | 1c7da166fc |
