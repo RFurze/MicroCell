@@ -1,0 +1,18 @@
+[reference] started c1_gensa40_h200_ripple
+[reference] started c2_gensa40_h130_ripple
+[reference] started c3_gensa40_h130_noripple
+[reference] started c4_wangpair10_h25_offset
+[reference] started c5_cosine_fullfilm
+[reference] started c6_cosine_fft_sqrt
+[reference] started c7_gensa40_h130_ripple_steady
+[reference] started c8_cosine_fullfilm_steady
+[reference] finished c1_gensa40_h200_ripple: exit 0  [reference] c1_gensa40_h200_ripple: OK  mesh 100  wall 0.8 s  dP 4.112720489501953e-06  Pasp 0.0  contact_frac 0.0
+[reference] finished c2_gensa40_h130_ripple: exit 0  [reference] c2_gensa40_h130_ripple: OK  mesh 100  wall 0.9 s  dP -74157.8045212552  Pasp 60260395.79441124  contact_frac 0.0018166666666666886
+[reference] finished c3_gensa40_h130_noripple: exit 0  [reference] c3_gensa40_h130_noripple: OK  mesh 100  wall 0.7 s  dP -74157.8045212552  Pasp 60184626.80087217  contact_frac 0.0018166666666666886
+[reference] finished c5_cosine_fullfilm: exit 0  [reference] c5_cosine_fullfilm: OK  mesh 60  wall 0.3 s  dP -4.366040229797363e-06  Pasp 0.0  contact_frac 0.0
+[reference] finished c7_gensa40_h130_ripple_steady: exit 0  [reference] c7_gensa40_h130_ripple_steady: OK  mesh 100  wall 0.7 s  dP -74157.80283036828  Pasp 60260395.79438652  contact_frac 0.0018166666666666886
+[reference] finished c8_cosine_fullfilm_steady: exit 0  [reference] c8_cosine_fullfilm_steady: OK  mesh 60  wall 0.2 s  dP -4.403293132781982e-06  Pasp 0.0  contact_frac 0.0
+[reference] finished c4_wangpair10_h25_offset: exit 0  [reference] c4_wangpair10_h25_offset: OK  mesh 100  wall 1.9 s  dP -809749.9999958277  Pasp 63714053.49474145  contact_frac 0.019749999999999823
+[reference] finished c6_cosine_fft_sqrt: exit 0  [reference] c6_cosine_fft_sqrt: OK  mesh 100  wall 5.9 s  dP -916640.0330708921  Pasp 26471856.20692746  contact_frac 0.022466666666666524
+[reference] 8 cells in 9 s: 8 OK, 0 failed, 0 incomplete -> /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/tests/references
+exit 0

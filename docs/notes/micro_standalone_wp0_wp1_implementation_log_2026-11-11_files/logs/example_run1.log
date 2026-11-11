@@ -1,0 +1,15 @@
+              status         dP [Pa]      P_asp [Pa]  contact_frac  Newton  wall [s]
+transient         OK   -7.415780e+04    6.026040e+07      0.001817       6      2.97
+steady            OK   -7.415780e+04    6.026040e+07      0.001817       3      0.07
+fields: chi_fluid, chi_fluid_dg0, clearance, contact, film, film_rigid, mask_level, overclosure, p_contact, p_fluid, p_fluid_masked, p_total, surface_height, u_contact, u_ripple, u_total, x, y
+ParaView files:
+  /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/examples/output/gensa40_h130/cell.vts
+  /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/examples/output/gensa40_h130/cell.xdmf
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 5 unused database options. They are:
+Option left: name:-ksp_error_if_not_converged value: true source: code
+Option left: name:-ksp_gmres_restart value: 100 source: code
+Option left: name:-ksp_initial_guess_nonzero value: true source: code
+Option left: name:-ksp_max_it value: 80 source: code
+Option left: name:-ksp_rtol value: 1e-5 source: code

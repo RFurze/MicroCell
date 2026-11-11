@@ -1,0 +1,9 @@
+wslrun: [ehl-fenics] /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell $ python /mnt/c/Users/Robin/Documents/code/RefactorRefactor/_to_delete/micro_standalone_2026-11-11/wp1_logs/smoke.py 
+fail path: OK | reason:  | dP -74157.8045212552 | P_asp 60260395.79441124 | fields 18 | extrema status ok
+pair member stationary seed 1000 rel 1.2721415110886553e-17 ok True 
+pair member translating seed 1001 rel 1.2721415110886553e-17 ok True 
+moving cosine transient OK dQ [1.09972090e-10 4.75801533e-15] dP -4.433095455169678e-06
+moving cosine steady OK dQ [-1.09176959e-10 -4.72361348e-15] dP -4.26173210144043e-06
+wslrun: [ehl-fenics] /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell $ python /mnt/c/Users/Robin/Documents/code/RefactorRefactor/_to_delete/micro_standalone_2026-11-11/wp1_logs/smoke_fail.py 
+transient | FAILED_NEWTON | all NaN: True | fields 0 | extrema failed | newton 0 | reason: RuntimeError('MicroPhaseNeutralSolver: Newton (Schur) did not converge after 3 iterations.  ||F|| = 2.6991e-13
+steady | FAILED_NEWTON | all NaN: True | fields 0 | extrema failed | newton 0 | reason: RuntimeError('MicroPhaseNeutralSolver: Newton (Schur) did not converge after 3 iterations.  ||F|| = 2.6391e-13
