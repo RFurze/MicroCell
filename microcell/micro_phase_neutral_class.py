@@ -225,21 +225,6 @@ class PhaseNeutralSettings(MicroSolverSettings):
     omega_recovery_factor: float = 1.2
     omega_cap_shrink_factor: float = 0.85
 
-    # ---- [Mixed P1.0] pointwise spring mode (July 2026, ported from the
-    # root-tree monolith) ----
-    # Pointwise (nodal) spring-column deformation.  When True and
-    # params.k_spring > 0, the film deformation is a FIELD
-    #     delta(x,y) = chi_fluid * max(P_dim, 0) / k_spring   [m]
-    # (fluid-masked, consistent with the cell-average spring load) instead
-    # of the uniform cell-average lift hd = Pst / k_spring.  Coupled by the
-    # same outer fixed-point loop around the Newton solve, with plain
-    # under-relaxation ``spring_relax`` (no acceleration).  The deformation
-    # enters h_nd, hence also the contact mask (high-pressure regions open)
-    # and the BDF squeeze term (history snapshots project the full h_nd).
-    # (chi_fluid == 1 on the base full-film solver, so the mask is inert
-    # there; the restriction matters for the mixed subclass.)
-    spring_pointwise: bool = False
-
     # ---- [option H, 17 Oct 2026] micro fluid deformation ``ripple_halfspace`` ----
     # docs/notes/ripple_halfspace_plan_2026-10-17.md (decisions O1-O10, taken as
     # recommended).  "off" (default) leaves every UFL graph and code path as before.
@@ -490,11 +475,8 @@ class MicroPhaseNeutralSolver:
         self._setup_coordinates()
         self._setup_time_controls()
         self._nondimensionalise()
-        # [Mixed P1.0] spaces BEFORE film/mask: the pointwise spring mode
-        # allocates ``hd_nd_func`` on ``Vper`` inside _setup_film_and_mask.
-        # Order-safe: _setup_spaces_and_unknowns reads nothing from the
-        # film/mask setup (AST-identical to the monolith, which uses this
-        # order).
+        # spaces BEFORE film/mask: the ripple and the fft contact allocate
+        # their nodal fields on ``Vper`` inside _setup_film_and_mask.
         self._setup_spaces_and_unknowns()
         self._setup_film_and_mask()
         self._setup_pressure_expressions()
@@ -507,7 +489,6 @@ class MicroPhaseNeutralSolver:
         # ---- spring-film coupling settings ----
         self.spring_max_iter: int = 20
         self.spring_rtol: float = 1e-6
-        self.spring_relax: float = 0.8
         self._area_total: float = 1.0
 
         # ---- optional warm-start across cases (item 4 of the speedup
@@ -615,9 +596,6 @@ class MicroPhaseNeutralSolver:
         self.hmin_nd_const.assign(self.hmin_nd)
         self.delta_h_nd_const.assign(self.delta_h_nd)
         self.hd_nd_const.assign(0.0)
-        if self._spring_pointwise and self.hd_nd_func is not None:
-            self.hd_nd_func.vector().zero()
-            self.hd_nd_func.vector().apply("insert")
         if self._ripple_on:                 # [option H] a task starts at u_r = 0 (local cell)
             self._ripple_reset()
         self.Ux_nd_const.assign(2.0 * self.Ux_nd)
@@ -961,19 +939,7 @@ class MicroPhaseNeutralSolver:
         H_dim = self._call_ht(self.x, self.y)
         self.h_base_nd = H_dim / self.H0_const
         self.hd_nd_const = Constant(0.0)
-        # [Mixed P1.0] pointwise spring mode (July 2026): nodal deformation
-        # field on Vper enters the film sum (requires the __init__ order
-        # swap — Vper must already exist).  OFF branch leaves the h_nd
-        # expression tree exactly as before.  (Monolith reads the setting
-        # via getattr(s, 'spring_pointwise', False); declared-field read
-        # per the Phase-5 no-getattr-defaults convention.)
-        self._spring_pointwise = bool(s.spring_pointwise)
-        if self._spring_pointwise:
-            self.hd_nd_func = Function(self.Vper, name="hd_nd")
-            self.h_nd = self.h_base_nd + self.hd_nd_const + self.hd_nd_func
-        else:
-            self.hd_nd_func = None
-            self.h_nd = self.h_base_nd + self.hd_nd_const
+        self.h_nd = self.h_base_nd + self.hd_nd_const
         # [option H, 17 Oct 2026] the ripple u_r / H0 on Vper, in the film only when the
         # option is on: the OFF graph is the one above, unchanged.
         self._ripple_setup()
@@ -1560,96 +1526,11 @@ class MicroPhaseNeutralSolver:
     # [Mixed P1.0] spring-film coupling (ported verbatim from the root-tree
     # monolith, July 2026).  _spring_solve_cell_avg is the verbatim
     # EXTRACTION of the inline per-step loop that previously lived in
-    # run(); _solve_with_spring dispatches between the scalar and the new
-    # pointwise mode.  The steady solve and the transient seed remain raw
+    # run(); _solve_with_spring wraps it.  The steady solve and the transient seed remain raw
     # solve() in this base class via the _steady_solve/_seed_solve hooks
     # below (flag-OFF baselines are byte-identical); the mixed subclass
     # overrides both hooks to _solve_with_spring() (monolith behaviour).
     # -------------------------
-    def _target_hd_nd_field(self) -> np.ndarray:
-        """Nodal spring-target deformation (nondim) for the CURRENT state.
-
-        delta(x,y) = chi_fluid * max(P_dim, 0) / k_spring, projected onto
-        ``Vper`` and returned as a dof vector (units of H0).  The
-        ``chi_fluid`` restriction mirrors :meth:`_cell_avg_positive_pressure_dim`:
-        contact-region pressures are fictitious (Reynolds is switched off
-        there) and must not load the spring.  With the pattern-flux contact
-        model the patch pressure is pinned near the cavitation floor, so
-        the mask mostly guards against transients.  The L^2 projection of
-        the (discontinuous) chi_fluid-masked integrand onto CG1 provides
-        mild smoothing across the contact edge; negative undershoots from
-        the projection are clipped to keep delta >= 0.
-        """
-        kspring = float(self.params.k_spring)
-        Ppos = conditional(gt(self.P_dim, Constant(0.0)),
-                           self.P_dim, Constant(0.0))
-        expr = (self.chi_fluid * Ppos
-                / Constant(kspring * float(self.params.H0)))
-        vec = self._project_to_Vper(expr).vector().get_local()
-        return np.maximum(vec, 0.0)
-
-    def _spring_solve_pointwise(self) -> int:
-        """Fixed-point loop for the POINTWISE spring-film coupling.
-
-        solve -> hd_target(x,y) <- chi_fluid*max(P,0)/(k_spring*H0)
-              -> hd += relax * (hd_target - hd) -> re-solve,
-        until the relative L2 change of the field drops below
-        ``spring_rtol`` or ``spring_max_iter`` is hit.  Returns the
-        iteration count.  The mask follows h_nd, so the squeeze mean is
-        reassigned after every hd update (as in the scalar loop).
-
-        RELAXATION (July 2026 fix): in TRANSIENT steps the deformation
-        rate enters the squeeze source as ~ a0*dhd/dt_nd, so the
-        fixed-point map has a NEGATIVE gain ~ (p_scale/(k_spring*H0))
-        * (a0/dt_nd) * O(L^2/K) for smooth cell-scale modes (film opens
-        -> suction -> pressure drops -> target drops).  With a fixed
-        relax = 0.8 this oscillates and diverges for realistic k_spring
-        and dt; the diverged iterate is a smooth central blob that is
-        ANTICORRELATED with P — the uniform scalar mode never sees this
-        because uniform dhd/dt is exactly removed by the solvability
-        compensation.  Fix mirrors the validated scalar loop: start at
-        0.05 and adapt with a secant estimate along the iteration
-        direction (inner-product generalisation of the scalar
-        ``relax = -relax*r_old/diff``), clamped to [0.01, 0.2].  A
-        non-convergence warning is printed instead of failing silently.
-        """
-        hd_old = self.hd_nd_func.vector().get_local()
-        relax = 0.05
-        r_old = None
-        n_it = 0
-        change = 0.0
-        tol = 0.0
-        _phase_base = self._phase
-        for _it in range(int(self.spring_max_iter)):
-            n_it = _it + 1
-            self._phase = f"{_phase_base}/spring {n_it}"
-            self.solve()
-            hd_tgt = self._target_hd_nd_field()
-            r_curr = hd_tgt - hd_old
-            if r_old is not None:
-                diff = r_curr - r_old
-                dn2 = float(np.dot(diff, diff))
-                if dn2 > 1e-28:
-                    relax = -relax * float(np.dot(r_old, diff)) / dn2
-                relax = max(0.01, min(0.2, relax))
-            hd_new = np.maximum(hd_old + relax * r_curr, 0.0)
-            self.hd_nd_func.vector().set_local(hd_new)
-            self.hd_nd_func.vector().apply("insert")
-            self._update_squeeze_mean()
-            change = float(np.linalg.norm(hd_new - hd_old))
-            tol = float(self.spring_rtol) * (1.0 + float(np.linalg.norm(hd_old)))
-            if change <= tol:
-                break
-            hd_old = hd_new
-            r_old = r_curr
-        else:
-            print(f"  [WARN spring_pointwise] NOT converged after "
-                  f"{n_it} iterations: |dhd|={change:.3e} > tol={tol:.3e} "
-                  f"(relax={relax:.3f}, max|hd|={float(np.max(np.abs(self.hd_nd_func.vector().get_local()))):.3e} nd). "
-                  f"Deformation field may be unreliable — raise "
-                  f"spring_max_iter, raise k_spring, or reduce dt.")
-        return n_it
-
     def _spring_solve_cell_avg(self) -> int:
         """Fixed-point loop for the CELL-AVERAGE (scalar) spring coupling.
 
@@ -1698,7 +1579,7 @@ class MicroPhaseNeutralSolver:
         """One solve with the optional spring-film coupling wrapped around.
 
         Dispatches: spring off -> plain Newton solve; spring on ->
-        pointwise or cell-average fixed-point loop followed by a final
+        cell-average fixed-point loop followed by a final
         consistency solve.  Used by the per-step transient solve here, and
         by BOTH run_steady() and the transient seed in the MIXED subclass
         (steady coverage added July 2026 — previously the spring only
@@ -1713,10 +1594,7 @@ class MicroPhaseNeutralSolver:
             return
         _t0_spring = time.perf_counter()
         _newton_before = self._t_newton_solve
-        if self._spring_pointwise:
-            self._n_spring_iters_total += self._spring_solve_pointwise()
-        else:
-            self._n_spring_iters_total += self._spring_solve_cell_avg()
+        self._n_spring_iters_total += self._spring_solve_cell_avg()
         self.solve()
         _newton_in_spring = self._t_newton_solve - _newton_before
         self._t_spring_coupling += (
@@ -1781,8 +1659,6 @@ class MicroPhaseNeutralSolver:
         if E is None or not np.isfinite(float(E)) or float(E) <= 0.0:
             raise ValueError("fluid_deformation='ripple_halfspace' needs a positive, finite "
                              "fluid_E_star (the resolved two-body modulus, plan O3)")
-        if self._spring_pointwise:
-            raise ValueError("fluid_deformation='ripple_halfspace' is exclusive with spring_pointwise (O4)")
         if not (float(s.ripple_tol) > 0.0 and int(s.ripple_maxpass) >= 1
                 and 0.0 < float(s.ripple_omega) <= 1.0):
             raise ValueError("ripple settings: need ripple_tol > 0, ripple_maxpass >= 1 and "
@@ -2057,7 +1933,7 @@ class MicroPhaseNeutralSolver:
 
         Why the end-level pass is exact (section 4.4): a film at a level depends
         only on the geometry and the time (the ripple is held fixed in the surface
-        frame, k_spring = 0 and no spring_pointwise are enforced with the ripple on,
+        frame, k_spring = 0 is enforced with the ripple on,
         the contact solve sees the film only), so rebuilding the two levels before
         the end reproduces the BDF history a full run gives the end level, and the
         end solve is warm-started from the previous pass's end level as every level
@@ -3066,8 +2942,8 @@ class MicroPhaseNeutralSolver:
         ``_run_once`` builds it; BDF1 gives it a zero weight but it is filled the
         same way so the state matches).  A film at a level depends only on the
         geometry and the time: the ripple is held fixed in the surface frame,
-        ``k_spring = 0`` and no ``spring_pointwise`` are enforced with the ripple
-        on (``_ripple_check_task``, ``_ripple_setup``), and the contact solve sees
+        ``k_spring = 0`` is enforced with the ripple
+        on (``_ripple_check_task``), and the contact solve sees
         the film only.  Rebuilding those two levels therefore reproduces that
         history; the end-level solve is then warm-started from the previous pass's
         end level, as every level of a full pass is.  Level times use the step
@@ -3271,9 +3147,7 @@ class MicroPhaseNeutralSolver:
             # --- Solve with optional spring-film coupling ---
             # [Mixed P1.0] inline cell-average loop extracted verbatim to
             # _spring_solve_cell_avg(); _solve_with_spring() dispatches
-            # (spring off -> raw solve; cell-avg unchanged; pointwise new,
-            # reachable only via spring_pointwise=True).  Numerics and
-            # timing bookkeeping byte-identical for the pre-port modes.
+            # (spring off -> raw solve; cell-avg unchanged).
             if self._ripple_on:
                 self._ripple_level_begin(step)
             self._solve_with_spring()

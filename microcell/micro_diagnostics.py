@@ -240,11 +240,9 @@ def _cell_geometry(solver):
 
 def _cg1_film_parts(solver):
     """The CG1 Functions (on Vper, nondimensional) in the film sum ``h_nd`` besides the callback's
-    rigid film: the pointwise spring deformation, the option-H ripple, the fft contact deformation
+    rigid film: the option-H ripple, the fft contact deformation
     (``micro_phase_neutral_class.py`` _setup_film_and_mask; ``_contact.py``)."""
     parts = []
-    if getattr(solver, "_spring_pointwise", False) and getattr(solver, "hd_nd_func", None) is not None:
-        parts.append(solver.hd_nd_func)
     if getattr(solver, "_ripple_on", False) and getattr(solver, "ur_nd_func", None) is not None:
         parts.append(solver.ur_nd_func)
     if getattr(solver, "uc_nd_func", None) is not None:

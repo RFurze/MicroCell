@@ -27,9 +27,7 @@ Delta vs the base solver (all validated by tests/diagnose_contact_blowup.py):
 * ``record_homog`` / ``homog_history`` per-step homogenisation recording.
 * [Mixed P1.0, July 2026 port] spring coupling wraps the STEADY solve and
   the transient SEED (``_steady_solve``/``_seed_solve`` overrides →
-  ``_solve_with_spring``); pointwise spring mode available via the base's
-  ``spring_pointwise`` setting (nodal chi_fluid-masked deformation field,
-  secant-adaptive relaxation clamped [0.01, 0.2]).
+  ``_solve_with_spring``).
 
 All reductions hold: legacy masked model for h_min = 0; masked transport
 for static textures (v_p = 0).

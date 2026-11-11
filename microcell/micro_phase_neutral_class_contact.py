@@ -190,7 +190,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         if s.use_reduced_modulus or s.overclosure_measure != "patch_max":
             raise ValueError("fft_elastic_v1 uses E_star and the nodal contact solve; legacy "
                              "modulus/mean-overlap switches are incompatible")
-        if s.spring_pointwise or (0 < self.params.k_spring < 1e19):
+        if 0 < self.params.k_spring < 1e19:
             raise ValueError("fft_elastic_v1 stage 1 requires micro fluid deformation off (D6)")
         if s.k_asp_mode not in ("off", "closure"):
             raise ValueError("k_asp_mode must be 'off' or 'closure'")
@@ -429,7 +429,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
             raise ValueError("hertz_summit_v1 requires an explicit positive two-body contact_E_star")
         if s.use_reduced_modulus or s.overclosure_measure != "patch_max":
             raise ValueError("Hertz uses E_star and summit indentation; legacy modulus/mean-overlap switches are incompatible")
-        if s.spring_pointwise or (0 < self.params.k_spring < 1e19):
+        if 0 < self.params.k_spring < 1e19:
             raise ValueError("hertz_summit_v1 milestone requires micro fluid deformation off")
         descriptor = getattr(self.ht_cb, "contact_cosine", None)
         if descriptor is None or descriptor[3]:

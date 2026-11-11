@@ -16,6 +16,9 @@ The rule (plan D6; written before the first run, not fitted to it)
 * Fields (the ``_extract_fields`` arrays in SI, and the DG0 fluid indicator): same shape, the
   same NaN pattern, and ``max|a - b| <= 1e-12 * max|reference|``.
 * The copied settings dataclass the API builds must equal the reference's, field by field.
+  A setting the pruned solver no longer has (``REMOVED_SETTINGS``, WP2) is not skipped: the
+  reference's stored value must equal the value the code now hard-wires, and the built
+  settings must not carry it.
 
 Not compared, by construction:
   ``wall_time``, ``contact_eval_s``, ``pid``, ``task_id``, ``task``     timings and bookkeeping
@@ -52,6 +55,13 @@ NOT_COMPARED = ("wall_time", "contact_eval_s", "pid", "task_id", "task", "h_geom
                 "offset_x_m", "offset_y_m", "phase_average")
 PAIR_FROM_COUPLED = {"Pasp_hom": "Pasp_hom", "k_asp_hom": "k_asp_hom"}
 PAIR_NOT_COMPARED = ("contact_iters",)
+
+#: WP2: settings removed from the copied dataclasses, with the value the pruned code hard-wires.
+#: Every reference that stores the setting must store exactly this value (a reference that used
+#: the removed option fails the gate here).
+REMOVED_SETTINGS = {
+    "spring_pointwise": False,          # group 2: the pointwise spring mode
+}
 
 
 def reference_cells():
@@ -191,6 +201,19 @@ def run_cell(cell: str) -> dict:
     built = dataclasses.asdict(_solver_settings(st, st.contact is not None, rough.is_pair))
     want = {k: v for k, v in ref["settings"].items() if k != "__class__"}
     for k in sorted(set(want) | set(built)):
+        if k in REMOVED_SETTINGS:
+            if k in built:
+                records.append({"name": f"settings.{k}", "kind": "setting", "rel": float("inf"), "ok": False,
+                                "note": "listed as removed but the built settings still carry it"})
+                continue
+            r = compare_scalar(f"settings.{k}", REMOVED_SETTINGS[k], want[k])
+            if r["rel"] != 0.0:
+                r["ok"] = False
+            if not r["ok"]:
+                r["note"] = f"removed setting: the reference stores {want[k]!r}, the code hard-wires {REMOVED_SETTINGS[k]!r}"
+            r["kind"] = "setting"
+            records.append(r)
+            continue
         if k not in built or k not in want:
             records.append({"name": f"settings.{k}", "kind": "setting", "rel": float("inf"), "ok": False,
                             "note": "only on one side"})
@@ -303,6 +326,14 @@ def test_comparator_sees_a_perturbed_solve(monkeypatch):
            for kind in ("setting", "scalar", "field")}
     assert res["status"] == "FAIL"
     assert not bad["setting"] and bad["scalar"] and bad["field"]
+
+
+def test_removed_setting_is_checked(monkeypatch):
+    """Negative control of ``REMOVED_SETTINGS``: when a reference's stored value of a removed
+    setting is not the hard-wired one, the gate must FAIL on that setting and on nothing else."""
+    monkeypatch.setitem(REMOVED_SETTINGS, "spring_pointwise", True)
+    res = run_cell("c8_cosine_fullfilm_steady")
+    assert [r["name"] for r in res["records"] if not r["ok"]] == ["settings.spring_pointwise"]
 
 
 # ---------------------------------------------------------------------------------------
