@@ -102,6 +102,10 @@ CELLS = {
         covers="generated pair at a set offset, ripple on, fluid_mean_v1, gradients and rates"),
     "c5_cosine_fullfilm": dict(
         case=BASELINE, variant="ms", H=120e-9, P=40.8e6, rates=True,
+        # WP2 (Rob, 11 Nov 2026): the case's k_spring = 1e20 "off" value still ran the
+        # cell-average spring loop in a transient full-film cell; the reference is made
+        # with the spring really off, and the standalone has no spring
+        changes={"k_spring": 0.0},
         covers="cosine, full film, gradients and rates"),
     "c6_cosine_fft_sqrt": dict(
         case=CUP90, variant="base", H=None, P=40.8e6,
