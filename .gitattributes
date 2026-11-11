@@ -1,0 +1,10 @@
+# Code runs in Linux (WSL / HPC): keep LF whatever the checkout.  Reference data is binary.
+* text=auto
+*.py    text eol=lf
+*.sh    text eol=lf
+*.yml   text eol=lf
+*.md    text
+*.tsv   text
+*.npz   binary
+*.vts   binary
+*.h5    binary

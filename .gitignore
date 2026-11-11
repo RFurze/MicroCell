@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+# run outputs
+/examples/output/
+/microcell_output/
+/output/
+/_to_delete/

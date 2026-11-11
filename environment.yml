@@ -1,0 +1,19 @@
+# ehl-fenics -- the environment of the parent solver (MultiscaleMixedBallinSocket), unchanged.
+#
+#   conda env create -f environment.yml        # ~5-10 min, pulls legacy FEniCS from conda-forge
+#   conda activate ehl-fenics
+name: ehl-fenics
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - fenics=2019.1.0
+  - fenics-dolfin=2019.1.0
+  - numpy
+  - scipy
+  - h5py
+  - matplotlib
+  - pip
+  - pip:
+      - pytest
+      - pytest-timeout
