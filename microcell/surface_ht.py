@@ -15,7 +15,7 @@ the coarse and fine tiers each have their own (plan 7.4).
 Moving surfaces (R5a): ``ht.refresh_geometry(solver)`` -- called by the base
 solver's ``_refresh_geometry`` seam at every time the solver evaluates the
 film, BDF history times included -- sets the task's kinematics from
-``solver.params`` and refills ``solver.mesh_m``'s ``z_h`` at the displacement
+``solver.zeta`` and refills ``solver.mesh_m``'s ``z_h`` at the displacement
 ``s(T)`` of ``solver.T_dim_const`` (``ehl.roughness.pair.pattern_displacement``;
 not ``T * _Ux_dim``, which is wrong at history times when UT != 0).  The BDF
 history keeps projected copies, so refilling ``z_h`` never alters a stored
@@ -77,7 +77,7 @@ def make_surface_ht(field: SurfaceField) -> Callable:
         solver's task kinematics (a no-op for stationary surfaces)."""
         if not field.translating:
             return
-        motion.set_from_params(solver.params)
+        motion.set_from_solver(solver)
         z_function(solver.mesh_m, motion.displacement(float(solver.T_dim_const)))
 
     ht.contact_cosine = SurfaceContactHeight(field, motion)

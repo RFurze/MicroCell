@@ -110,9 +110,9 @@ def fluid_pressure_samples(solver, film_dofs_m=None) -> FluidPressureSamples:
     else:
         if film_dofs_m is None:
             from dolfin import Constant, project
-            film_dofs_m = project(Constant(float(solver.params.H0)) * solver.h_nd,
+            film_dofs_m = project(Constant(float(solver.zeta.H)) * solver.h_nd,
                                   solver.Vfull).vector().get_local()
-        phi = (np.asarray(film_dofs_m, dtype=float)[v_full] / float(solver.params.H0)
+        phi = (np.asarray(film_dofs_m, dtype=float)[v_full] / float(solver.zeta.H)
                - float(solver.hmin_nd_const))
         source = MASK_FILM
     fluid = phi > 0.0
@@ -257,17 +257,16 @@ def _film_at_points(solver, lam, cells, film_dofs_m):
     X, v_per, v_full = _vertex_maps(solver)
     desc = getattr(solver.ht_cb, "contact_cosine", None)
     if isinstance(desc, CosineContactDescriptor):
-        p = solver.params
         Pq = np.einsum("qk,ckd->qcd", lam, X[cells])                    # the points, unit cell
-        rigid = desc.height(Pq[..., 0], Pq[..., 1], p.xmax, p.ymax, solver.H0_const, solver.HT_const,
-                            solver.T_dim_const, solver._Ux_dim_const, solver._Uy_dim_const)
+        rigid = desc.height(Pq[..., 0], Pq[..., 1], solver.settings.xmax, solver.settings.ymax, solver.H0_const,
+                            solver.HT_const, solver.T_dim_const, solver._Ux_dim_const, solver._Uy_dim_const)
         nod = np.zeros(X.shape[0])
         for f in _cg1_film_parts(solver):
             nod = nod + f.vector().get_local()[v_per]
-        return rigid + lam @ (float(p.H0) * nod)[cells].T, FILM_ANALYTIC
+        return rigid + lam @ (float(solver.zeta.H) * nod)[cells].T, FILM_ANALYTIC
     if film_dofs_m is None:
         from dolfin import Constant, project
-        film_dofs_m = project(Constant(float(solver.params.H0)) * solver.h_nd, solver.Vfull).vector().get_local()
+        film_dofs_m = project(Constant(float(solver.zeta.H)) * solver.h_nd, solver.Vfull).vector().get_local()
     Hv = np.asarray(film_dofs_m, dtype=float)[v_full]
     return lam @ Hv[cells].T, FILM_CG1
 
@@ -309,7 +308,7 @@ def fluid_traction_samples(solver, film_dofs_m=None, existing_mask=None) -> Flui
     f1, f2 = w[cells[:, 1]] - w[cells[:, 0]], w[cells[:, 2]] - w[cells[:, 0]]
     gx = (f1 * d2[:, 1] - f2 * d1[:, 1]) / det + float(solver.dpx_nd_const)
     gy = (d1[:, 0] * f2 - d2[:, 0] * f1) / det + float(solver.dpy_nd_const)
-    eta = float(solver.params.eta0)                            # constant lubricant viscosity [Pa s]
+    eta = float(solver.settings.eta0)                            # constant lubricant viscosity [Pa s]
     scale = float(solver.p_scale) * float(solver.invLx)        # gradP_dim = gradP_nd * p_scale / Lx (x and y)
     us_x = float(solver.Ux_nd_const) * float(solver.Uref)
     us_y = float(solver.Uy_nd_const) * float(solver.Uref)
@@ -407,7 +406,7 @@ def sample_contact_traction(solver):
     if smp is None or fl is None or smp.xy is None:
         raise RuntimeError("sample_contact_traction needs this phase's fluid samples (sample_fluid_traction "
                            "in spatial_homogenisation)")
-    model = str(solver.settings.contact_model)
+    model = cs.FFT_MODEL                                        # the one contact law
     n = int(smp.weight.size)
     u_hat = _local_sliding_direction(solver)
     fluid_mean = tuple(float(v) for v in fl.mean_local)
@@ -427,7 +426,7 @@ def sample_contact_traction(solver):
             check = cs.mean_check(contact.p, smp.weight, contact.Pasp_hom)
     else:
         raise ValueError(f"unknown contact model {model!r}")
-    mu = float(getattr(solver.settings, "mu_material", float("nan")))
+    mu = float(solver.settings.contact.mu)
     if not (np.isfinite(mu) and mu >= 0.0):
         # a caller that gave no friction coefficient (direct callers of the class, older settings):
         # nothing is published, nothing raised -- the statistics are absent, not wrong

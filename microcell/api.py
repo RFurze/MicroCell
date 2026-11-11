@@ -22,8 +22,8 @@ Conventions
   surface's starting displacement; the caller loops over offsets to average (D4).
 * A failed solve returns a result with a non-OK ``status`` and NaN outputs (D11).
 
-At WP1 ``MicroSettings`` wraps the copied settings dataclasses: the fields the plan lists
-are named; the copied fields it does not list travel in ``MicroSettings.legacy`` until WP4.
+``MicroSettings`` is the one definition and the one default of every setting (WP4): the solver
+classes read it, and the ``Zeta`` of the call, directly.
 """
 from __future__ import annotations
 
@@ -35,10 +35,11 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
+from microcell.contact import FFT as CONTACT_FFT     # the one contact law (no FEniCS import)
+
 OK = "OK"
-#: ``contact_model`` of a result: the one contact law, or "off" for a full-film cell
+#: ``contact_model`` of a result: the one contact law (``CONTACT_FFT``), or "off" for a full-film cell
 #: (the parent's result carried its default tag ``legacy_patch_v1`` there; WP2 dropped that law)
-CONTACT_FFT = "fft_elastic_v1"
 CONTACT_OFF = "off"
 FAILED_NEWTON = "FAILED_NEWTON"
 FAILED_RIPPLE = "FAILED_RIPPLE"
@@ -158,6 +159,26 @@ class MicroSettings:
             raise ValueError(f"level_constraint must be 'whole_cell' or 'fluid_mean_v1', got {self.level_constraint!r}")
         if int(self.mesh_n) < 2:
             raise ValueError("mesh_n must be at least 2")
+        # every value the solver classes refuse (they keep their own refusals; these come first)
+        if not np.isfinite(float(self.jacobian_reg_eps)):
+            raise ValueError("jacobian_reg_eps must be finite; zero disables the shift")
+        r, c = self.ripple, self.contact
+        if r is not None:
+            if r.E_star is None or not np.isfinite(float(r.E_star)) or float(r.E_star) <= 0.0:
+                raise ValueError("the ripple needs a positive, finite ripple.E_star (the resolved two-body modulus)")
+            if not (float(r.tol) > 0.0 and int(r.maxpass) >= 1 and 0.0 < float(r.omega) <= 1.0):
+                raise ValueError("ripple settings: need tol > 0, maxpass >= 1 and 0 < omega <= 1; got "
+                                 f"{r.tol}, {r.maxpass}, {r.omega}")
+        if c is not None:
+            if c.E_star is None or not np.isfinite(float(c.E_star)) or float(c.E_star) <= 0.0:
+                raise ValueError("contact needs an explicit positive, finite two-body contact.E_star")
+            if c.k_asp_mode not in ("off", "closure"):
+                raise ValueError(f"contact.k_asp_mode must be 'off' or 'closure', got {c.k_asp_mode!r}")
+            if not (np.isfinite(float(self.h_min)) and float(self.h_min) > 0.0):
+                raise ValueError(f"contact needs a positive contact onset film h_min, got {self.h_min!r}")
+            if r is not None and not abs(float(r.E_star) - float(c.E_star)) <= 1e-12 * float(c.E_star):
+                raise ValueError(f"ripple.E_star {r.E_star!r} != contact.E_star {c.E_star!r}: contact with the "
+                                 "ripple needs one body pair")
 
 
 # ----------------------------------------------------------------------------------------
@@ -239,51 +260,6 @@ def reynolds_flux(steady: bool, zeta: Zeta, t_end: float, eta0: float) -> np.nda
     qx = Uxdt * Hdt - (Hdt**3) * gx_dt / (12 * eta)
     qy = Uydt * Hdt - (Hdt**3) * gy_dt / (12 * eta)
     return np.column_stack((qx, qy))
-
-
-def _solver_settings(st: MicroSettings, mixed: bool, pair: bool):
-    """The copied settings dataclass of this call (the worker's ``_build_phase_neutral_settings``
-    without the environment overrides)."""
-    from microcell.micro_phase_neutral_class import PhaseNeutralSettings
-    from microcell.micro_phase_neutral_class_contact import PhaseNeutralContactSettings
-
-    common = dict(
-        relaxation_parameter=st.relaxation_parameter,
-        max_iterations=st.max_iterations,
-        abs_tolerance=st.abs_tolerance,
-        rel_tolerance=st.rel_tolerance,
-        delta_h=st.legacy_value("delta_h"),
-        eps_solid=st.legacy_value("eps_solid"),
-        eps_smooth=st.legacy_value("eps_smooth"),
-        spos_form=str(st.spos_form).strip().lower(),
-        beta=float(st.legacy_value("beta")),
-        jacobian_reg_eps=float(st.jacobian_reg_eps),
-        level_constraint=str(st.level_constraint),
-    )
-    if st.level_constraint != "whole_cell":
-        common.update(patch_pin=st.legacy_value("patch_pin"),
-                      patch_pin_kappa=float(st.legacy_value("patch_pin_kappa")))
-    if st.ripple is not None:
-        common.update(fluid_deformation="ripple_halfspace", fluid_E_star=float(st.ripple.E_star),
-                      ripple_tol=float(st.ripple.tol), ripple_maxpass=int(st.ripple.maxpass),
-                      ripple_omega=float(st.ripple.omega))
-    if not mixed:
-        return PhaseNeutralSettings(**common)
-    c = st.contact
-    return PhaseNeutralContactSettings(
-        **common,
-        contact_model=CONTACT_FFT,
-        contact_E_star=c.E_star,
-        sigma_yield=float(c.sigma_yield),
-        k_asp_mode=str(c.k_asp_mode),
-        pattern_flux_contact=bool(st.pattern_flux_contact),
-        contact_tol=float(c.tol),
-        contact_maxit=int(c.maxit),
-        mu_material=float(c.mu),
-        # A stationary + translating pair runs the solver's pair branch (the converged per-step
-        # ripple, the warm-start contact rescue).  P_asp is the coupled solve's.
-        pair_branch=bool(pair),
-    )
 
 
 def _failed_raw(st: MicroSettings, mixed: bool, ripple_on: bool, lc_fields: dict, reason: str,
@@ -412,7 +388,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     from microcell.contact import ContactResolutionError
     from microcell.fluid_shear import shear_fields, union_fluid_traction
     from microcell.ideal_ht import make_ideal_ht
-    from microcell.micro_phase_neutral_class import MicroPhaseNeutralSolver, MicroPhysicalParameters
+    from microcell.micro_phase_neutral_class import MicroPhaseNeutralSolver
     from microcell.micro_phase_neutral_class_contact import MicroPhaseNeutralContactSolver
     from microcell.pressure import (DELTA_P_DEFINITION, PRESSURE_EXTREMA_DEFINITION, PRESSURE_FIELDS,
                                     average_pressure_ledgers, union_pressure_extrema)
@@ -444,7 +420,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
             two_surface=False, static_moving=False,
         )
 
-    # --- physical parameters ---------------------------------------------------------------
+    # --- the task state the solver reads ---------------------------------------------------
     ratio = roughness.velocity_ratio if st.roughness_velocity_ratio is None else float(st.roughness_velocity_ratio)
     H, P, Ux, Uy, gx, gy = (float(zeta.H), float(zeta.P), float(zeta.Ux), float(zeta.Uy),
                             float(zeta.dpdx), float(zeta.dpdy))
@@ -453,16 +429,10 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     else:
         Hdot, Pdot, UxT, UyT, gxd, gyd = (float(zeta.Hdot), float(zeta.Pdot), float(zeta.Uxdot),
                                           float(zeta.Uydot), float(zeta.dpdx_dot), float(zeta.dpdy_dot))
-    phys = MicroPhysicalParameters(
-        Ux=Ux, Uy=Uy, eta0=st.eta0, rho0=st.rho0, penalty_gamma=float(st.penalty_gamma),
-        xmax=st.xmax, ymax=st.ymax, p0=P, dpdx=gx, dpdy=gy, H0=H,
-        h_min=(float(st.h_min) if mixed else 0.0),      # 0.0 keeps the mixed masking off (full film)
-        HT=Hdot, PT=Pdot, Tend=tend,
-        UxT=UxT, UyT=UyT, dpdx_dot=gxd, dpdy_dot=gyd, roughness_velocity_ratio=ratio,
-    )
-    solver_settings = _solver_settings(st, mixed, pair)
+    task = Zeta(H=H, P=P, Ux=Ux, Uy=Uy, dpdx=gx, dpdy=gy, Hdot=Hdot, Pdot=Pdot, Uxdot=UxT, Uydot=UyT,
+                dpdx_dot=gxd, dpdy_dot=gyd)
     SolverCls = MicroPhaseNeutralContactSolver if mixed else MicroPhaseNeutralSolver
-    lc_tag = str(solver_settings.level_constraint)
+    lc_tag = str(st.level_constraint)
     counters = dict(newton=0, contact=0, ripple=0, contact_s=0.0)
     lc_counts = [0, 0, 0]
 
@@ -474,7 +444,8 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
 
     out_dir = Path(output_dir) if output_dir is not None else Path(os.getcwd()) / "microcell_output"
     solver = SolverCls(
-        mesh_m=mesh, physical_params=phys, solver_settings=solver_settings, ht=ht_cb, auto_solve=False,
+        mesh_m=mesh, zeta=task, t_end=tend, settings=st, ht=ht_cb, velocity_ratio=ratio, pair=pair,
+        auto_solve=False,
     )
     ci_seen = int(getattr(solver, "_contact_iterations", 0))
 

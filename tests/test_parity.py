@@ -17,10 +17,14 @@ The rule (plan D6; written before the first run, not fitted to it)
   strings must be equal.
 * Fields (the ``_extract_fields`` arrays in SI, and the DG0 fluid indicator): same shape, the
   same NaN pattern, and ``max|a - b| <= 1e-12 * max|reference|``.
-* The copied settings dataclass the API builds must equal the reference's, field by field.
+* Every field of the parent's settings dataclass that the reference stores must equal the value
+  the solver reads now, read from where it reads it (``SETTINGS_NOW``, WP4: a ``MicroSettings``
+  field, a fixed value of the solver module, or the call).  The ripple fields of a reference
+  made without the ripple were never read by the parent; they pass when the settings carry no
+  ripple (``RIPPLE_SETTINGS``).
   A setting the pruned solver no longer has (``REMOVED_SETTINGS``, WP2) is not skipped: the
-  reference's stored value must equal the value the code now hard-wires, and the built
-  settings must not carry it.  A setting carried under another name and type
+  reference's stored value must equal the value the code now hard-wires, and ``SETTINGS_NOW``
+  must not carry it.  A setting carried under another name and type
   (``REPLACED_SETTINGS``: the parent's ``phase_average`` tag is the flag ``pair_branch``) is
   checked value for value through its stated map.
 * The cell-average spring is removed (WP2).  ``case.k_spring`` passes when the parent's spring
@@ -41,7 +45,6 @@ exit 0 = PASS, 1 = FAIL, 2 = INCOMPLETE (no references, or a cell could not be r
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import json
 import sys
 import traceback
@@ -88,6 +91,59 @@ REPLACED_SETTINGS = {
     "phase_average": ("pair_branch", {"off": False, "contact_table_v1": True}),
 }
 _REPLACEMENT_KEYS = {new for new, _ in REPLACED_SETTINGS.values()}
+
+#: WP4: the parent's settings dataclass, field by field, and where the solver reads that value now.
+#:   "settings.<path>"  a field of the call's ``MicroSettings`` (``contact.`` and ``ripple.`` nested)
+#:   "legacy.<key>"     a ``MicroSettings.legacy`` value
+#:   "fixed.<NAME>"     a fixed value (module constant) of ``microcell.micro_phase_neutral_class``
+#:   "contact law"      ``microcell.contact.FFT``, the one contact law
+#:   "ripple on"        "ripple_halfspace" when ``MicroSettings.ripple`` is set, else "off"
+#:   "pair"             the call's roughness is a stationary + translating pair
+SETTINGS_NOW = {
+    "relaxation_parameter": "settings.relaxation_parameter",
+    "max_iterations": "settings.max_iterations",
+    "abs_tolerance": "settings.abs_tolerance",
+    "rel_tolerance": "settings.rel_tolerance",
+    "delta_h": "legacy.delta_h",
+    "eps_solid": "legacy.eps_solid",
+    "eps_smooth": "legacy.eps_smooth",
+    "print_newton": "fixed.PRINT_NEWTON",
+    "print_timing": "fixed.PRINT_TIMING",
+    "spos_form": "settings.spos_form",
+    "beta": "legacy.beta",
+    "jacobian_reg_eps": "settings.jacobian_reg_eps",
+    "adaptive_damping": "fixed.ADAPTIVE_DAMPING",
+    "omega_min": "fixed.OMEGA_MIN",
+    "newton_backtrack_max": "fixed.NEWTON_BACKTRACK_MAX",
+    "newton_backtrack_tol": "fixed.NEWTON_BACKTRACK_TOL",
+    "newton_backtrack_warmup_iters": "fixed.NEWTON_BACKTRACK_WARMUP_ITERS",
+    "omega_recovery_factor": "fixed.OMEGA_RECOVERY_FACTOR",
+    "omega_cap_shrink_factor": "fixed.OMEGA_CAP_SHRINK_FACTOR",
+    "fluid_deformation": "ripple on",
+    "fluid_E_star": "settings.ripple.E_star",
+    "ripple_tol": "settings.ripple.tol",
+    "ripple_maxpass": "settings.ripple.maxpass",
+    "ripple_omega": "settings.ripple.omega",
+    "level_constraint": "settings.level_constraint",
+    "patch_pin": "legacy.patch_pin",
+    "patch_pin_kappa": "legacy.patch_pin_kappa",
+    # the mixed and contact classes
+    "pattern_flux_contact": "settings.pattern_flux_contact",
+    "sigma_yield": "settings.contact.sigma_yield",
+    "k_asp_mode": "settings.contact.k_asp_mode",
+    "contact_model": "contact law",
+    "contact_E_star": "settings.contact.E_star",
+    "contact_tol": "settings.contact.tol",
+    "contact_maxit": "settings.contact.maxit",
+    "mu_material": "settings.contact.mu",
+    "pair_branch": "pair",
+}
+#: the parent read these only with the ripple on; a reference made without it stores the
+#: parent's dataclass defaults, which nothing read
+RIPPLE_SETTINGS = ("fluid_E_star", "ripple_tol", "ripple_maxpass", "ripple_omega")
+#: fields of the parent's contact settings class (a full-film reference does not store them)
+CONTACT_CLASS_SETTINGS = ("pattern_flux_contact", "sigma_yield", "k_asp_mode", "contact_model", "contact_E_star",
+                          "contact_tol", "contact_maxit", "mu_material", "pair_branch")
 
 #: WP2 group 2: the cell-average spring (``k_spring`` of the parent's case) is removed.  The parent
 #: ran it in a transient cell of the full-film class with ``k_spring > 0``; its steady full-film
@@ -142,6 +198,37 @@ def settings_from_reference(ref: dict):
         max_iterations=mc["max_iterations"], abs_tolerance=mc["abs_tolerance"], rel_tolerance=mc["rel_tolerance"],
         contact=contact, ripple=ripple, cfl_target=float(meta["cfl_target"]),
         roughness_velocity_ratio=None, legacy=legacy)
+
+
+def settings_now(st, pair: bool) -> dict:
+    """The parent's settings dataclass by field name, each value read from where the solver reads it
+    now (``SETTINGS_NOW``).  A ripple field is absent when the settings carry no ripple, and a field
+    of the parent's contact class when they carry no contact (the parent's full-film class had none)."""
+    import microcell.micro_phase_neutral_class as solver_module
+    from microcell.contact import FFT
+
+    out = {}
+    for name, where in SETTINGS_NOW.items():
+        if name in CONTACT_CLASS_SETTINGS and st.contact is None:
+            continue
+        if name in RIPPLE_SETTINGS and st.ripple is None:
+            continue
+        if where == "contact law":
+            out[name] = FFT
+        elif where == "ripple on":
+            out[name] = "ripple_halfspace" if st.ripple is not None else "off"
+        elif where == "pair":
+            out[name] = bool(pair)
+        elif where.startswith("fixed."):
+            out[name] = getattr(solver_module, where[len("fixed."):])
+        elif where.startswith("legacy."):
+            out[name] = st.legacy_value(where[len("legacy."):])
+        else:
+            obj = st
+            for part in where[len("settings."):].split("."):
+                obj = getattr(obj, part)
+            out[name] = obj
+    return out
 
 
 def roughness_from_reference(ref: dict):
@@ -228,7 +315,6 @@ def run_cell(cell: str) -> dict:
     """Solve one reference cell through the API and compare.  Returns
     ``{"cell", "records": [...], "status", "wall_s"}``."""
     from microcell import Zeta, microsolver
-    from microcell.api import _solver_settings
 
     ref = load_reference(cell)
     meta = ref["meta"]
@@ -238,14 +324,14 @@ def run_cell(cell: str) -> dict:
     rough = roughness_from_reference(ref)
     records = []
 
-    # the copied settings dataclass, field by field
-    built = dataclasses.asdict(_solver_settings(st, st.contact is not None, rough.is_pair))
+    # the parent's settings dataclass, field by field, against what the solver reads now
+    built = settings_now(st, rough.is_pair)
     want = {k: v for k, v in ref["settings"].items() if k != "__class__"}
     for k in sorted(set(want) | set(built)):
         if k in REMOVED_SETTINGS:
             if k in built:
                 records.append({"name": f"settings.{k}", "kind": "setting", "rel": float("inf"), "ok": False,
-                                "note": "listed as removed but the built settings still carry it"})
+                                "note": "listed as removed but SETTINGS_NOW still carries it"})
                 continue
             r = compare_scalar(f"settings.{k}", REMOVED_SETTINGS[k], want[k])
             if r["rel"] != 0.0:
@@ -260,7 +346,7 @@ def run_cell(cell: str) -> dict:
             ok = k not in built and used == KEPT_CONTACT_MODEL
             records.append({"name": f"settings.{k}", "kind": "setting", "rel": 0.0 if ok else float("inf"), "ok": ok,
                             "note": "" if ok else (
-                                "listed as removed but the built settings still carry it" if k in built else
+                                "listed as removed but SETTINGS_NOW still carries it" if k in built else
                                 f"removed setting read by {REMOVED_UNREAD_SETTINGS[k]}; the reference's contact_model "
                                 f"is {used!r}")})
             continue
@@ -275,6 +361,12 @@ def run_cell(cell: str) -> dict:
             continue
         if k in _REPLACEMENT_KEYS and k not in want:
             continue                                # checked with the reference key it replaces
+        if k in RIPPLE_SETTINGS and k in want and k not in built:
+            ok = want.get("fluid_deformation") == "off" and st.ripple is None
+            records.append({"name": f"settings.{k}", "kind": "setting", "rel": 0.0 if ok else float("inf"), "ok": ok,
+                            "note": "" if ok else ("a ripple setting with no ripple in the settings, but the "
+                                                   f"reference's fluid_deformation is {want.get('fluid_deformation')!r}")})
+            continue
         if k not in built or k not in want:
             records.append({"name": f"settings.{k}", "kind": "setting", "rel": float("inf"), "ok": False,
                             "note": "only on one side"})

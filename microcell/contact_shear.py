@@ -58,7 +58,7 @@ CONTACT_SHEAR_DEFINITION = f"{CONTACT_SAMPLER}@{FLUID_SAMPLER}/global_x/phase_un
 #: solution's own Pasp_hom, relative; exactly 0 when Pasp_hom is 0
 MEAN_CHECK_BUDGET = 1e-12
 
-FFT_MODEL = "fft_elastic_v1"
+from microcell.contact import FFT as FFT_MODEL      # the one contact law (one definition)
 
 # ----------------------------------------------------------------------------------------- statuses
 #: per component (asperity, total), per phase and per task; a fixed-width string array per node

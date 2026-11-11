@@ -88,10 +88,9 @@ def union_pressure_extrema(phases) -> dict:
 # Plan docs/notes/micro_fluid_mean_constraint_plan_2026-10-30.md rev 3, sections 2.3, 3.6 and
 # WP3 (S3 (c), (d)); decision D8.  "whole_cell": (1/A) int P = P_re + lambda;
 # "fluid_mean_v1": (1/A_f) int chi P = P_re + lambda.
-# LEVEL_CONSTRAINT_RUN_DEFAULT is what a solver-settings object built without the field gets
-# (PhaseNeutralSettings): "fluid_mean_v1" since 2 Nov 2026 (WP8, option A).
+# The setting and its one default are ``microcell.api.MicroSettings.level_constraint`` (MicroCell
+# WP4; the parent's second default LEVEL_CONSTRAINT_RUN_DEFAULT = "fluid_mean_v1" is not here).
 # ---------------------------------------------------------------------------------------
-LEVEL_CONSTRAINT_RUN_DEFAULT = "fluid_mean_v1"
 
 
 def average_pressure_ledgers(ledgers):

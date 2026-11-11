@@ -23,49 +23,25 @@ solution.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
 
 import numpy as np
 from fenics import *  # noqa: F401,F403 — UFL/assembly symbols used below
 from microcell.contact import FFT
 from microcell import elastic_contact as _ec
 
-from microcell.micro_phase_neutral_class_mixed import (  # noqa: F401
-    MicroPhaseNeutralMixedSolver as _MixedSolver,
-    MicroPhysicalParameters,        # re-export (worker convenience)
-    PhaseNeutralSettings as _MixedPhaseNeutralSettings,
-)
+from microcell.micro_phase_neutral_class_mixed import MicroPhaseNeutralMixedSolver as _MixedSolver
 
-
-@dataclass(frozen=True)
-class PhaseNeutralContactSettings(_MixedPhaseNeutralSettings):
-    """Mixed settings and the contact-law parameters (``fft_elastic_v1``).
-
-    The contact solve needs material data that the micro solver otherwise never
-    sees.  They live on the settings dataclass (variant-specific knobs extend the
-    settings, the shared ``MicroPhysicalParameters`` tuple stays stable).
-    """
-    sigma_yield: float = 250e6        # Pa; elastic-validity FLAG threshold (never clamps)
-    # [WP-1 2026-09-03] Tangent of the closure, k_asp = -dP_asp/dH [Pa/m],
-    # for the Newton-like macro coupling.  "off" (default) emits 0.0;
-    # "closure" emits the tangent of the nodal contact solution
-    # (``elastic_contact.contact_tangent``).
-    k_asp_mode: str = "off"           # "off" | "closure"
-    contact_model: str = FFT          # the one contact law of this repo
-    contact_E_star: float | None = None  # explicit combined modulus; never reduce twice
-    # [fft_elastic_v1] Polonsky-Keer stopping rule sum|dp|/sum p and iteration
-    # budget (plan 3.2); the tangent's CG uses the same tolerance.
-    contact_tol: float = 1e-8
-    contact_maxit: int = 500
-    # [extrema M3b, 23 Oct 2026] the dry asperity friction coefficient of the macro's asperity traction
-    # (mixed_lubrication.mu_material, calc_asp_friction): the diagnostic asperity / total traction only
-    # (micro_diagnostics.sample_contact_traction); no solver channel reads it.  NaN = not given.
-    mu_material: float = float("nan")
-    # [phase-table WP3, 4 Nov 2026; MicroCell WP2] True for a stationary + translating surface pair:
-    # lifts the two-member refusal of the ripple (R-e, the converged per-step branch) and turns on the
-    # warm-start contact rescue.  The parent carried this as the tag phase_average = "contact_table_v1",
-    # which also made its worker compose P_asp from the contact table; the table is not in this repo.
-    pair_branch: bool = False
+# The contact-law parameters are ``MicroSettings.contact`` (a ``microcell.ContactSettings``):
+# ``E_star`` the explicit combined modulus (never reduced twice); ``sigma_yield`` the elastic-validity
+# FLAG threshold [Pa] (never clamps); ``k_asp_mode`` [WP-1 2026-09-03] the tangent of the closure,
+# k_asp = -dP_asp/dH [Pa/m], for a Newton-like macro coupling ("off" emits 0.0, "closure" the
+# tangent of the nodal contact solution, ``elastic_contact.contact_tangent``); ``tol`` and ``maxit``
+# the Polonsky-Keer stopping rule sum|dp|/sum p and iteration budget (plan 3.2; the tangent's CG
+# uses the same tolerance); ``mu`` [extrema M3b, 23 Oct 2026] the dry asperity friction coefficient
+# of the diagnostic asperity / total traction only (``micro_diagnostics.sample_contact_traction``;
+# no solver channel reads it).  ``self.pair`` [phase-table WP3, 4 Nov 2026; MicroCell WP2] is True for
+# a stationary + translating surface pair: it lifts the two-member refusal of the ripple (R-e, the
+# converged per-step branch) and turns on the warm-start contact rescue.
 
 
 class MicroPhaseNeutralContactSolver(_MixedSolver):
@@ -101,17 +77,14 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
     # fft_elastic_v1: film and mask graph, grid map, refresh (plan WP3)
     # ------------------------------------------------------------------
     def _setup_film_and_mask(self) -> None:
-        if self.settings.contact_model != FFT:
-            raise ValueError(f"unknown contact model {self.settings.contact_model!r}: "
-                             f"this solver has {FFT!r} only")
         super()._setup_film_and_mask()
         s = self.settings
-        if self._ripple_on and s.contact_E_star is not None:
+        if self._ripple_on and s.contact.E_star is not None:
             # [option H, WP8] one body pair: u_f and u_c are the same operator (DV5 (i))
-            Ef, Ec = float(s.fluid_E_star), float(s.contact_E_star)
+            Ef, Ec = float(s.ripple.E_star), float(s.contact.E_star)
             if not abs(Ef - Ec) <= 1e-12 * Ec:
-                raise ValueError(f"fluid_E_star {Ef!r} != contact_E_star {Ec!r}: fft_elastic_v1 with "
-                                 "fluid_deformation='ripple_halfspace' needs one body pair (plan O3)")
+                raise ValueError(f"ripple.E_star {Ef!r} != contact.E_star {Ec!r}: fft_elastic_v1 with "
+                                 "the ripple needs one body pair (plan O3)")
         # Nodal fields on Vper (allocated before this call: __init__ order).
         # h_nd gains the zero-mean contact deformation; the obstruction level
         # set is phi_c / H0 instead of h_nd - h_min (D2).  Zero until the first
@@ -124,7 +97,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         self.mask = self.smooth_levelset_mask(
             phi=phi_mask,
             delta=self.delta_h_nd_const,
-            mask_core=Constant(s.eps_solid),
+            mask_core=Constant(s.legacy_value("eps_solid")),
             mask_fluid=Constant(1.0),
         )
 
@@ -145,9 +118,10 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
 
     def _fft_validate(self):
         s = self.settings
-        if s.contact_E_star is None or not np.isfinite(s.contact_E_star) or s.contact_E_star <= 0:
-            raise ValueError("fft_elastic_v1 requires an explicit positive two-body contact_E_star")
-        if s.k_asp_mode not in ("off", "closure"):
+        E = s.contact.E_star
+        if E is None or not np.isfinite(E) or E <= 0:
+            raise ValueError("fft_elastic_v1 requires an explicit positive two-body contact.E_star")
+        if s.contact.k_asp_mode not in ("off", "closure"):
             raise ValueError("k_asp_mode must be 'off' or 'closure'")
         descriptor = getattr(self.ht_cb, "contact_cosine", None)
         if not callable(getattr(descriptor, "height", None)):
@@ -164,7 +138,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         n, i, j = self._periodic_grid()
         t = np.arange(n) / n
         Xg, Yg = np.meshgrid(t, t, indexing="ij")
-        op = _ec.PeriodicHalfSpace(n, n, float(self.Lx), float(self.Ly), float(self.settings.contact_E_star))
+        op = _ec.PeriodicHalfSpace(n, n, float(self.Lx), float(self.Ly), float(self.settings.contact.E_star))
         g = (n, i, j, Xg, Yg, op)
         self._contact_grid_cache = g
         return g
@@ -173,7 +147,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         descriptor = self.ht_cb.contact_cosine
         vals = (self.H0_const, self.HT_const, self.T_dim_const, self._Ux_dim_const, self._Uy_dim_const,
                 descriptor.phi_x, descriptor.phi_y, descriptor.dphi_x, descriptor.dphi_y,
-                self.params.h_min, self.params.xmax, self.params.ymax)
+                self.h_min, self.settings.xmax, self.settings.ymax)
         key = tuple(float(v) for v in vals)
         if self._ripple_on:                 # [option H] the rigid gap includes u_f
             key = key + (float(self._ripple_version),)
@@ -192,7 +166,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         for bit; a cold start that fails, and any other failure, is raised as before.  Counted per task
         (``_contact_restarts``, by kind) and printed by the worker.  With the field off the call is exactly the one
         it always was (no try, no rescue: the off path is bitwise)."""
-        tol, maxit = float(self.settings.contact_tol), int(self.settings.contact_maxit)
+        tol, maxit = float(self.settings.contact.tol), int(self.settings.contact.maxit)
         if not self._pair_branch_on():
             return _ec.solve_contact(h_r, h_min, op, p0=p0, tol=tol, maxit=maxit)
         try:
@@ -214,9 +188,8 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         """Dimensional rigid film [m] on the contact grid, from the SAME
         description as the UFL ht (CosineContactDescriptor.height, gate G2a)."""
         n, i, j, Xg, Yg, op = self._contact_grid()
-        p = self.params
         return self.ht_cb.contact_cosine.height(
-            Xg, Yg, p.xmax, p.ymax, self.H0_const, self.HT_const, self.T_dim_const,
+            Xg, Yg, self.settings.xmax, self.settings.ymax, self.H0_const, self.HT_const, self.T_dim_const,
             self._Ux_dim_const, self._Uy_dim_const)
 
     def _refresh_geometry(self) -> None:
@@ -234,8 +207,8 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         self._fft_validate()
         _t0 = time.perf_counter()
         n, i, j, Xg, Yg, op = self._contact_grid()
-        H0 = float(self.params.H0)
-        h_min = float(self.params.h_min)
+        H0 = float(self.zeta.H)
+        h_min = float(self.h_min)
         h_r = self._rigid_film_grid()
         if self._ripple_on:
             # [option H, WP8] the contact is solved on the rigid film plus the fluid
@@ -275,10 +248,10 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         self.A_mech_frac = _ec.p1_area(sol.phi_c)
         self.A_patch_frac = self.contact_frac          # the obstruction (chi) integral
         self.pasp_max = float(sol.p.max())             # nodal peak, resolution-dependent
-        self.yield_flag = int(self.pasp_max > float(s.sigma_yield))
-        if s.k_asp_mode == "closure":
-            self.k_asp_hom = -_ec.contact_tangent(op, sol.active, tol=float(s.contact_tol),
-                                                  maxit=int(s.contact_maxit))
+        self.yield_flag = int(self.pasp_max > float(s.contact.sigma_yield))
+        if s.contact.k_asp_mode == "closure":
+            self.k_asp_hom = -_ec.contact_tangent(op, sol.active, tol=float(s.contact.tol),
+                                                  maxit=int(s.contact.maxit))
         else:
             self.k_asp_hom = 0.0
         n_comp, min_nodes = _ec.periodic_components(sol.active)

@@ -47,14 +47,12 @@ from __future__ import annotations
 import logging
 import sys
 import time
-from dataclasses import dataclass
 from typing import Callable
 
 import numpy as np
 from fenics import *  # legacy FEniCS
 
 from microcell import ripple as _rp   # [option H] numpy-only operator, traction and checks
-from microcell.pressure import LEVEL_CONSTRAINT_RUN_DEFAULT as _LC_RUN_DEFAULT   # [fluid-mean WP8] one constant
 # [extrema M1] the shared fluid pressure extrema sampler (base, mixed and contact classes);
 # [extrema M2b] the fluid traction sampler (the same classes)
 from microcell.micro_diagnostics import sample_fluid_pressure_extrema, sample_fluid_traction
@@ -86,161 +84,89 @@ _EPSP_ND_CAP = 1.0
 
 
 # -------------------------------------------------------------------
-# Data containers
+# Inputs and fixed values
 # -------------------------------------------------------------------
-@dataclass(frozen=True)
-class MicroPhysicalParameters:
-    Ux: float
-    Uy: float
-    eta0: float
-    rho0: float
-    penalty_gamma: float
-    xmax: float
-    ymax: float
-    p0: float
-    dpdx: float
-    dpdy: float
-    H0: float
-    h_min: float
-    HT: float
-    PT: float
-    Tend: float
-    UxT: float = 0.0
-    UyT: float = 0.0
-    dpdx_dot: float = 0.0
-    dpdy_dot: float = 0.0
-    roughness_velocity_ratio: float = 1.0  # fraction of roughness on moving surface
+# The solver reads its inputs where the caller wrote them (MicroCell WP4); there is no
+# solver-side settings or parameters class, and every default is ``MicroSettings``'s:
+#   self.zeta            a ``microcell.Zeta`` (``microsolver`` zeroes the rates of a steady solve)
+#   self.t_end           the time window [s] (0.0 for a steady solve)
+#   self.settings        the ``microcell.MicroSettings`` (with ``.contact`` and ``.ripple``)
+#   self.velocity_ratio  fraction of the roughness on the moving surface
+#   self.pair            True for a stationary + translating pair (the pair branch)
+#   self.h_min           the contact onset film [m]: ``settings.h_min`` with contact on, 0.0 in
+#                        full film (0.0 keeps the mixed masking off)
+#
+# Notes on the settings read here (definitions and defaults: ``microcell.api.MicroSettings``)
+# --------------------------------------------------------------------------------------
+# ``spos_form`` [WP-B 2026-09-15]: which smoothed positive part the cavitation penalty (and its
+# derivative) uses.
+#   "spline" -- one-sided C1 quadratic spline, spos(z) == 0 for z <= 0.  NO closure bias at
+#               positive pressure.
+#   "sqrt"   -- legacy symmetric 0.5*(z + sqrt(z^2+eps^2)).  Its eps^2/(4P) residue at P > 0
+#               biases the phase-neutral closure, which with eps_smooth = 1e5 Pa put
+#               dP = 15.8 MPa on every low-pressure node of Wang2008-Mixed2 (fix plan
+#               2026-09-15, fact F3).
+#
+# ``beta``: the normalised closure parameter of the scalar equation
+#     G = beta * lambda_nd - gamma_nd * mean(spos(-P_nd)) = 0.
+# At equilibrium lambda_nd = gamma_nd * mean(spos(-P_nd)) / beta >= 0, and
+# d = dG/dlambda = beta + gamma*mean(spos') >= beta > 0 always (positive-definite).  With the
+# normalised form beta is dimensionless; values in [0.1, 10] are typically stable.
+#
+# ``jacobian_reg_eps``: Tikhonov shift ``eps * I`` applied to the assembled Reynolds Jacobian
+# ``_A_mat`` before MUMPS factorises it.  The Schur complement Newton solver factorises the
+# N x N Reynolds block alone (the lambda, mu rows are eliminated externally).  On a periodic
+# mesh with no active cavitation penalty (``spos'(-P) ~ 0``) this block carries a constant-mode
+# null space and MUMPS aborts with DIVERGED_PC_FAILED / zero pivot.  A tiny shift lifts that
+# single eigenvalue above MUMPS's pivot threshold: the Newton iteration count was identical
+# across ``eps in [1e-12, 1e-4]`` in the parent's regularise sweep (the shift acts on the null
+# eigenvalue, not on any data-bearing mode).  0.0 disables it (and reproduces the zero-pivot
+# failure on non-cavitating periodic cases).  Since 2026-10-15 the shift may be negative
+# (``_apply_jacobian_reg_shift`` says why): the parent's production runs take +1e-10
+# historically and -1e-7 with the ``pressure-accounting`` recipe.
+#
+# ``ripple`` [option H, 17 Oct 2026], the micro fluid deformation ``ripple_halfspace``
+# (parent docs/notes/ripple_halfspace_plan_2026-10-17.md, decisions O1-O10).  ``None`` leaves
+# every UFL graph and code path as without it.  On: the film gains u_r = H[s], the zero-mean
+# periodic two-body half-space response to the cell's own fluid traction (combined plan 18.15),
+# held fixed during each micro run ("pass") in the rough surface's frame and updated between
+# passes until the residual acceptance holds (O6; the acceptance of
+# docs/notes/ripple_fast_loop_plan_2026-10-19.md section 4.6: residual within
+# ``ripple.tol`` x H, contracted by half since the previous pass, end-level contact set
+# unchanged).  Pass 1 is a whole run; later passes solve the end level only where the caller
+# allows it (``_ripple_run``, section 4.7).  ``ripple.E_star`` is the resolved two-body modulus
+# [Pa]; ``ripple.tol`` the deformation budget relative to H; ``ripple.maxpass`` the pass cap (a
+# pass can be accepted from pass 1); ``ripple.omega`` the initial and largest relaxation (floor
+# 0.1x).
+#
+# ``level_constraint`` [fluid-mean WP2, 30 Oct 2026], the pressure-level constraint (parent
+# docs/notes/micro_fluid_mean_constraint_plan_2026-10-30.md rev 3, decisions D1-D14).
+# "whole_cell": (1/A) int P = P_re + lambda.  "fluid_mean_v1": (1/A_f) int chi P = P_re + lambda,
+# chi the ledger's sharp chi_fluid (D2, D3); implemented by the mixed class (the full-film
+# solver has no patch, so it always takes the whole-cell path).  ``patch_pin`` (None = on with
+# fluid_mean_v1, D4): the nodal penalty w_i -> 0 at the nodes with no fluid quadrature point in
+# their support, weight ``patch_pin_kappa`` x m_i (nondimensional).
 
-    @property
-    def U(self):
-        return as_vector((Constant(2.0 * self.Ux), Constant(2.0 * self.Uy)))
+# Fixed values.  The parent's settings dataclasses carried these as fields; the API never set
+# them and every reference stores exactly these values (``tests/test_parity.py`` checks that).
 
-    @property
-    def dpx_celljump(self) -> float:
-        return self.dpdx * self.xmax
-
-    @property
-    def dpy_celljump(self) -> float:
-        return self.dpdy * self.ymax
-
-
-@dataclass(frozen=True)
-class MicroSolverSettings:
-    """Base solver settings (same as in micro_mixed_transient_class.py)."""
-    relaxation_parameter: float
-    max_iterations: int
-    abs_tolerance: float
-    rel_tolerance: float
-    delta_h: float        # transition width for smoothing contact mask (0 => sharp)
-    eps_solid: float      # small mobility in contact to avoid singularity
-    eps_smooth: float     # smoothing for smooth_pos
-    print_newton: bool = False
-    print_timing: bool = False
-    # [WP-B 2026-09-15] Which smoothed positive part the cavitation
-    # penalty (and its derivative) uses.
-    #   "spline" -- one-sided C1 quadratic spline, spos(z) == 0 for z <= 0.
-    #               NO closure bias at positive pressure.  Default.
-    #   "sqrt"   -- legacy symmetric 0.5*(z + sqrt(z^2+eps^2)).  Retained
-    #               for A/B only: its eps^2/(4P) residue at P > 0 biases
-    #               the phase-neutral closure, which with eps_smooth = 1e5
-    #               Pa put dP = 15.8 MPa on every low-pressure node of
-    #               Wang2008-Mixed2 (fix plan 2026-09-15, fact F3).
-    spos_form: str = "spline"
-
-
-@dataclass(frozen=True)
-class PhaseNeutralSettings(MicroSolverSettings):
-    """Extended settings for MicroPhaseNeutralSolver.
-
-    Adds ``beta``: the normalised closure parameter for the scalar equation
-        G = beta * lambda_nd - gamma_nd * mean(spos(-P_nd)) = 0.
-
-    At equilibrium: lambda_nd = gamma_nd * mean(spos(-P_nd)) / beta ≥ 0.
-    d = ∂G/∂λ = beta + gamma*mean(spos') ≥ beta > 0 always (positive-definite).
-
-    With the normalised form, beta is dimensionless and ``beta = 1.0`` is a
-    reasonable default for most operating points.  Values in [0.1, 10] are
-    typically stable; use the beta-sensitivity test to tune.
-
-    Adds ``jacobian_reg_eps``: Tikhonov shift ``eps * I`` applied to the
-    assembled Reynolds Jacobian ``_A_mat`` before MUMPS factorises it.
-
-    Rationale: the Schur complement Newton solver factorises the N×N
-    Reynolds block alone (the λ,μ rows are eliminated externally).  On a
-    periodic mesh with no active cavitation penalty (``spos'(-P) ≈ 0``),
-    this block carries a constant-mode null space and MUMPS aborts with
-    DIVERGED_PC_FAILED / zero pivot.  A tiny shift lifts that single
-    eigenvalue above MUMPS's pivot threshold without perturbing the
-    physics: empirically the Newton iteration count is unchanged across
-    ``eps ∈ [1e-12, 1e-4]``.  See ``tests/test_jacobian_conditioning.py``.
-
-    Default ``1e-8`` is 6+ orders of magnitude below typical Frobenius
-    norms of the assembled Jacobian and costs no measurable solve time.
-    The diagnostic regularize sweep (test_jacobian_conditioning.py)
-    confirmed the Newton iteration count is identical across
-    ``eps ∈ [1e-12, 1e-4]`` — the shift acts purely on the null
-    eigenvalue, not on any data-bearing mode.  The default is set at
-    ``1e-8`` (mid-range) rather than the minimum crossover ``~1e-12``
-    to leave safe margin against MUMPS's internal pivot-perturbation
-    heuristic, which is matrix-size- and scaling-dependent.
-    Set to 0.0 to disable (will reproduce the original zero-pivot failure
-    on non-cavitating periodic cases).  Since 2026-10-15 the shift may be
-    negative (``_apply_jacobian_reg_shift`` says why): the production runs
-    take the setting from their Case (+1e-10 historically, -1e-7 with the
-    ``pressure-accounting`` recipe), never from this default.
-    """
-    beta: float = 1.0
-    jacobian_reg_eps: float = 1.0e-8
-
-    # ---- [Phase 5.5] adaptive-damping knobs ----
-    # Promoted from the inline getattr defaults in _newton_solve (values
-    # unchanged — see the April-2026 damping-policy comment there for the
-    # rationale behind each number).  All variant settings classes
-    # (mixed/LC/bound/corner) subclass this dataclass, so they inherit
-    # these fields automatically.
-    adaptive_damping: bool = True
-    # None -> dynamic floor max(omega/32, 1e-3), computed at solve time
-    # from the case's relaxation_parameter (cannot be a static default).
-    omega_min: float | None = None
-    newton_backtrack_max: int = 10
-    newton_backtrack_tol: float = 2.0
-    newton_backtrack_warmup_iters: int = 3
-    omega_recovery_factor: float = 1.2
-    omega_cap_shrink_factor: float = 0.85
-
-    # ---- [option H, 17 Oct 2026] micro fluid deformation ``ripple_halfspace`` ----
-    # docs/notes/ripple_halfspace_plan_2026-10-17.md (decisions O1-O10, taken as
-    # recommended).  "off" (default) leaves every UFL graph and code path as before.
-    # "ripple_halfspace": the film gains u_r = H[s], the zero-mean periodic two-body
-    # half-space response to the cell's own fluid traction (combined plan 18.15),
-    # held fixed during each micro run ("pass") in the rough surface's frame and
-    # updated between passes until the residual acceptance holds (O6; the
-    # acceptance of docs/notes/ripple_fast_loop_plan_2026-10-19.md section 4.6:
-    # residual within ripple_tol x H0, contracted by half since the previous pass,
-    # end-level contact set unchanged -- in place of O5's 13.4 two-transition rule,
-    # Rob's decision of 19 Oct 2026).  Pass 1 is a whole run; later passes solve
-    # the end level only where the caller allows it (_ripple_run, section 4.7).
-    fluid_deformation: str = "off"         # "off" | "ripple_halfspace"
-    fluid_E_star: float | None = None      # resolved two-body modulus [Pa] (required when on)
-    ripple_tol: float = 1e-6               # deformation budget, relative to H0 (O5, unchanged)
-    ripple_maxpass: int = 12               # pass cap (O5); a pass can be accepted from pass 1
-    ripple_omega: float = 1.0              # initial and largest relaxation; floor 0.1x (O5)
-
-    # ---- [fluid-mean WP2, 30 Oct 2026] the pressure-level constraint ----
-    # docs/notes/micro_fluid_mean_constraint_plan_2026-10-30.md (rev 3, decisions D1-D14).
-    # "whole_cell": (1/A) int P = P_re + lambda, the constraint before 2 Nov 2026, bit for bit.
-    # "fluid_mean_v1": (1/A_f) int chi P = P_re + lambda, chi the ledger's sharp chi_fluid
-    # (D2, D3); implemented by the mixed class (the base full-film solver has no patch, so
-    # it always takes the whole-cell path).  ``patch_pin`` (None = on with fluid_mean_v1,
-    # D4): the nodal penalty w_i -> 0 at the nodes with no fluid quadrature point in their
-    # support, weight ``patch_pin_kappa`` x m_i (nondimensional).
-    # [WP8, 2 Nov 2026] the default is the run default, "fluid_mean_v1" (ehl.pressure.
-    # LEVEL_CONSTRAINT_RUN_DEFAULT): a settings object built without the field (a test, a
-    # harness, the prototype) solves what a new run solves.  The worker's settings factory
-    # passes the MicroCase's value explicitly, so a pinned run never sees this default.
-    level_constraint: str = _LC_RUN_DEFAULT   # "whole_cell" | "fluid_mean_v1"
-    patch_pin: bool | None = None
-    patch_pin_kappa: float = 1.0
+#: [Phase 5.5] adaptive damping of the Schur Newton solver (``DampingPolicy``; the April-2026
+#: damping-policy comment in ``_newton_solve`` gives the rationale of each number)
+ADAPTIVE_DAMPING = True
+#: None -> the dynamic floor max(omega/32, 1e-3), computed at solve time from
+#: ``relaxation_parameter`` (cannot be a static value)
+OMEGA_MIN = None
+NEWTON_BACKTRACK_MAX = 10
+NEWTON_BACKTRACK_TOL = 2.0
+NEWTON_BACKTRACK_WARMUP_ITERS = 3
+OMEGA_RECOVERY_FACTOR = 1.2
+OMEGA_CAP_SHRINK_FACTOR = 0.85
+#: the per-iteration Newton prints and the per-run timing summary
+PRINT_NEWTON = False
+PRINT_TIMING = False
+#: the tolerance-audit trace of ``_newton_solve`` (the parent read it with ``getattr`` from a
+#: settings object that never carried it)
+TRACE_NEWTON = False
 
 
 #: [fluid-mean WP2] the level-constraint formulations (the tag; ehl.pressure.LEVEL_CONSTRAINTS)
@@ -305,21 +231,21 @@ class DampingPolicy:
     backtrack budget; the Newton loop owns state snapshots, step
     reapplication and reassembly. Backtracking stops once the minimum step
     has been evaluated; retrying that identical candidate cannot help. See the extensive knob
-    documentation on PhaseNeutralSettings ([Phase 5.5]): adaptive_damping,
+    documentation at the fixed values of this module ([Phase 5.5]): adaptive_damping,
     omega_min (None sentinel => dynamic max(omega/32, 1e-3) floor),
     newton_backtrack_max / _tol / _warmup_iters, omega_recovery_factor,
     omega_cap_shrink_factor.
     """
 
-    def __init__(self, s, omega_base: float):
-        self.adaptive = bool(s.adaptive_damping)
-        self.omega_min = (float(s.omega_min) if s.omega_min is not None
+    def __init__(self, omega_base: float):
+        self.adaptive = bool(ADAPTIVE_DAMPING)
+        self.omega_min = (float(OMEGA_MIN) if OMEGA_MIN is not None
                           else max(omega_base / 32.0, 1e-3))
-        self.max_backtracks = int(s.newton_backtrack_max)
-        self.bt_tol = float(s.newton_backtrack_tol)
-        self.bt_warmup_iters = int(s.newton_backtrack_warmup_iters)
-        self.omega_recovery = float(s.omega_recovery_factor)
-        self.omega_cap_shrink = float(s.omega_cap_shrink_factor)
+        self.max_backtracks = int(NEWTON_BACKTRACK_MAX)
+        self.bt_tol = float(NEWTON_BACKTRACK_TOL)
+        self.bt_warmup_iters = int(NEWTON_BACKTRACK_WARMUP_ITERS)
+        self.omega_recovery = float(OMEGA_RECOVERY_FACTOR)
+        self.omega_cap_shrink = float(OMEGA_CAP_SHRINK_FACTOR)
         self.omega_base = omega_base
         # "next step size"; shrinks on revert, grows on accept
         self.omega_current = omega_base
@@ -403,15 +329,22 @@ class MicroPhaseNeutralSolver:
     def __init__(
         self,
         mesh_m: Mesh,
-        physical_params: MicroPhysicalParameters,
-        solver_settings: MicroSolverSettings,
+        zeta,
+        t_end: float,
+        settings,
         ht: Callable,
+        velocity_ratio: float,
+        pair: bool,
         auto_solve: bool = True,
     ) -> None:
-        # ---- persistent inputs ----
+        # ---- persistent inputs (the header of this module says what each is) ----
         self.mesh_m = mesh_m
-        self.params = physical_params
-        self.settings = solver_settings
+        self.zeta = zeta
+        self.t_end = t_end
+        self.settings = settings
+        self.velocity_ratio = float(velocity_ratio)
+        self.pair = bool(pair)
+        self.h_min = self._contact_onset_film()
         # [WP-G 2026-09-15] Which sub-solve is running, for the worker's
         # [MICRO-FAIL-PN] report: "steady" | "transient-seed" |
         # "step k/N".  A
@@ -421,7 +354,7 @@ class MicroPhaseNeutralSolver:
         # solver instance (it selects the UFL graph, so it must be fixed
         # before _setup_pressure_expressions / _setup_forms run and must
         # not change under reset_task).
-        self._spos_form = str(getattr(solver_settings, "spos_form", "spline")).strip().lower()
+        self._spos_form = str(settings.spos_form).strip().lower()
         if self._spos_form not in ("spline", "sqrt"):
             raise ValueError(
                 "spos_form must be 'spline' or 'sqrt', got %r"
@@ -447,10 +380,15 @@ class MicroPhaseNeutralSolver:
         if auto_solve:
             self.run_steady()
 
+    def _contact_onset_film(self) -> float:
+        """``self.h_min`` [m].  Full film: 0.0, which keeps the mixed masking off whatever
+        ``settings.h_min`` holds (the mixed class returns the setting)."""
+        return 0.0
+
     # -------------------------
     # [Micro-perf P2.3c] Task re-targeting for per-worker solver reuse
     # -------------------------
-    def reset_task(self, physical_params: MicroPhysicalParameters) -> None:
+    def reset_task(self, zeta, t_end: float, velocity_ratio: float) -> None:
         """Re-target this solver at a new task WITHOUT rebuilding
         spaces / periodic constraint / mass-matrix LU / forms / assembler.
 
@@ -465,29 +403,25 @@ class MicroPhaseNeutralSolver:
         freeze of the previous task's scaling, which is exactly what the
         property test exists to catch.
 
-        Raises ``ValueError`` if the new task changes the cell size
-        (baked into mesh-scoped objects) — callers treat that as a cache
-        miss and construct a fresh solver.
+        The cell size, like every other setting, is the solver's own (``self.settings``): a task
+        with another cell size needs a fresh solver.  MicroCell WP4: ``microsolver`` builds a solver
+        per call and does not use this; it takes the task state the constructor takes.
         """
-        p = physical_params
-        if (float(p.xmax) != float(self.params.xmax)
-                or float(p.ymax) != float(self.params.ymax)):
-            raise ValueError(
-                "reset_task: xmax/ymax differ from the cached solver's — "
-                "cell size is baked into spaces/forms; rebuild instead")
-        self.params = p
+        self.zeta = zeta
+        self.t_end = t_end
+        self.velocity_ratio = float(velocity_ratio)
 
         # --- mirror _setup_time_controls (assign, not recreate) ---
         self.T_nd_const.assign(0.0)
         self.T_dim_const.assign(0.0)
-        self.H0_const.assign(float(p.H0))
-        self.HT_const.assign(float(p.HT))
-        self.p0_const.assign(float(p.p0))
-        self.PT_const.assign(float(p.PT))
-        self.Tend_dim = float(p.Tend) if p.Tend is not None else 0.0
-        _alpha = float(p.roughness_velocity_ratio)
-        self._Ux_dim_const.assign(_alpha * 2.0 * float(p.Ux))
-        self._Uy_dim_const.assign(_alpha * 2.0 * float(p.Uy))
+        self.H0_const.assign(float(zeta.H))
+        self.HT_const.assign(float(zeta.Hdot))
+        self.p0_const.assign(float(zeta.P))
+        self.PT_const.assign(float(zeta.Pdot))
+        self.Tend_dim = float(self.t_end) if self.t_end is not None else 0.0
+        _alpha = float(self.velocity_ratio)
+        self._Ux_dim_const.assign(_alpha * 2.0 * float(zeta.Ux))
+        self._Uy_dim_const.assign(_alpha * 2.0 * float(zeta.Uy))
 
         # --- mirror _nondimensionalise (floats recomputed) ---
         self._nondim_scalars()
@@ -505,7 +439,7 @@ class MicroPhaseNeutralSolver:
         # --- mirror _setup_pressure_expressions ---
         self.dpx_nd_const.assign(self.dpx_nd)
         self.dpy_nd_const.assign(self.dpy_nd)
-        self.P_re_nd.assign(float(p.p0) / self.p_scale)
+        self.P_re_nd.assign(float(zeta.P) / self.p_scale)
         self.lambda_nd.assign(0.0)
         self.mu_nd = 0.0
         self.p_scale_const.assign(self.p_scale)
@@ -640,17 +574,17 @@ class MicroPhaseNeutralSolver:
         self.x, self.y = SpatialCoordinate(self.mesh_m)
 
     def _setup_time_controls(self) -> None:
-        p = self.params
+        zeta = self.zeta
         self.T_nd_const = Constant(0.0)
         self.T_dim_const = Constant(0.0)
-        self.H0_const = Constant(float(p.H0))
-        self.HT_const = Constant(float(p.HT))
-        self.p0_const = Constant(float(p.p0))
-        self.PT_const = Constant(float(p.PT))
-        self.Tend_dim = float(p.Tend) if p.Tend is not None else 0.0
-        _alpha = float(p.roughness_velocity_ratio)
-        self._Ux_dim_const = Constant(_alpha * 2.0 * float(p.Ux))
-        self._Uy_dim_const = Constant(_alpha * 2.0 * float(p.Uy))
+        self.H0_const = Constant(float(zeta.H))
+        self.HT_const = Constant(float(zeta.Hdot))
+        self.p0_const = Constant(float(zeta.P))
+        self.PT_const = Constant(float(zeta.Pdot))
+        self.Tend_dim = float(self.t_end) if self.t_end is not None else 0.0
+        _alpha = float(self.velocity_ratio)
+        self._Ux_dim_const = Constant(_alpha * 2.0 * float(zeta.Ux))
+        self._Uy_dim_const = Constant(_alpha * 2.0 * float(zeta.Uy))
 
     def _nondimensionalise(self) -> None:
         # [Micro-perf P2.3c] Split: float-only core in _nondim_scalars()
@@ -664,36 +598,36 @@ class MicroPhaseNeutralSolver:
 
         Creates NO dolfin objects — safe to re-run on a cached solver.
         """
-        p = self.params
+        zeta = self.zeta
         s = self.settings
 
-        self.Lx = float(p.xmax)
-        self.Ly = float(p.ymax)
+        self.Lx = float(self.settings.xmax)
+        self.Ly = float(self.settings.ymax)
 
-        Ux_end = p.Ux + p.UxT * (float(p.Tend) if p.Tend else 0.0)
-        Uy_end = p.Uy + p.UyT * (float(p.Tend) if p.Tend else 0.0)
-        Uref_candidates = [abs(p.Ux), abs(p.Uy), abs(Ux_end), abs(Uy_end)]
+        Ux_end = zeta.Ux + zeta.Uxdot * (float(self.t_end) if self.t_end else 0.0)
+        Uy_end = zeta.Uy + zeta.Uydot * (float(self.t_end) if self.t_end else 0.0)
+        Uref_candidates = [abs(zeta.Ux), abs(zeta.Uy), abs(Ux_end), abs(Uy_end)]
         Uref_max = max(Uref_candidates)
         self.Uref = Uref_max if Uref_max > 1e-30 else 1.0
 
         # [WP-F 2026-09-15] The corner-pressure block moved ABOVE t0 (it
         # depends on neither t0 nor Uref) so the optional Uref floor below
         # can see the macroscale pressure scale.  Values unchanged.
-        dpx_0 = float(p.dpdx * p.xmax)
-        dpy_0 = float(p.dpdy * p.ymax)
-        Tend_f = float(p.Tend) if p.Tend else 0.0
-        dpdx_end = p.dpdx + p.dpdx_dot * Tend_f
-        dpdy_end = p.dpdy + p.dpdy_dot * Tend_f
-        dpx_end = float(dpdx_end * p.xmax)
-        dpy_end = float(dpdy_end * p.ymax)
-        dpt = float(p.Tend * p.PT) if (p.Tend is not None and p.PT is not None) else 0.0
+        dpx_0 = float(zeta.dpdx * self.settings.xmax)
+        dpy_0 = float(zeta.dpdy * self.settings.ymax)
+        Tend_f = float(self.t_end) if self.t_end else 0.0
+        dpdx_end = zeta.dpdx + zeta.dpdx_dot * Tend_f
+        dpdy_end = zeta.dpdy + zeta.dpdy_dot * Tend_f
+        dpx_end = float(dpdx_end * self.settings.xmax)
+        dpy_end = float(dpdy_end * self.settings.ymax)
+        dpt = float(self.t_end * zeta.Pdot) if (self.t_end is not None and zeta.Pdot is not None) else 0.0
 
-        corner_vals_t0 = [p.p0, p.p0 + dpx_0, p.p0 + dpy_0, p.p0 + dpx_0 + dpy_0]
+        corner_vals_t0 = [zeta.P, zeta.P + dpx_0, zeta.P + dpy_0, zeta.P + dpx_0 + dpy_0]
         corner_vals_t1 = [
-            p.p0 + dpt,
-            p.p0 + dpt + dpx_end,
-            p.p0 + dpt + dpy_end,
-            p.p0 + dpt + dpx_end + dpy_end,
+            zeta.P + dpt,
+            zeta.P + dpt + dpx_end,
+            zeta.P + dpt + dpy_end,
+            zeta.P + dpt + dpx_end + dpy_end,
         ]
 
         self.t0 = (2.0 * self.Lx) / self.Uref
@@ -704,15 +638,16 @@ class MicroPhaseNeutralSolver:
         # are near zero (cavitation boundary / cavitation region), the
         # nondimensionalisation keeps omega ~ O(1) and gamma_nd properly
         # scaled against the Reynolds transport rather than being enormous.
-        p_rey = (6.0 * p.eta0 * self.Uref * self.Lx) / (p.H0 ** 2)
+        p_rey = (6.0 * self.settings.eta0 * self.Uref * self.Lx) / (zeta.H ** 2)
         self.p_scale = max([p_rey] + [abs(v) for v in (corner_vals_t0 + corner_vals_t1)])
 
-        self.dpx_nd = (p.dpdx * p.xmax) / self.p_scale
-        self.dpy_nd = (p.dpdy * p.ymax) / self.p_scale
-        self.Ux_nd = p.Ux / self.Uref
-        self.Uy_nd = p.Uy / self.Uref
-        self.hmin_nd = p.h_min / p.H0
-        self.delta_h_nd = (s.delta_h / p.H0) if float(s.delta_h) != 0.0 else 0.0
+        self.dpx_nd = (zeta.dpdx * self.settings.xmax) / self.p_scale
+        self.dpy_nd = (zeta.dpdy * self.settings.ymax) / self.p_scale
+        self.Ux_nd = zeta.Ux / self.Uref
+        self.Uy_nd = zeta.Uy / self.Uref
+        self.hmin_nd = self.h_min / zeta.H
+        delta_h, eps_smooth = s.legacy_value("delta_h"), s.legacy_value("eps_smooth")
+        self.delta_h_nd = (delta_h / zeta.H) if float(delta_h) != 0.0 else 0.0
         # [WP-F 2026-09-15] Cap the SMOOTHING width in nondimensional
         # units.  epsP_nd = eps_smooth / p_scale, and p_scale collapses to
         # p_rey on a cell with no macroscale pressure; at a reversal
@@ -725,12 +660,12 @@ class MicroPhaseNeutralSolver:
         # meaningless in any case, so the cap is 1.0 (``_EPSP_ND_CAP``); it can
         # only bind where p_scale < eps_smooth.
         _epsP_nd_cap = _EPSP_ND_CAP
-        self.epsP_nd = s.eps_smooth / self.p_scale
+        self.epsP_nd = eps_smooth / self.p_scale
         self._epsP_nd_capped = False
         if self.epsP_nd > _epsP_nd_cap:
             print(f"  [PN-SCALE-GUARD] epsP_nd {self.epsP_nd:.4e} -> "
-                  f"{_epsP_nd_cap:.4e} (eps_smooth={s.eps_smooth:.3e} Pa / "
-                  f"p_scale={self.p_scale:.4e} Pa; H0={p.H0:.4e} m, "
+                  f"{_epsP_nd_cap:.4e} (eps_smooth={eps_smooth:.3e} Pa / "
+                  f"p_scale={self.p_scale:.4e} Pa; H0={zeta.H:.4e} m, "
                   f"Uref={self.Uref:.4e} m/s)", flush=True)
             self.epsP_nd = _epsP_nd_cap
             self._epsP_nd_capped = True
@@ -740,9 +675,9 @@ class MicroPhaseNeutralSolver:
         # that it dominates the Reynolds transport and distorts the
         # pressure field / causes Newton non-convergence.
         _GAMMA_ND_CAP = 1e5
-        gamma_nd_raw = p.penalty_gamma / self.p_scale
+        gamma_nd_raw = self.settings.penalty_gamma / self.p_scale
         self.gamma_nd = min(gamma_nd_raw, _GAMMA_ND_CAP)
-        self.omega = (p.H0**2 * self.p_scale) / (6.0 * p.eta0 * self.Lx * self.Uref)
+        self.omega = (zeta.H**2 * self.p_scale) / (6.0 * self.settings.eta0 * self.Lx * self.Uref)
 
     def grad_phys(self, q):
         return as_vector((Dx(q, 0) * self.invLx, Dx(q, 1) * self.invLy))
@@ -751,18 +686,16 @@ class MicroPhaseNeutralSolver:
         return as_vector((Dx(q, 0), Dx(q, 1)))
 
     def _call_ht(self, x, y):
-        p = self.params
         try:
             return self.ht_cb(
-                x, y, p.xmax, p.ymax,
+                x, y, self.settings.xmax, self.settings.ymax,
                 self.H0_const, self.HT_const, self.T_dim_const,
                 self._Ux_dim_const, self._Uy_dim_const,
             )
         except TypeError:
-            return self.ht_cb(x, y, p.xmax, p.ymax, self.H0_const)
+            return self.ht_cb(x, y, self.settings.xmax, self.settings.ymax, self.H0_const)
 
     def _setup_film_and_mask(self) -> None:
-        p = self.params
         s = self.settings
 
         H_dim = self._call_ht(self.x, self.y)
@@ -786,7 +719,7 @@ class MicroPhaseNeutralSolver:
         self.mask = self.smooth_levelset_mask(
             phi=phi_mask,
             delta=self.delta_h_nd_const,
-            mask_core=Constant(s.eps_solid),
+            mask_core=Constant(s.legacy_value("eps_solid")),
             mask_fluid=Constant(1.0),
         )
 
@@ -832,7 +765,7 @@ class MicroPhaseNeutralSolver:
         phi_c_nd is zero-mean (centred ramp); lambda_nd is solved as a scalar
         Constant; w_fluc is zero-mean (enforced by mu_nd Lagrange multiplier).
         """
-        p = self.params
+        zeta = self.zeta
 
         # Nondimensional gradient constants (updated each transient step)
         self.dpx_nd_const = Constant(self.dpx_nd)
@@ -845,7 +778,7 @@ class MicroPhaseNeutralSolver:
         )
 
         # Macroscale reference pressure level (scalar, updated each transient step)
-        self.P_re_nd = Constant(float(p.p0) / self.p_scale)
+        self.P_re_nd = Constant(float(zeta.P) / self.p_scale)
 
         # Scalar pressure-level correction (primary new unknown, solved via Schur)
         self.lambda_nd = Constant(0.0)
@@ -911,7 +844,7 @@ class MicroPhaseNeutralSolver:
     # (the full-film solver has no contact patch); ``fluid_mean_v1`` is accepted and is the whole
     # cell here by construction.  The mixed class holds the fluid mean (and the no-fluid bypass).
     def _level_constraint_prepare(self) -> str:
-        lc = getattr(self.settings, "level_constraint", LEVEL_CONSTRAINT_WHOLE_CELL)
+        lc = self.settings.level_constraint
         if lc not in (LEVEL_CONSTRAINT_WHOLE_CELL, LEVEL_CONSTRAINT_FLUID_MEAN):
             raise ValueError(f"level_constraint {lc!r}: expected 'whole_cell' or 'fluid_mean_v1'")
         return "whole_cell"
@@ -1248,24 +1181,20 @@ class MicroPhaseNeutralSolver:
         """Validate the setting and allocate ``ur_nd_func`` (from ``_setup_film_and_mask``;
         ``Vper`` exists).  Off: nothing is allocated and no graph changes."""
         s = self.settings
-        mode = str(s.fluid_deformation)
-        if mode not in _rp.FLUID_DEFORMATION_MODES:
-            raise ValueError(f"fluid_deformation must be one of {_rp.FLUID_DEFORMATION_MODES}, "
-                             f"got {mode!r}")
-        self._ripple_on = (mode == "ripple_halfspace")
+        self._ripple_on = s.ripple is not None
         self.ur_nd_func = None
         self.ripple_info = None
         if not self._ripple_on:
             return
-        E = s.fluid_E_star
+        E = s.ripple.E_star
         if E is None or not np.isfinite(float(E)) or float(E) <= 0.0:
-            raise ValueError("fluid_deformation='ripple_halfspace' needs a positive, finite "
-                             "fluid_E_star (the resolved two-body modulus, plan O3)")
-        if not (float(s.ripple_tol) > 0.0 and int(s.ripple_maxpass) >= 1
-                and 0.0 < float(s.ripple_omega) <= 1.0):
-            raise ValueError("ripple settings: need ripple_tol > 0, ripple_maxpass >= 1 and "
-                             f"0 < ripple_omega <= 1; got {s.ripple_tol}, {s.ripple_maxpass}, "
-                             f"{s.ripple_omega}")
+            raise ValueError("the ripple needs a positive, finite ripple.E_star (the resolved "
+                             "two-body modulus, plan O3)")
+        if not (float(s.ripple.tol) > 0.0 and int(s.ripple.maxpass) >= 1
+                and 0.0 < float(s.ripple.omega) <= 1.0):
+            raise ValueError("ripple settings: need tol > 0, maxpass >= 1 and "
+                             f"0 < omega <= 1; got {s.ripple.tol}, {s.ripple.maxpass}, "
+                             f"{s.ripple.omega}")
         self.ur_nd_func = Function(self.Vper, name="ur_nd")
         self._ripple_reset()
 
@@ -1329,30 +1258,29 @@ class MicroPhaseNeutralSolver:
         if op is None:
             n, _i, _j = self._periodic_grid()
             op = _rp.ripple_operator(n, n, float(self.Lx), float(self.Ly),
-                                     float(self.settings.fluid_E_star))
+                                     float(self.settings.ripple.E_star))
             self._ripple_op_cache = op
         return op
 
     def _ripple_check_task(self) -> None:
         """Per-task refusals (configuration errors, not micro failures)."""
-        p = self.params
-        a = float(p.roughness_velocity_ratio)
+        a = float(self.velocity_ratio)
         desc = getattr(self.ht_cb, "contact_cosine", None)
         # [phase-table WP3, 4 Nov 2026] R-e: a two-member generated field (stationary + translating) is
-        # accepted only with the settings' ``pair_branch`` on (plan D5): it then runs the
+        # accepted only with ``self.pair`` on (plan D5): it then runs the
         # converged per-step branch (_pair_ripple_run), which needs no single frame.  Every other
         # refusal stays: 0 < ratio < 1 and the split cosine descriptor (one pattern velocity per member).
         two = (0.0 < a < 1.0 or (isinstance(desc, tuple) and len(desc) >= 4 and bool(desc[3]))
                or (self._ripple_pair() and not self._pair_branch_on()))
         if two:
-            raise ValueError("fluid_deformation='ripple_halfspace' supports one rough surface only in "
+            raise ValueError("the ripple supports one rough surface only in "
                              "stage 1 (plan O1): a two-surface pattern has no single frame (O6)")
 
     def _pair_branch_on(self) -> bool:
-        """[phase-table WP3] ``PhaseNeutralContactSettings.pair_branch`` (absent on the full-film settings:
-        off).  The parent keyed this on ``Asperity.phase_average == "contact_table_v1"``; the contact
+        """[phase-table WP3] ``self.pair``.  The parent keyed this on
+        ``Asperity.phase_average == "contact_table_v1"``; the contact
         table itself is not in this repo (MicroCell WP2)."""
-        return bool(getattr(self.settings, "pair_branch", False))
+        return self.pair
 
     def _ripple_pair(self) -> bool:
         """[phase-table WP3] True for a two-member generated surface field (``ht.surface_field`` with both a
@@ -1401,7 +1329,7 @@ class MicroPhaseNeutralSolver:
         else:
             field = _rp.pattern_shift(u, d[0] / float(self.Lx), d[1] / float(self.Ly))
         _rp.check_zero_mean(field, what="ripple field at a history level")
-        self.ur_nd_func.vector().set_local(self._grid_to_dofs(field) / float(self.params.H0))
+        self.ur_nd_func.vector().set_local(self._grid_to_dofs(field) / float(self.zeta.H))
         self.ur_nd_func.vector().apply("insert")
         self._ripple_written = key
         self._ripple_version += 1
@@ -1446,14 +1374,14 @@ class MicroPhaseNeutralSolver:
     def _ripple_contact_snapshot(self) -> dict:
         """Base: the obstruction set at the nodes from the projected film when contact
         is on (h_min > 0); none in full film.  ``fft_elastic_v1`` overrides."""
-        if float(self.params.h_min) <= 0.0:
+        if float(self.h_min) <= 0.0:
             return {}
         hv = self._project_to_Vper(self.h_nd).vector().get_local()
         return {"set": self._dofs_to_grid(hv < float(self.hmin_nd), dtype=bool)}
 
     def _ripple_chi_nodes(self) -> np.ndarray:
         """The fluid indicator at the dofs (for the seam diagnostic)."""
-        if float(self.params.h_min) <= 0.0:
+        if float(self.h_min) <= 0.0:
             return np.ones(self.w.vector().local_size())
         hv = self._project_to_Vper(self.h_nd).vector().get_local()
         return (hv > float(self.hmin_nd)).astype(float)
@@ -1525,11 +1453,11 @@ class MicroPhaseNeutralSolver:
         (a recorded micro failure)."""
         self._ripple_check_task()
         s = self.settings
-        H0 = float(self.params.H0)
-        tol = float(s.ripple_tol)
-        omega0 = float(s.ripple_omega)
+        H0 = float(self.zeta.H)
+        tol = float(s.ripple.tol)
+        omega0 = float(s.ripple.omega)
         omega = omega0
-        maxpass = int(s.ripple_maxpass)
+        maxpass = int(s.ripple.maxpass)
         n, _i, _j = self._periodic_grid()
         totals = dict.fromkeys(_PASS_COUNTERS, 0)
         u = np.zeros((n, n))
@@ -1643,7 +1571,7 @@ class MicroPhaseNeutralSolver:
         if motion is not None:
             # the kinematics the film refresh would set, needed for the reference shift before the
             # first refresh (study_solver 339-343)
-            motion.set_from_params(self.params)
+            motion.set_from_solver(self)
         self._pair_ref_shift = self._ripple_surface_shift()
         self._pair_write(self._pair_u)
         self._on_ripple_pass_start()
@@ -1652,7 +1580,7 @@ class MicroPhaseNeutralSolver:
         finally:
             self._pair_active = False
         tgt = self._ripple_target()
-        H0 = float(self.params.H0)
+        H0 = float(self.zeta.H)
         u = self._pair_u
         self._ripple_pass = int(max(self._pair_iters)) if self._pair_iters else 0
         self.ripple_info = {"passes": self._ripple_pass, "max": float(np.max(np.abs(u))),
@@ -1666,7 +1594,7 @@ class MicroPhaseNeutralSolver:
         """``ur_nd_func`` <- ``u`` [m] (lab frame, the current time); every write bumps the contact
         staleness key."""
         _rp.check_zero_mean(u, what="pair ripple field")
-        self.ur_nd_func.vector().set_local(self._grid_to_dofs(u) / float(self.params.H0))
+        self.ur_nd_func.vector().set_local(self._grid_to_dofs(u) / float(self.zeta.H))
         self.ur_nd_func.vector().apply("insert")
         self._ripple_version += 1
         self._pair_written = u
@@ -1685,11 +1613,11 @@ class MicroPhaseNeutralSolver:
 
     def _pair_solve(self) -> None:
         """The level's sub-solve with u_r converged (ripple_s3 145-175)."""
-        H0 = float(self.params.H0)
-        tol = float(self.settings.ripple_tol) * H0
+        H0 = float(self.zeta.H)
+        tol = float(self.settings.ripple.tol) * H0
         u = self._pair_written
         omega, r_old = 1.0, None
-        fft = getattr(self.settings, "contact_model", None) == "fft_elastic_v1"
+        fft = self.settings.contact is not None
         for it in range(1, PAIR_RIPPLE_MAXIT + 1):
             self.solve()
             T = self._ripple_target()["T"]
@@ -1716,7 +1644,7 @@ class MicroPhaseNeutralSolver:
             raise _rp.RippleNotConvergedError(
                 f"ripple_not_converged: pair level {self._phase}: {PAIR_RIPPLE_MAXIT} inner iterations, "
                 f"max|H[s] - u| = {float(np.max(np.abs(R))) / H0:.3e} H0 (budget "
-                f"{float(self.settings.ripple_tol):.1e})")
+                f"{float(self.settings.ripple.tol):.1e})")
         self._pair_u = u
         self._pair_ref_shift = self._ripple_surface_shift()
         self._pair_iters.append(it)
@@ -1803,7 +1731,7 @@ class MicroPhaseNeutralSolver:
 
         Why: the Schur-complement Newton factorises the periodic Reynolds block
         alone; with no active cavitation penalty that block has a constant-mode
-        null space and MUMPS stops on a zero pivot (``PhaseNeutralSettings``
+        null space and MUMPS stops on a zero pivot (``jacobian_reg_eps``
         docstring).  A small shift lifts it.
 
         Sign: the block's diffusion and cavitation-penalty derivatives are
@@ -1820,7 +1748,7 @@ class MicroPhaseNeutralSolver:
         cells converged at -1e-8 and -1e-7 differ in P_f by up to ~2 %, and
         more against +1e-10 (same notes).
         """
-        reg_eps = float(getattr(self.settings, "jacobian_reg_eps", 0.0))
+        reg_eps = float(self.settings.jacobian_reg_eps)
         if not np.isfinite(reg_eps):
             raise ValueError("jacobian_reg_eps must be finite; zero disables the shift")
         if reg_eps == 0.0:
@@ -1972,15 +1900,15 @@ class MicroPhaseNeutralSolver:
         atol = s.abs_tolerance
         rtol = s.rel_tolerance
         max_it = s.max_iterations
-        # beta: closure parameter (get from PhaseNeutralSettings or use default 1.0)
-        beta = getattr(s, "beta", 1.0)
+        # beta: closure parameter
+        beta = float(s.legacy_value("beta"))
         gamma = self.gamma_nd
         area = float(self._cell_area)
 
         # [Phase 6.4] Adaptive damping policy (April-2026 semantics,
         # extracted verbatim into DampingPolicy; knob docs there and on
-        # PhaseNeutralSettings).
-        pol = DampingPolicy(s, float(omega))
+        # at the fixed values of this module).
+        pol = DampingPolicy(float(omega))
         omega_base = pol.omega_base
 
         # [fluid-mean WP1] the constraint vector through the hook (default: the whole-cell
@@ -2049,8 +1977,8 @@ class MicroPhaseNeutralSolver:
                 res0_field = max(res_field, 1e-30)
                 res0_scalar = max(res_scalar, 1e-30)
 
-            # Tolerance-audit trace (opt-in via settings.trace_newton).
-            if getattr(s, "trace_newton", False):
+            # Tolerance-audit trace (``TRACE_NEWTON``, off).
+            if TRACE_NEWTON:
                 self._newton_trace.append((
                     int(self._newton_call_idx),
                     int(nit),
@@ -2084,7 +2012,7 @@ class MicroPhaseNeutralSolver:
                 # state  [b-only, U7.1].
                 _t_asm += self._assemble_newton_rhs()
 
-                if s.print_newton:
+                if PRINT_NEWTON:
                     print(
                         f"    [backtrack {pol.n_bt}] res_sq {res_sq:.3e} > "
                         f"{pol.bt_tol:.2f} * {pol.prev_res_sq:.3e}; "
@@ -2098,7 +2026,7 @@ class MicroPhaseNeutralSolver:
             # (suppressed while diverged with an exhausted budget).
             pol.on_accept(nit, res_sq)
 
-            if s.print_newton:
+            if PRINT_NEWTON:
                 lam_val = float(self.lambda_nd)
                 cap_str = (f"  cap = {pol.omega_cap:.3f}"
                            if pol.omega_cap < omega_base - 1e-12 else "")
@@ -2280,11 +2208,11 @@ class MicroPhaseNeutralSolver:
     # -------------------------
     def _compute_cfl_dt(self, Tf: float, cfl_target: float = 1.0,
                         T_start: float = 0.0) -> float:
-        p = self.params
-        Ux_candidates = [abs(2.0 * (p.Ux + p.UxT * T_start)),
-                         abs(2.0 * (p.Ux + p.UxT * Tf))]
-        Uy_candidates = [abs(2.0 * (p.Uy + p.UyT * T_start)),
-                         abs(2.0 * (p.Uy + p.UyT * Tf))]
+        zeta = self.zeta
+        Ux_candidates = [abs(2.0 * (zeta.Ux + zeta.Uxdot * T_start)),
+                         abs(2.0 * (zeta.Ux + zeta.Uxdot * Tf))]
+        Uy_candidates = [abs(2.0 * (zeta.Uy + zeta.Uydot * T_start)),
+                         abs(2.0 * (zeta.Uy + zeta.Uydot * Tf))]
         Umax = max(Ux_candidates + Uy_candidates)
         n_elem = int(np.sqrt(self.mesh_m.num_cells() / 2) + 0.5)
         h_elem = min(self.Lx, self.Ly) / n_elem
@@ -2300,8 +2228,8 @@ class MicroPhaseNeutralSolver:
         embedded in the UFL graph for P_nd, so updating it here automatically
         propagates to all forms (residual, Jacobian, Schur vectors).
         """
-        p = self.params
-        p_re_dim = p.p0 + float(p.PT) * t_dim
+        zeta = self.zeta
+        p_re_dim = zeta.P + float(zeta.Pdot) * t_dim
         self.P_re_nd.assign(p_re_dim / self.p_scale)
 
     def run(self, Tf: float, n_steps: int = 10, cfl_target: float = 1.0,
@@ -2378,7 +2306,7 @@ class MicroPhaseNeutralSolver:
 
         The seed of ``_run_once`` calls it at ``T_start`` and the step loop at
         ``T_start + step * dt`` (the same expressions in the same order: the seed's
-        former ``p.Ux + T_start * p.UxT`` is the loop's ``p.Ux + t_dim * p.UxT``).
+        former ``zeta.Ux + T_start * zeta.Uxdot`` is the loop's ``zeta.Ux + t_dim * zeta.Uxdot``).
 
         ``_Ux_dim_const`` feeds ideal_ht, where it is multiplied by T to give the
         *surface pattern displacement*  s(T) = T * _Ux_dim_const.
@@ -2393,24 +2321,24 @@ class MicroPhaseNeutralSolver:
         changes sign (reproduced symptom: film translates left, halts, then
         drifts right even though u(t) stays negative throughout).
         """
-        p = self.params
+        zeta = self.zeta
         t_nd = t_dim / self.t0
         self.T_nd_const.assign(t_nd)
         self.T_dim_const.assign(t_dim)
 
-        Ux_t = p.Ux + t_dim * p.UxT
-        Uy_t = p.Uy + t_dim * p.UyT
+        Ux_t = zeta.Ux + t_dim * zeta.Uxdot
+        Uy_t = zeta.Uy + t_dim * zeta.Uydot
         # Instantaneous (half-)velocity, nondim, for advection in Reynolds.
         self.Ux_nd_const.assign(2.0 * Ux_t / self.Uref)
         self.Uy_nd_const.assign(2.0 * Uy_t / self.Uref)
         # Time-AVERAGED full velocity for ideal_ht's "T * Ux" surface-pattern
         # displacement term (derivation in the docstring).
-        _alpha = float(p.roughness_velocity_ratio)
-        self._Ux_dim_const.assign(_alpha * (2.0 * p.Ux + p.UxT * t_dim))
-        self._Uy_dim_const.assign(_alpha * (2.0 * p.Uy + p.UyT * t_dim))
+        _alpha = float(self.velocity_ratio)
+        self._Ux_dim_const.assign(_alpha * (2.0 * zeta.Ux + zeta.Uxdot * t_dim))
+        self._Uy_dim_const.assign(_alpha * (2.0 * zeta.Uy + zeta.Uydot * t_dim))
 
-        dpdx_t = p.dpdx + t_dim * p.dpdx_dot
-        dpdy_t = p.dpdy + t_dim * p.dpdy_dot
+        dpdx_t = zeta.dpdx + t_dim * zeta.dpdx_dot
+        dpdy_t = zeta.dpdy + t_dim * zeta.dpdy_dot
         self.dpx_nd_const.assign((dpdx_t * self.Lx) / self.p_scale)
         self.dpy_nd_const.assign((dpdy_t * self.Ly) / self.p_scale)
 
@@ -2525,14 +2453,14 @@ the film does not depend on the pressure, and the contact solve sees
                     dt_dim = dt_cfl
 
         dt_nd = dt_dim / self.t0
-        p = self.params
+        zeta = self.zeta
         n_elem = int(np.sqrt(self.mesh_m.num_cells() / 2) + 0.5)
         h_elem = min(self.Lx, self.Ly) / n_elem
         Umax_candidates = [
-            abs(2.0 * (p.Ux + p.UxT * T_start)),
-            abs(2.0 * (p.Ux + p.UxT * Tf)),
-            abs(2.0 * (p.Uy + p.UyT * T_start)),
-            abs(2.0 * (p.Uy + p.UyT * Tf)),
+            abs(2.0 * (zeta.Ux + zeta.Uxdot * T_start)),
+            abs(2.0 * (zeta.Ux + zeta.Uxdot * Tf)),
+            abs(2.0 * (zeta.Uy + zeta.Uydot * T_start)),
+            abs(2.0 * (zeta.Uy + zeta.Uydot * Tf)),
         ]
         Umax = max(Umax_candidates)
         self.T_start = T_start
@@ -2551,7 +2479,7 @@ the film does not depend on the pressure, and the contact solve sees
         # 1. Set all time-dependent forcings at T_start.  [WP2 of the ripple fast
         #    loop plan] The block that stood here is _set_time_level, shared
         #    with the step loop below (same expressions, same order: e.g.
-        #    p.Ux + T_start * p.UxT is the loop's p.Ux + t_dim * p.UxT).
+        #    zeta.Ux + T_start * zeta.Uxdot is the loop's zeta.Ux + t_dim * zeta.Uxdot).
         self._set_time_level(T_start)
 
         # 2. Pre-populate BDF history by evaluating h_nd at past times.
@@ -2666,7 +2594,7 @@ the film does not depend on the pressure, and the contact solve sees
             self._advance_history()          # [WP2] nm2 <- nm1, nm1 <- h(t_dim), mask alike
             self._t_history_update += time.perf_counter() - _t0
 
-        if self.settings.print_timing:
+        if PRINT_TIMING:
             _t_run_total = time.perf_counter() - _t_run_start
             self._print_timing_summary(n_steps + 1, _t_run_total)
 
@@ -2711,7 +2639,7 @@ the film does not depend on the pressure, and the contact solve sees
         area_total = float(assemble(Constant(1.0) * dx(domain=self.mesh_m)))
 
         Pfull = project(self.P_dim, self.Vfull)
-        Hfull = project(Constant(self.params.H0) * self.h_nd, self.Vfull)
+        Hfull = project(Constant(self.zeta.H) * self.h_nd, self.Vfull)
 
         h_arr = Hfull.vector().get_local()
 
@@ -2747,7 +2675,7 @@ the film does not depend on the pressure, and the contact solve sees
         q_couette_nd = self.F_adv_nd
         q_poiseuille_nd = -self.K_nd * gradP_nd
 
-        dim_scale = Constant(self.Uref * self.params.H0 / 2)
+        dim_scale = Constant(self.Uref * self.zeta.H / 2)
         q_dim = dim_scale * q_nd
         q_couette_dim = dim_scale * q_couette_nd
         q_poiseuille_dim = dim_scale * q_poiseuille_nd
@@ -2768,8 +2696,8 @@ the film does not depend on the pressure, and the contact solve sees
         Uy_surf = float(self.Uy_nd_const) * self.Uref
 
         gradP_dim = gradP_nd * Constant(self.p_scale * self.invLx)
-        eta_dim_expr = Constant(float(self.params.eta0))      # constant lubricant viscosity [Pa s]
-        H_dim_expr = Constant(self.params.H0) * self.h_nd
+        eta_dim_expr = Constant(float(self.settings.eta0))      # constant lubricant viscosity [Pa s]
+        H_dim_expr = Constant(self.zeta.H) * self.h_nd
         H_floor_expr = H_dim_expr + Constant(1e-30)
 
         tau_x_field = (

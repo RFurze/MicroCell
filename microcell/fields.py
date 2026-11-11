@@ -40,9 +40,8 @@ def extract_fields(s, mixed: bool) -> tuple[dict, dict, dict]:
     def from_grid(g):
         return np.asarray(g, dtype=float)[np.ix_(wrap, wrap)]
 
-    p = s.params
-    H0, HT, T = float(p.H0), float(p.HT), float(s.T_dim_const)
-    h_min = float(p.h_min)
+    H0, HT, T = float(s.zeta.H), float(s.zeta.Hdot), float(s.T_dim_const)
+    h_min = float(s.h_min)
     out: dict = {}
     info: dict = {"n": int(n), "T_end_s": T}
 

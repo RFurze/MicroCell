@@ -154,7 +154,7 @@ class SurfaceMotion:
         self.kin: Optional[Tuple[float, float, float, float, float]] = None
         # [phase-table WP4, 4 Nov 2026] the task's starting displacement of the translating member [m]
         # (plan D3: the per-node offset of a run with Asperity.phase_average = "contact_table_v1";
-        # (0, 0) otherwise).  A separate attribute: ``set_from_params`` (every geometry refresh)
+        # (0, 0) otherwise).  A separate attribute: ``set_from_solver`` (every geometry refresh)
         # must not touch it, and the worker sets it on EVERY task because one motion object lives per
         # worker (review F7).  displacement(t) = s0 + ratio (2 U t + UT t^2).
         self.s0: Shift = _ZERO
@@ -162,9 +162,10 @@ class SurfaceMotion:
     def set(self, ratio, Ux, Uy, UxT=0.0, UyT=0.0) -> None:
         self.kin = (float(ratio), float(Ux), float(Uy), float(UxT), float(UyT))
 
-    def set_from_params(self, p) -> None:
-        """From a ``MicroPhysicalParameters``-like object (``s0`` untouched)."""
-        self.set(p.roughness_velocity_ratio, p.Ux, p.Uy, getattr(p, "UxT", 0.0), getattr(p, "UyT", 0.0))
+    def set_from_solver(self, solver) -> None:
+        """The kinematics of a solver's task: its velocity ratio and its ``zeta`` (``s0`` untouched)."""
+        z = solver.zeta
+        self.set(solver.velocity_ratio, z.Ux, z.Uy, z.Uxdot, z.Uydot)
 
     def set_offset(self, s0=None) -> None:
         """The starting displacement ``s0`` [m] of this task; None or (0, 0) = none."""

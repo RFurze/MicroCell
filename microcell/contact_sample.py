@@ -109,7 +109,7 @@ CONTACT_SAMPLER = "fft_nodal_p1_periodic_v1"
 SAMPLER_DEFINITION = ("sol.p of the stored fft_elastic_v1 solution, periodic P1 interpolant on the "
                       "'right'-diagonal grid (UnitSquareMesh cells), Pa")
 
-FFT_MODEL = "fft_elastic_v1"
+from microcell.contact import FFT as FFT_MODEL      # the one contact law (one definition)
 
 STATUS_OK = "ok"
 STATUS_NO_SUPPORT = "no_support"

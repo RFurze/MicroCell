@@ -40,30 +40,16 @@ from __future__ import annotations
 
 import time
 import warnings
-from dataclasses import dataclass
 
 import numpy as np
 from fenics import *  # noqa: F401,F403 — UFL/assembly symbols used below
 
 from microcell.micro_phase_neutral_class import (  # noqa: F401
     MicroPhaseNeutralSolver as _BaseSolver,
-    MicroPhysicalParameters,        # re-export (back-compat)
-    MicroSolverSettings,            # re-export (back-compat)
-    PhaseNeutralSettings as _BasePhaseNeutralSettings,
     PeriodicBoundary,               # re-export (back-compat)
 )
 # [extrema M1] the shared fluid pressure extrema sampler; [extrema M2b] the fluid traction sampler
 from microcell.micro_diagnostics import sample_fluid_pressure_extrema, sample_fluid_traction
-
-
-@dataclass(frozen=True)
-class PhaseNeutralSettings(_BasePhaseNeutralSettings):
-    """Base phase-neutral settings + the mixed contact-model switch.
-
-    ``pattern_flux_contact`` (June 2026 contact model, default True):
-    see module docstring.  Set False for two-surface roughness.
-    """
-    pattern_flux_contact: bool = True
 
 
 class MicroPhaseNeutralMixedSolver(_BaseSolver):
@@ -79,15 +65,18 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
     record_homog: bool = False
     homog_history: list = []          # shadowed per-instance by run()/run_steady()
 
+    def _contact_onset_film(self) -> float:
+        return float(self.settings.h_min)
+
     # ------------------------------------------------------------------
     # Setup extensions
     # ------------------------------------------------------------------
     def _setup_pressure_expressions(self) -> None:
         super()._setup_pressure_expressions()
-        p = self.params
+        zeta = self.zeta
         # --- Contact model (June 2026): pattern-frame flux blend + pinned
-        # patch pressure.  See PhaseNeutralSettings.pattern_flux_contact
-        # docstring and tests/diagnose_contact_blowup.py for the validation
+        # patch pressure.  See ``MicroSettings.pattern_flux_contact``, the
+        # module docstring and tests/diagnose_contact_blowup.py for the validation
         # history.  Three coupled pieces (the other two live in
         # _build_forms / _setup_forms / _update_squeeze_mean):
         #
@@ -118,10 +107,9 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
         #     uniform fluid lift that suppresses cavitation and makes
         #     lambda eps- and path-dependent (cold-restart ratios 0.81 /
         #     0.30 at eps 1e-6/1e-7 before the pin; 1.00 after).
-        self._pattern_flux_on = bool(
-            getattr(self.settings, "pattern_flux_contact", True))
+        self._pattern_flux_on = bool(self.settings.pattern_flux_contact)
         if self._pattern_flux_on:
-            _alpha_pf = float(p.roughness_velocity_ratio)
+            _alpha_pf = float(self.velocity_ratio)
             if 0.0 < _alpha_pf < 1.0:
                 # rvr in (0,1) is the signature of two-surface runs
                 # (default 0.5).  The blend is only valid for a SINGLE
@@ -140,10 +128,10 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
             # reset_task()/_reset_task_subclass() can re-target them.
             # One attribute per former anonymous site — UFL graph unchanged.
             self._cf_pf_const = Constant(4.0 * _alpha_pf / self.Uref)
-            self._pf_Ux_const = Constant(float(p.Ux))
-            self._pf_UxT_const = Constant(float(p.UxT))
-            self._pf_Uy_const = Constant(float(p.Uy))
-            self._pf_UyT_const = Constant(float(p.UyT))
+            self._pf_Ux_const = Constant(float(zeta.Ux))
+            self._pf_UxT_const = Constant(float(zeta.Uxdot))
+            self._pf_Uy_const = Constant(float(zeta.Uy))
+            self._pf_UyT_const = Constant(float(zeta.Uydot))
             _cf_pf = self._cf_pf_const
             self._V_p_nd = as_vector((
                 _cf_pf * (self._pf_Ux_const
@@ -232,14 +220,14 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
         so ``self.Uref`` / ``self.gamma_nd`` already hold the NEW task's
         values.  Mirrors _setup_pressure_expressions / _setup_forms.
         """
-        p = self.params
+        zeta = self.zeta
         if self._pattern_flux_on:
-            _alpha_pf = float(p.roughness_velocity_ratio)
+            _alpha_pf = float(self.velocity_ratio)
             self._cf_pf_const.assign(4.0 * _alpha_pf / self.Uref)
-            self._pf_Ux_const.assign(float(p.Ux))
-            self._pf_UxT_const.assign(float(p.UxT))
-            self._pf_Uy_const.assign(float(p.Uy))
-            self._pf_UyT_const.assign(float(p.UyT))
+            self._pf_Ux_const.assign(float(zeta.Ux))
+            self._pf_UxT_const.assign(float(zeta.Uxdot))
+            self._pf_Uy_const.assign(float(zeta.Uy))
+            self._pf_UyT_const.assign(float(zeta.Uydot))
         self.gamma_nd_gmix_const.assign(self.gamma_nd)
         # [fluid-mean WP2] a task starts with no constraint state (a fresh solver's)
         self._lc_reset()
@@ -287,12 +275,12 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
         self._lc_n_fluid_no_support = 0
 
     def _lc_pin_on(self) -> bool:
-        pin = getattr(self.settings, "patch_pin", None)
+        pin = self.settings.legacy_value("patch_pin")
         return True if pin is None else bool(pin)
 
     def _level_constraint_prepare(self) -> str:
         lc = super()._level_constraint_prepare()          # validates the setting
-        if getattr(self.settings, "level_constraint", "whole_cell") != "fluid_mean_v1":
+        if self.settings.level_constraint != "fluid_mean_v1":
             return lc                                     # today's path; no state touched
         dxm = dx(domain=self.mesh_m)
         chi = self.chi_fluid
@@ -339,7 +327,7 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
                 wv[joined] = 0.0
                 self.w.vector().set_local(wv)
                 self.w.vector().apply("insert")
-            kappa = float(getattr(self.settings, "patch_pin_kappa", 1.0))
+            kappa = float(self.settings.legacy_value("patch_pin_kappa"))
             self._lc_pin_idx = idx
             self._lc_pin_w = kappa * self._mean_vec.get_local()[idx]
             self._lc_pin_prev = frozenset(idx.tolist())
@@ -585,7 +573,7 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
         area_total = float(assemble(Constant(1.0) * dx(domain=self.mesh_m)))
 
         Pfull = project(self.P_dim, self.Vfull)
-        Hfull = project(Constant(self.params.H0) * self.h_nd, self.Vfull)
+        Hfull = project(Constant(self.zeta.H) * self.h_nd, self.Vfull)
 
         h_arr = Hfull.vector().get_local()
 
@@ -634,7 +622,7 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
         q_couette_nd = self.F_adv_nd
         q_poiseuille_nd = -self.K_nd * gradP_nd
 
-        dim_scale = Constant(self.Uref * self.params.H0 / 2)
+        dim_scale = Constant(self.Uref * self.zeta.H / 2)
         q_dim = dim_scale * q_nd
         q_couette_dim = dim_scale * q_couette_nd
         q_poiseuille_dim = dim_scale * q_poiseuille_nd
@@ -664,8 +652,8 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
         Uy_surf = float(self.Uy_nd_const) * self.Uref
 
         gradP_dim = gradP_nd * Constant(self.p_scale * self.invLx)
-        eta_dim_expr = Constant(float(self.params.eta0))      # constant lubricant viscosity [Pa s]
-        H_dim_expr = Constant(self.params.H0) * self.h_nd
+        eta_dim_expr = Constant(float(self.settings.eta0))      # constant lubricant viscosity [Pa s]
+        H_dim_expr = Constant(self.zeta.H) * self.h_nd
         H_floor_expr = H_dim_expr + Constant(1e-30)
 
         tau_x_field = (
