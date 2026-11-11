@@ -8,8 +8,7 @@ Base: `MicroCell` `main` at c96ad39 (WP1). Parent `MultiscaleMixedBallinSocket` 
 ## 0. Summary
 
 **State.** WP2 is built: all nine removal groups are done, at least one commit per group, on
-`main` of `MicroCell` (Table 1). The commits up to 7d64e1e are on `origin/main`; the ones after
-it are not pushed (Table 7). WP3 is not started.
+`main` of `MicroCell` (Table 1), all pushed by Rob (Table 7). WP3 is a separate session.
 
 **Rob's decision (11 Nov 2026): "Yes, re-make c5".** The first pass left the cell-average
 spring in place, because reference c5 used it (§2). On Rob's answer the c5 reference was
@@ -37,11 +36,11 @@ written before the c5 re-make held (§2). The final script run and the example a
 against the reference, not skipped; two tests added (Table 4 shows the counts). **Open items**
 §8; candidates for further pruning §7, left in place.
 
-**Decisions for Rob.**
-1. `ContactSettings.nu` and `ContactSettings.k_asp_exponent` are now unread API inputs (§6.3).
-   Recommended: remove them at WP4 with the settings collapse. Alternative: remove them now.
-2. Accept or reject departures 6.2, 6.5 and 6.7.
-3. Push the commits after 7d64e1e, and the go-ahead for WP3 as its own session.
+**Rob's answers (11 Nov 2026), to the three decisions this log put to him.**
+1. `ContactSettings.nu` and `ContactSettings.k_asp_exponent`, unread API inputs (§6.3): remove
+   them at WP4, with the settings collapse.
+2. Departures 6.2, 6.5 and 6.7: accepted.
+3. Push: done by Rob (`origin/main` at 4273762). WP3: go-ahead, as its own session.
 
 ## 1. What was removed
 
@@ -282,8 +281,7 @@ Open:
    shows no change): the tool's log line prints `dP`, which the spring did not move.
 
 Table 7. Commits on `main` of `MicroCell`. Author `RFurze <py07rf@leeds.ac.uk>`. Sizes:
-`F/commits.tsv`. `origin/main` is at 7d64e1e (`git reflog show origin/main`: "update by push",
-11 Nov 2026 11:39; not pushed by this session), so the last three rows are not on the remote.
+`F/commits.tsv`. Rob pushed them all: `origin/main` is at 4273762, the "(next)" row below.
 
 | Commit | Content |
 |---|---|
