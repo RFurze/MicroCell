@@ -11,6 +11,82 @@ the settings and results: each setting is defined once, each output is written o
 the files into the plan's layout and added the march from t = 0, the parent's invariant tests
 and the examples.  The provenance table marks what each work package did to each file.
 
+## Getting started
+
+**What you need.**  Linux, or WSL2 on Windows (legacy FEniCS 2019.1.0 has no native Windows
+build); `git`; and conda (Miniforge is enough).  Every command below is typed in a Linux or
+WSL shell.
+
+**1. Download the repository.**
+
+```bash
+git clone https://github.com/RFurze/MicroCell.git
+cd MicroCell
+```
+
+The repository is private: GitHub asks for a login with access to it.  With an SSH key on
+your GitHub account, `git clone git@github.com:RFurze/MicroCell.git` does the same.
+
+**2. Create the environment** (once per machine; it downloads FEniCS from conda-forge).
+
+```bash
+conda env create -f environment.yml
+```
+
+This makes a conda environment named `ehl-fenics`: Python 3.11, FEniCS 2019.1.0, numpy, scipy,
+h5py, matplotlib and pytest.
+
+**3. Start the environment** (in every new shell).
+
+```bash
+source scripts/ehl_env.sh
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
+```
+
+The script must be sourced, not run.  It activates `ehl-fenics`, changes to the repo root, puts
+the repo on `PYTHONPATH` and sets the FEniCS form cache (`~/.cache/dijitso`).  It prints
+`ehl env ready` with the paths it set.  The second line keeps each solve on one thread.
+Without the script, `conda activate ehl-fenics` followed by `export PYTHONPATH=$PWD` from the
+repo root does the same job.
+
+**4. Check the install.**
+
+```bash
+python -m pytest tests/ -q -p no:cacheprovider
+```
+
+Every test should pass.  The first run on a machine compiles the FEniCS forms and takes
+minutes; later runs take about 30 s.
+
+**5. Launch a case.**
+
+```bash
+python examples/run_cell.py
+```
+
+This solves one cell (a generated Gaussian surface, Sa 40 nm, in mixed contact) over a 0.02 s
+window and once steady.  It prints one row per solve (status, `dP`, `P_asp`, contact fraction,
+Newton iterations, wall time) and exits 0 when both are OK.  The fields are written to
+`examples/output/gensa40_h130/`: open `cell.vts` or `cell.xdmf` in ParaView.  The other
+examples are listed under "The call".
+
+**6. Run your own case.**  Save this as `my_cell.py` in the repo root and run `python my_cell.py`:
+
+```python
+from microcell import microsolver, Zeta, Roughness, MicroSettings
+
+zeta = Zeta(H=130e-9, P=40.8e6, Ux=0.02)              # film [m], pressure [Pa], mean velocity [m/s]
+rough = Roughness.generated(Sa=40e-9, seed=1000)      # or .array(...), .pair(...), .cosine(...)
+out = microsolver(zeta, t_end=0.02, roughness=rough, settings=MicroSettings(),
+                  save_paraview=True, output_dir="output/my_cell")   # output/ is not tracked
+
+print(out.status, out.reason)
+print("dQ", out.dQ, "dP", out.dP, "P_asp", out.P_asp, "contact_frac", out.contact_frac)
+```
+
+Check `out.status` first: a failed solve returns NaN outputs and says why in `out.reason`.
+The inputs, the conventions and every setting are described under "The call".
+
 ## The model
 
 One periodic rough cell, `xmax` by `ymax`, stands for one point of the bearing.  The macro
@@ -185,8 +261,9 @@ values at the top of `microcell/solver_base.py`.
 
 ## Running
 
+From the repo root, with the environment started as in "Getting started":
+
 ```bash
-cd /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell
 source scripts/ehl_env.sh
 python -m pytest tests/ -q -p no:cacheprovider      # the parity gate and the other tests, about 30 s
 python tests/test_parity.py                         # the gate as a script: exit 0 PASS, 1 FAIL, 2 INCOMPLETE
