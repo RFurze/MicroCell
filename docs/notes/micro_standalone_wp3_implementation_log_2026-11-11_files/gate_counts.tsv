@@ -1,0 +1,7 @@
+gate	count_line
+g0_base_c89915a	13 passed in 9.13s
+g1	13 passed in 9.05s
+g2	13 passed in 8.95s
+g3	13 passed in 9.02s
+g5_store	13 passed in 9.25s
+g4	13 passed in 8.70s

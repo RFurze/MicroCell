@@ -1,0 +1,5 @@
+run	solve	status	dP_Pa	P_asp_Pa	contact_frac	Newton	source
+WP2	transient	OK	-7.415780e+04	6.026040e+07	0.001817	6	example_run_cell.log
+WP2	steady	OK	-7.415780e+04	6.026040e+07	0.001817	3	example_run_cell.log
+WP3_6c047c1	transient	OK	-7.415780e+04	6.026040e+07	0.001817	6	run_cell_6c047c1.log
+WP3_6c047c1	steady	OK	-7.415780e+04	6.026040e+07	0.001817	3	run_cell_6c047c1.log

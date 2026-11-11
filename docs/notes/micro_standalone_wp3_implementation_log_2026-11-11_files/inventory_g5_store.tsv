@@ -1,0 +1,312 @@
+module	name	kind	line	class	also_read_by	readers
+microcell/roughness/__init__.py	<module>	module code	0	solver		
+microcell/roughness/assets.py	<module>	module code	0	solver	tests,examples,tools	
+microcell/roughness/assets.py	SURFACE_FILE_FORMAT	constant	70	solver	tests,examples,tools	roughness/assets.py:read_surface_file; roughness/assets.py:write_sidecar; roughness/assets.py:write_surface_file
+microcell/roughness/assets.py	ARTEFACT_FORMAT	constant	71	tools		roughness/assets.py:load_artefact; roughness/assets.py:make_prepared; roughness/assets.py:publish_artefact
+microcell/roughness/assets.py	_LAYOUT	constant	72	solver	tests,examples,tools	roughness/assets.py:publish_artefact; roughness/assets.py:read_surface_file; roughness/assets.py:write_sidecar; roughness/assets.py:write_surface_file
+microcell/roughness/assets.py	_GRID	constant	73	solver	tests,examples,tools	roughness/assets.py:publish_artefact; roughness/assets.py:read_surface_file; roughness/assets.py:write_sidecar; roughness/assets.py:write_surface_file
+microcell/roughness/assets.py	_SIGNS	constant	74	solver	tests,examples,tools	roughness/assets.py:import_legacy_array; roughness/assets.py:read_surface_file; roughness/assets.py:write_sidecar; roughness/assets.py:write_surface_file
+microcell/roughness/assets.py	SurfaceFileError	class	77	solver	tests,examples,tools	roughness/assets.py:SurfaceArray; roughness/assets.py:import_legacy_array; roughness/assets.py:make_prepared; roughness/assets.py:read_surface_file; roughness/assets.py:validate_height_array; roughness/assets.py:write_sidecar; roughness/assets.py:write_surface_file; roughness/prepare.py:_amplitude; roughness/prepare.py:_check_hash
+microcell/roughness/assets.py	ArtefactError	class	81	tools		roughness/assets.py:ArtefactConflictError; roughness/assets.py:ArtefactCorruptError; roughness/assets.py:ArtefactMissingError; roughness/assets.py:publish_artefact
+microcell/roughness/assets.py	ArtefactMissingError	class	85	tools		roughness/assets.py:load_artefact
+microcell/roughness/assets.py	ArtefactCorruptError	class	89	tools		roughness/assets.py:load_artefact
+microcell/roughness/assets.py	ArtefactConflictError	class	93	dead_only		roughness/assets.py:publish_artefact
+microcell/roughness/assets.py	_canon	function	100	tools		roughness/assets.py:canonical_json
+microcell/roughness/assets.py	json_safe	function	119	dead_only		roughness/assets.py:make_prepared; roughness/report.py:<module>; roughness/report.py:pair_report; roughness/report.py:surface_report
+microcell/roughness/assets.py	canonical_json	function	136	tools		roughness/assets.py:make_prepared; roughness/assets.py:sha256_json
+microcell/roughness/assets.py	sha256_json	function	142	tools		roughness/assets.py:load_artefact; roughness/assets.py:make_prepared
+microcell/roughness/assets.py	array_sha256	function	146	solver	tests,examples,tools	roughness/assets.py:PreparedSurface; roughness/assets.py:SurfaceArray; roughness/assets.py:load_artefact; roughness/assets.py:make_prepared; roughness/assets.py:publish_artefact; roughness/report.py:pair_report; roughness/report.py:surface_report
+microcell/roughness/assets.py	file_sha256	function	156	solver	tests,examples,tools	roughness/assets.py:import_legacy_array; roughness/assets.py:load_artefact; roughness/assets.py:read_surface_file; roughness/assets.py:write_sidecar; roughness/assets.py:write_surface_file; roughness/prepare.py:_check_hash
+microcell/roughness/assets.py	library_versions	function	164	dead_only		roughness/assets.py:make_prepared
+microcell/roughness/assets.py	validate_height_array	function	172	solver	tests,examples,tools	roughness/assets.py:SurfaceArray; roughness/assets.py:import_legacy_array; roughness/assets.py:make_prepared; roughness/assets.py:read_surface_file; roughness/assets.py:write_sidecar; roughness/assets.py:write_surface_file
+microcell/roughness/assets.py	SurfaceArray	class	194	solver	tests,examples,tools	roughness/assets.py:import_legacy_array; roughness/assets.py:read_surface_file
+microcell/roughness/assets.py	_sidecar	function	222	solver	tests,examples,tools	roughness/assets.py:read_surface_file; roughness/assets.py:write_sidecar; roughness/assets.py:write_surface_file
+microcell/roughness/assets.py	write_surface_file	function	226	none		
+microcell/roughness/assets.py	write_sidecar	function	245	none		
+microcell/roughness/assets.py	read_surface_file	function	264	solver	tests,examples,tools	roughness/prepare.py:_resolve_file
+microcell/roughness/assets.py	import_legacy_array	function	302	none		
+microcell/roughness/assets.py	PreparedSurface	class	336	tools		roughness/assets.py:load_artefact; roughness/assets.py:make_prepared; roughness/assets.py:publish_artefact; roughness/prepare.py:prepare; roughness/report.py:<module>; roughness/report.py:pair_report; roughness/report.py:surface_report
+microcell/roughness/assets.py	make_prepared	function	358	dead_only		roughness/prepare.py:prepare
+microcell/roughness/assets.py	artefact_paths	function	372	dead_only		roughness/assets.py:publish_artefact
+microcell/roughness/assets.py	_atomic_write_bytes	function	377	dead_only		roughness/assets.py:publish_artefact
+microcell/roughness/assets.py	_npz_bytes	function	386	dead_only		roughness/assets.py:publish_artefact
+microcell/roughness/assets.py	publish_artefact	function	393	dead_only		roughness/prepare.py:prepare
+microcell/roughness/assets.py	load_artefact	function	449	tools		roughness/assets.py:publish_artefact; tools/make_references.py:run_cell
+microcell/roughness/evaluator.py	<module>	module code	0	solver	tests,examples,tools	
+microcell/roughness/evaluator.py	EVALUATOR_REVISION	constant	61	solver	tests,examples,tools	roughness/__init__.py:<module>; roughness/__init__.py:<reexport>; roughness/evaluator.py:FourierSurface
+microcell/roughness/evaluator.py	Bandwidth	class	65	solver	tests,examples,tools	roughness/__init__.py:<module>; roughness/__init__.py:<reexport>; roughness/evaluator.py:FourierSurface; roughness/frontend.py:<module>; roughness/frontend.py:ArrayField; roughness/frontend.py:Roughness; roughness/report.py:<module>; roughness/report.py:fidelity_table; roughness/report.py:surface_report; tests/test_parity.py:roughness_from_reference
+microcell/roughness/evaluator.py	_extended_axis	function	93	solver	tests,examples,tools	roughness/evaluator.py:FourierSurface
+microcell/roughness/evaluator.py	nodal_grid	function	109	none		
+microcell/roughness/evaluator.py	FourierSurface	class	116	solver	tests,examples,tools	elastic_contact.py:band_limited_sample; roughness/__init__.py:<module>; roughness/__init__.py:<reexport>; roughness/frontend.py:<module>; roughness/frontend.py:ArrayField; roughness/pair.py:<module>; roughness/pair.py:SurfacePair; roughness/pair.py:_same_cell; roughness/pair.py:cross_term_spectral; roughness/prepare.py:<module>; roughness/prepare.py:_resolve_modes; roughness/prepare.py:resolve; roughness/report.py:<module>; roughness/report.py:fidelity_table; roughness/report.py:pair_report; roughness/report.py:surface_report
+microcell/roughness/evaluator.py	bilinear_nodal	function	338	solver		roughness/__init__.py:<module>; roughness/__init__.py:<reexport>; roughness/report.py:<module>; roughness/report.py:fidelity_table
+microcell/roughness/frontend.py	<module>	module code	0	solver		
+microcell/roughness/frontend.py	ENVELOPE_OVERSAMPLE	constant	31	solver		roughness/frontend.py:ArrayField
+microcell/roughness/frontend.py	ROLES	constant	32	solver		roughness/frontend.py:ArrayField
+microcell/roughness/frontend.py	ArrayField	class	35	solver		roughness/frontend.py:Roughness
+microcell/roughness/frontend.py	Roughness	class	80	solver		__init__.py:<module>; __init__.py:<reexport>; api.py:microsolver
+microcell/roughness/generation.py	<module>	module code	0	solver	tests,examples,tools	
+microcell/roughness/generation.py	GENERATOR_REVISION	constant	64	solver	tests,examples,tools	roughness/__init__.py:<module>; roughness/__init__.py:<reexport>; roughness/prepare.py:_resolve_generated; roughness/prepare.py:recipe_for; roughness/spec.py:<module>; roughness/spec.py:GeneratedSurface
+microcell/roughness/generation.py	LEGACY_SOURCE	constant	67	none		
+microcell/roughness/generation.py	HDS_CORR_LEN	constant	84	solver	tests,examples,tools	roughness/frontend.py:Roughness; roughness/generation.py:gaussian_filtered_surface
+microcell/roughness/generation.py	wavenumber_grid	function	90	solver	tests,examples,tools	roughness/generation.py:fit_psd_for_sm; roughness/generation.py:generate_rough_surface; roughness/prepare.py:_amplitude
+microcell/roughness/generation.py	wavevector_grids	function	99	none		
+microcell/roughness/generation.py	normalise_amplitude	function	110	solver	tests,examples,tools	roughness/generation.py:amplitude_from_radial_table; roughness/generation.py:psd_exponential_acf; roughness/generation.py:psd_gaussian_acf; roughness/generation.py:psd_self_affine
+microcell/roughness/generation.py	psd_self_affine	function	122	solver	tests,examples,tools	roughness/generation.py:PSD_MODELS; roughness/prepare.py:_amplitude
+microcell/roughness/generation.py	psd_exponential_acf	function	137	solver	tests,examples,tools	roughness/generation.py:PSD_MODELS; roughness/prepare.py:_amplitude
+microcell/roughness/generation.py	psd_gaussian_acf	function	149	solver	tests,examples,tools	roughness/generation.py:PSD_MODELS; roughness/prepare.py:_amplitude
+microcell/roughness/generation.py	PSD_MODELS	constant	160	dead_only		roughness/generation.py:fit_psd_for_sm; roughness/generation.py:generate_rough_surface
+microcell/roughness/generation.py	PSD_FIT_PARAM	constant	167	dead_only		roughness/generation.py:fit_psd_for_sm; roughness/generation.py:generate_rough_surface
+microcell/roughness/generation.py	amplitude_from_radial_table	function	174	solver	tests,examples,tools	roughness/prepare.py:_amplitude
+microcell/roughness/generation.py	HPD_FAMILIES	constant	236	solver	tests,examples,tools	roughness/spec.py:<module>; roughness/spec.py:HPDSpec
+microcell/roughness/generation.py	HPD_SHAPE_BRACKET	constant	239	solver	tests,examples,tools	roughness/generation.py:fit_hpd_shape; roughness/targets.py:<module>; roughness/targets.py:fit_gennorm_ratio; roughness/targets.py:gennorm_ratio_envelope
+microcell/roughness/generation.py	hpd_sorted_sample	function	246	solver	tests,examples,tools	roughness/generation.py:fit_psd_for_sm; roughness/generation.py:generate_rough_surface; roughness/generation.py:sa_over_sq_of_hpd; roughness/prepare.py:_target_vector; roughness/targets.py:<module>; roughness/targets.py:gennorm_ratio_at
+microcell/roughness/generation.py	heights_from_samples	function	282	solver	tests,examples,tools	roughness/prepare.py:_target_vector
+microcell/roughness/generation.py	sa_over_sq_of_hpd	function	299	dead_only		roughness/generation.py:fit_hpd_shape
+microcell/roughness/generation.py	fit_hpd_shape	function	304	dead_only		roughness/generation.py:generate_rough_surface
+microcell/roughness/generation.py	IAAFTResult	class	347	solver	tests,examples,tools	roughness/generation.py:SurfaceResult; roughness/generation.py:iaaft
+microcell/roughness/generation.py	_apply_order	function	356	solver	tests,examples,tools	roughness/generation.py:iaaft; roughness/generation.py:rank_remap
+microcell/roughness/generation.py	rank_remap	function	363	solver	tests,examples,tools	roughness/generation.py:iaaft
+microcell/roughness/generation.py	iaaft	function	370	solver	tests,examples,tools	roughness/generation.py:SurfaceResult; roughness/generation.py:_build_surface; roughness/prepare.py:_resolve_generated
+microcell/roughness/generation.py	err_h_legacy	function	402	solver	tests,examples,tools	roughness/generation.py:iaaft
+microcell/roughness/generation.py	err_s_legacy	function	417	solver	tests,examples,tools	roughness/generation.py:iaaft
+microcell/roughness/generation.py	spectral_energy_error	function	429	solver	tests,examples,tools	roughness/prepare.py:_resolve_generated
+microcell/roughness/generation.py	_build_surface	function	447	dead_only		roughness/generation.py:fit_psd_for_sm; roughness/generation.py:generate_rough_surface
+microcell/roughness/generation.py	fit_psd_for_sm	function	454	dead_only		roughness/generation.py:generate_rough_surface
+microcell/roughness/generation.py	SurfaceResult	class	535	dead_only		roughness/generation.py:generate_rough_surface
+microcell/roughness/generation.py	generate_rough_surface	function	549	none		
+microcell/roughness/generation.py	gaussian_filtered_surface	function	605	solver	tests,examples,tools	roughness/prepare.py:_resolve_generated
+microcell/roughness/modes.py	<module>	module code	0	none		
+microcell/roughness/modes.py	Mode	constant	33	dead_only		roughness/modes.py:_check_half_plane; roughness/modes.py:band_limited_modes; roughness/modes.py:evaluate_modes; roughness/modes.py:ideal_modes; roughness/modes.py:rms_analytic; roughness/modes.py:scale_to_rms; roughness/modes.py:translate_modes
+microcell/roughness/modes.py	LEGACY_SOURCE	constant	35	none		
+microcell/roughness/modes.py	IDEAL_PROFILES	constant	40	none		
+microcell/roughness/modes.py	MEMBER_CODE	constant	41	dead_only		roughness/modes.py:surface_seed
+microcell/roughness/modes.py	ideal_modes	function	44	none		
+microcell/roughness/modes.py	_check_half_plane	function	60	dead_only		roughness/modes.py:rms_analytic
+microcell/roughness/modes.py	rms_analytic	function	70	dead_only		roughness/modes.py:scale_to_rms
+microcell/roughness/modes.py	scale_to_rms	function	75	none		
+microcell/roughness/modes.py	translate_modes	function	85	none		
+microcell/roughness/modes.py	evaluate_modes	function	90	none		
+microcell/roughness/modes.py	band_wavevectors	function	99	dead_only		roughness/modes.py:band_limited_modes
+microcell/roughness/modes.py	psd_shape	function	116	dead_only		roughness/modes.py:band_limited_modes
+microcell/roughness/modes.py	surface_seed	function	121	dead_only		roughness/modes.py:band_limited_modes
+microcell/roughness/modes.py	band_limited_modes	function	126	none		
+microcell/roughness/pair.py	<module>	module code	0	solver		
+microcell/roughness/pair.py	Vec	constant	45	dead_only		roughness/pair.py:SurfacePair
+microcell/roughness/pair.py	pattern_displacement	function	48	solver		roughness/runtime.py:<module>; roughness/runtime.py:SurfaceMotion
+microcell/roughness/pair.py	legacy_effective_displacement	function	57	none		
+microcell/roughness/pair.py	LEGACY_ROUGHNESS_MODES	constant	70	dead_only		roughness/pair.py:arrangement_for_legacy_mode
+microcell/roughness/pair.py	arrangement_for_legacy_mode	function	116	none		
+microcell/roughness/pair.py	cross_term_spectral	function	130	none		
+microcell/roughness/pair.py	_same_cell	function	149	dead_only		roughness/pair.py:SurfacePair; roughness/pair.py:cross_term_spectral
+microcell/roughness/pair.py	SurfacePair	class	155	dead_only		roughness/report.py:<module>; roughness/report.py:pair_report
+microcell/roughness/prepare.py	<module>	module code	0	solver	tests,examples,tools	
+microcell/roughness/prepare.py	TargetNotMetError	class	38	solver	tests,examples,tools	roughness/prepare.py:_resolve_generated; roughness/prepare.py:prepare
+microcell/roughness/prepare.py	_path	function	46	solver	tests,examples,tools	roughness/prepare.py:_amplitude; roughness/prepare.py:_resolve_file; roughness/prepare.py:_target_vector; roughness/prepare.py:recipe_for
+microcell/roughness/prepare.py	_check_hash	function	55	dead_only		roughness/prepare.py:recipe_for
+microcell/roughness/prepare.py	recipe_for	function	62	dead_only		roughness/prepare.py:prepare
+microcell/roughness/prepare.py	_amplitude	function	80	solver	tests,examples,tools	roughness/prepare.py:_resolve_generated
+microcell/roughness/prepare.py	_target_vector	function	97	solver	tests,examples,tools	roughness/prepare.py:_resolve_generated
+microcell/roughness/prepare.py	_resolve_generated	function	117	solver	tests,examples,tools	roughness/prepare.py:resolve
+microcell/roughness/prepare.py	_resolve_file	function	151	solver	tests,examples,tools	roughness/prepare.py:resolve
+microcell/roughness/prepare.py	_resolve_modes	function	162	solver	tests,examples,tools	roughness/prepare.py:resolve
+microcell/roughness/prepare.py	resolve	function	169	solver	tests,examples,tools	examples/run_cell.py:ROOT; roughness/frontend.py:Roughness; roughness/prepare.py:prepare; tests/test_parity.py:ROOT; tools/make_references.py:HERE; tools/make_references.py:main; tools/show_references.py:REF
+microcell/roughness/prepare.py	prepare	function	196	none		
+microcell/roughness/quantiles.py	<module>	module code	0	solver	tests,examples,tools	
+microcell/roughness/quantiles.py	_EPS	constant	42	solver	tests,examples,tools	roughness/quantiles.py:_gennorm_abs_ppf; roughness/quantiles.py:gammainc_pq; roughness/quantiles.py:skewnorm_ppf
+microcell/roughness/quantiles.py	_S2PI	constant	48	solver	tests,examples,tools	roughness/quantiles.py:norm_ppf
+microcell/roughness/quantiles.py	_EXPM2	constant	49	solver	tests,examples,tools	roughness/quantiles.py:norm_ppf
+microcell/roughness/quantiles.py	_P0	constant	52	solver	tests,examples,tools	roughness/quantiles.py:norm_ppf
+microcell/roughness/quantiles.py	_Q0	constant	55	solver	tests,examples,tools	roughness/quantiles.py:norm_ppf
+microcell/roughness/quantiles.py	_P1	constant	60	solver	tests,examples,tools	roughness/quantiles.py:norm_ppf
+microcell/roughness/quantiles.py	_Q1	constant	65	solver	tests,examples,tools	roughness/quantiles.py:norm_ppf
+microcell/roughness/quantiles.py	_P2	constant	70	solver	tests,examples,tools	roughness/quantiles.py:norm_ppf
+microcell/roughness/quantiles.py	_Q2	constant	75	solver	tests,examples,tools	roughness/quantiles.py:norm_ppf
+microcell/roughness/quantiles.py	_polevl	function	81	solver	tests,examples,tools	roughness/quantiles.py:norm_ppf
+microcell/roughness/quantiles.py	_p1evl	function	88	solver	tests,examples,tools	roughness/quantiles.py:norm_ppf
+microcell/roughness/quantiles.py	norm_ppf	function	95	solver	tests,examples,tools	roughness/generation.py:hpd_sorted_sample; roughness/quantiles.py:johnsonsu_ppf; roughness/quantiles.py:skewnorm_ppf
+microcell/roughness/quantiles.py	_ERFC	constant	132	solver	tests,examples,tools	roughness/quantiles.py:norm_cdf
+microcell/roughness/quantiles.py	norm_cdf	function	135	solver	tests,examples,tools	roughness/quantiles.py:owens_t; roughness/quantiles.py:skewnorm_cdf; roughness/quantiles.py:skewnorm_ppf
+microcell/roughness/quantiles.py	_FPMIN	constant	144	solver	tests,examples,tools	roughness/quantiles.py:gammainc_pq
+microcell/roughness/quantiles.py	_MAXIT	constant	145	solver	tests,examples,tools	roughness/quantiles.py:gammainc_pq
+microcell/roughness/quantiles.py	gammainc_pq	function	148	solver	tests,examples,tools	roughness/quantiles.py:_gennorm_abs_cdf; roughness/quantiles.py:_gennorm_abs_ppf
+microcell/roughness/quantiles.py	_gennorm_abs_cdf	function	211	solver	tests,examples,tools	roughness/quantiles.py:_gennorm_abs_ppf; roughness/quantiles.py:gennorm_cdf
+microcell/roughness/quantiles.py	gennorm_cdf	function	220	none		
+microcell/roughness/quantiles.py	_gamma_inv_guess	function	227	solver	tests,examples,tools	roughness/quantiles.py:_gennorm_abs_ppf
+microcell/roughness/quantiles.py	_gennorm_abs_ppf	function	243	solver	tests,examples,tools	roughness/quantiles.py:gennorm_ppf
+microcell/roughness/quantiles.py	gennorm_ppf	function	289	solver	tests,examples,tools	roughness/generation.py:hpd_sorted_sample
+microcell/roughness/quantiles.py	weibull_min_ppf	function	311	solver	tests,examples,tools	roughness/generation.py:hpd_sorted_sample
+microcell/roughness/quantiles.py	johnsonsu_ppf	function	316	solver	tests,examples,tools	roughness/generation.py:hpd_sorted_sample
+microcell/roughness/quantiles.py	_GL_X	constant	323	solver	tests,examples,tools	roughness/quantiles.py:_owens_t_small
+microcell/roughness/quantiles.py	_GL_W	constant	323	solver	tests,examples,tools	roughness/quantiles.py:_owens_t_small
+microcell/roughness/quantiles.py	_owens_t_small	function	326	solver	tests,examples,tools	roughness/quantiles.py:owens_t
+microcell/roughness/quantiles.py	owens_t	function	334	solver	tests,examples,tools	roughness/quantiles.py:skewnorm_cdf
+microcell/roughness/quantiles.py	skewnorm_cdf	function	352	solver	tests,examples,tools	roughness/quantiles.py:skewnorm_ppf
+microcell/roughness/quantiles.py	skewnorm_ppf	function	357	solver	tests,examples,tools	roughness/generation.py:hpd_sorted_sample
+microcell/roughness/report.py	<module>	module code	0	none		
+microcell/roughness/report.py	_field_numbers	function	38	dead_only		roughness/report.py:fidelity_table
+microcell/roughness/report.py	fidelity_table	function	45	dead_only		roughness/report.py:surface_report
+microcell/roughness/report.py	surface_report	function	65	none		
+microcell/roughness/report.py	pair_report	function	103	none		
+microcell/roughness/report.py	format_report	function	126	none		
+microcell/roughness/runtime.py	<module>	module code	0	solver		
+microcell/roughness/runtime.py	Shift	constant	38	solver		roughness/runtime.py:SurfaceField; roughness/runtime.py:SurfaceMotion
+microcell/roughness/runtime.py	_ZERO	constant	39	solver		roughness/runtime.py:SurfaceContactHeight; roughness/runtime.py:SurfaceField; roughness/runtime.py:SurfaceMotion
+microcell/roughness/runtime.py	_CELL_RTOL	constant	41	solver		roughness/runtime.py:_close
+microcell/roughness/runtime.py	_close	function	44	solver		roughness/runtime.py:SurfaceField
+microcell/roughness/runtime.py	SurfaceField	class	48	solver		roughness/frontend.py:<module>; roughness/frontend.py:ArrayField; roughness/runtime.py:SurfaceContactHeight; surface_ht.py:<module>; surface_ht.py:make_surface_ht
+microcell/roughness/runtime.py	_lattice	function	130	solver		roughness/runtime.py:SurfaceField
+microcell/roughness/runtime.py	SurfaceMotion	class	148	solver		roughness/runtime.py:SurfaceContactHeight; surface_ht.py:<module>; surface_ht.py:make_surface_ht
+microcell/roughness/runtime.py	SurfaceContactHeight	class	185	solver		surface_ht.py:<module>; surface_ht.py:make_surface_ht
+microcell/roughness/spec.py	<module>	module code	0	solver	tests,examples,tools	
+microcell/roughness/spec.py	_pos	function	35	solver	tests,examples,tools	roughness/spec.py:GeneratedSurface; roughness/spec.py:ModeSurface; roughness/spec.py:PSDSpec
+microcell/roughness/spec.py	_as_dict	function	40	solver	tests,examples,tools	roughness/spec.py:FileSurface; roughness/spec.py:GeneratedSurface; roughness/spec.py:HPDSpec; roughness/spec.py:HeightFit; roughness/spec.py:ModeSurface; roughness/spec.py:PSDSpec; roughness/spec.py:SurfaceTargets
+microcell/roughness/spec.py	PSDSpec	class	53	solver	tests,examples,tools	roughness/frontend.py:Roughness; roughness/spec.py:GeneratedSurface
+microcell/roughness/spec.py	HPDSpec	class	114	solver	tests,examples,tools	roughness/frontend.py:Roughness; roughness/spec.py:GeneratedSurface
+microcell/roughness/spec.py	SurfaceTargets	class	156	solver	tests,examples,tools	roughness/frontend.py:Roughness; roughness/spec.py:FileSurface; roughness/spec.py:GeneratedSurface; roughness/targets.py:<module>; roughness/targets.py:_tol; roughness/targets.py:apply_policy; roughness/targets.py:check_targets; roughness/targets.py:screen_request
+microcell/roughness/spec.py	HeightFit	class	186	solver	tests,examples,tools	roughness/frontend.py:Roughness; roughness/spec.py:FileSurface; roughness/spec.py:GeneratedSurface; roughness/targets.py:<module>; roughness/targets.py:apply_policy
+microcell/roughness/spec.py	GeneratedSurface	class	216	solver	tests,examples,tools	roughness/frontend.py:Roughness; roughness/prepare.py:<module>; roughness/prepare.py:_amplitude; roughness/prepare.py:_resolve_generated; roughness/prepare.py:_target_vector; roughness/prepare.py:recipe_for; roughness/prepare.py:resolve; roughness/spec.py:SurfaceSpec
+microcell/roughness/spec.py	FileSurface	class	261	solver	tests,examples,tools	roughness/prepare.py:<module>; roughness/prepare.py:_resolve_file; roughness/prepare.py:recipe_for; roughness/prepare.py:resolve; roughness/spec.py:SurfaceSpec
+microcell/roughness/spec.py	ModeSurface	class	278	solver	tests,examples,tools	roughness/prepare.py:<module>; roughness/prepare.py:_resolve_modes; roughness/prepare.py:recipe_for; roughness/prepare.py:resolve; roughness/spec.py:SurfaceSpec
+microcell/roughness/spec.py	SurfaceSpec	constant	297	solver	tests,examples,tools	roughness/prepare.py:<module>; roughness/prepare.py:prepare; roughness/prepare.py:recipe_for; roughness/prepare.py:resolve; roughness/spec.py:SurfacePairSpec
+microcell/roughness/spec.py	SurfacePairSpec	class	301	none		
+microcell/roughness/stats.py	<module>	module code	0	solver	tests,examples,tools	
+microcell/roughness/stats.py	find_summits	function	44	solver	tests,examples,tools	roughness/stats.py:summit_spacing; roughness/stats.py:surface_stats
+microcell/roughness/stats.py	summit_spacing	function	70	dead_only		roughness/generation.py:fit_psd_for_sm; roughness/stats.py:legacy_surface_stats
+microcell/roughness/stats.py	profile_rsm	function	82	dead_only		roughness/stats.py:legacy_surface_stats
+microcell/roughness/stats.py	spectral_moments	function	97	none		
+microcell/roughness/stats.py	height_moments	function	115	solver	tests,examples,tools	roughness/pair.py:<module>; roughness/pair.py:SurfacePair; roughness/report.py:<module>; roughness/report.py:_field_numbers; roughness/stats.py:surface_stats
+microcell/roughness/stats.py	surface_stats	function	124	solver	tests,examples,tools	roughness/__init__.py:<module>; roughness/__init__.py:<reexport>; roughness/prepare.py:<module>; roughness/prepare.py:_resolve_file; roughness/prepare.py:resolve; roughness/report.py:<module>; roughness/report.py:surface_report
+microcell/roughness/stats.py	legacy_surface_stats	function	158	dead_only		roughness/generation.py:generate_rough_surface
+microcell/roughness/targets.py	<module>	module code	0	solver	tests,examples,tools	
+microcell/roughness/targets.py	TargetInfeasibleError	class	56	solver	tests,examples,tools	roughness/prepare.py:<module>; roughness/prepare.py:_resolve_generated; roughness/targets.py:fit_gennorm_ratio
+microcell/roughness/targets.py	TargetCheck	class	65	solver	tests,examples,tools	roughness/targets.py:TargetReport; roughness/targets.py:check_targets
+microcell/roughness/targets.py	TargetReport	class	76	solver	tests,examples,tools	roughness/prepare.py:<module>; roughness/prepare.py:TargetNotMetError; roughness/prepare.py:_resolve_file; roughness/prepare.py:_resolve_generated; roughness/prepare.py:_resolve_modes; roughness/prepare.py:prepare; roughness/targets.py:apply_policy; roughness/targets.py:fit_gennorm_ratio
+microcell/roughness/targets.py	realised_amplitudes	function	97	solver	tests,examples,tools	roughness/targets.py:apply_policy; roughness/targets.py:check_targets
+microcell/roughness/targets.py	_tol	function	105	solver	tests,examples,tools	roughness/targets.py:check_targets
+microcell/roughness/targets.py	check_targets	function	109	solver	tests,examples,tools	roughness/targets.py:apply_policy
+microcell/roughness/targets.py	screen_request	function	119	solver	tests,examples,tools	roughness/prepare.py:<module>; roughness/prepare.py:_resolve_generated; roughness/targets.py:apply_policy
+microcell/roughness/targets.py	apply_policy	function	130	solver	tests,examples,tools	roughness/prepare.py:<module>; roughness/prepare.py:_resolve_file; roughness/prepare.py:_resolve_generated
+microcell/roughness/targets.py	gennorm_ratio_continuous	function	172	solver	tests,examples,tools	roughness/targets.py:fit_gennorm_ratio
+microcell/roughness/targets.py	gennorm_ratio_at	function	179	solver	tests,examples,tools	roughness/targets.py:fit_gennorm_ratio; roughness/targets.py:gennorm_ratio_envelope
+microcell/roughness/targets.py	gennorm_ratio_envelope	function	184	solver	tests,examples,tools	roughness/targets.py:fit_gennorm_ratio
+microcell/roughness/targets.py	RatioFit	class	191	solver	tests,examples,tools	roughness/targets.py:fit_gennorm_ratio
+microcell/roughness/targets.py	fit_gennorm_ratio	function	204	solver	tests,examples,tools	roughness/prepare.py:<module>; roughness/prepare.py:_target_vector
+microcell/shear_reduce.py	<module>	module code	0	solver		
+microcell/shear_reduce.py	SHEAR_REDUCE_VERSION	constant	52	solver		shear_reduce.py:ShearReduction
+microcell/shear_reduce.py	STATUS_OK	constant	54	solver		contact_shear.py:<module>; contact_shear.py:OK; shear_reduce.py:VALID_STATUSES; shear_reduce.py:reduce_traction; shear_reduce.py:union_phases
+microcell/shear_reduce.py	STATUS_NO_SUPPORT	constant	55	solver		contact_shear.py:<module>; contact_shear.py:NO_SUPPORT; shear_reduce.py:VALID_STATUSES; shear_reduce.py:reduce_traction; shear_reduce.py:union_phases
+microcell/shear_reduce.py	STATUS_INVALID_SAMPLES	constant	56	solver		fluid_shear.py:<module>; fluid_shear.py:union_fluid_traction; shear_reduce.py:reduce_traction
+microcell/shear_reduce.py	STATUS_STATE_INVALID	constant	57	solver		fluid_shear.py:<module>; fluid_shear.py:union_fluid_traction; shear_reduce.py:reduce_traction
+microcell/shear_reduce.py	STATUS_PHASE_INVALID	constant	58	solver		fluid_shear.py:<module>; fluid_shear.py:SHEAR_PHASE_INVALID; shear_reduce.py:union_phases
+microcell/shear_reduce.py	VALID_STATUSES	constant	60	solver		contact_shear.py:<module>; contact_shear.py:phase_from_reductions; micro_diagnostics.py:sample_contact_traction; micro_diagnostics.py:sample_fluid_traction; shear_reduce.py:ShearReduction; shear_reduce.py:union_phases
+microcell/shear_reduce.py	STATISTIC_SAMPLE	constant	62	solver		shear_reduce.py:ShearReduction; shear_reduce.py:_invalid
+microcell/shear_reduce.py	STATISTIC_PHASE_UNION	constant	63	solver		shear_reduce.py:union_phases
+microcell/shear_reduce.py	GLOBAL_X	constant	67	solver		contact_sample.py:<module>; contact_sample.py:reduce_contact_and_total; micro_diagnostics.py:sample_contact_traction; micro_diagnostics.py:sample_fluid_traction; shear_reduce.py:reduce_traction
+microcell/shear_reduce.py	UNIT_TOL	constant	70	solver		shear_reduce.py:_direction
+microcell/shear_reduce.py	_NAN3	constant	72	solver		shear_reduce.py:_invalid
+microcell/shear_reduce.py	ShearReduction	class	76	solver		contact_shear.py:<module>; contact_shear.py:ContactTractionPhase; fluid_shear.py:<module>; fluid_shear.py:FluidTractionPhase; shear_reduce.py:_invalid; shear_reduce.py:reduce_traction; shear_reduce.py:union_phases
+microcell/shear_reduce.py	_direction	function	116	solver		shear_reduce.py:reduce_traction
+microcell/shear_reduce.py	_rotation	function	125	solver		shear_reduce.py:reduce_traction
+microcell/shear_reduce.py	_invalid	function	139	solver		shear_reduce.py:reduce_traction; shear_reduce.py:union_phases
+microcell/shear_reduce.py	reduce_traction	function	148	solver		contact_sample.py:<module>; contact_sample.py:reduce_contact_and_total; micro_diagnostics.py:sample_fluid_traction
+microcell/shear_reduce.py	union_phases	function	218	solver		contact_shear.py:<module>; contact_shear.py:union_contact_traction; fluid_shear.py:<module>; fluid_shear.py:union_fluid_traction
+microcell/fluid_shear.py	<module>	module code	0	solver		
+microcell/fluid_shear.py	SHEAR_SAMPLER	constant	55	solver		fluid_shear.py:FluidTractionPhase; fluid_shear.py:SHEAR_EXTREMA_DEFINITION; micro_diagnostics.py:sample_fluid_traction
+microcell/fluid_shear.py	SHEAR_EXTREMA_DEFINITION	constant	56	solver		fluid_shear.py:failed_shear_fields; fluid_shear.py:shear_fields
+microcell/fluid_shear.py	SHEAR_PHASE_INVALID	constant	61	solver		fluid_shear.py:union_fluid_traction
+microcell/fluid_shear.py	SHEAR_FAILED	constant	62	solver		fluid_shear.py:failed_shear_fields
+microcell/fluid_shear.py	SHEAR_NO_FRAME	constant	63	solver		fluid_shear.py:union_fluid_traction; micro_diagnostics.py:sample_fluid_traction
+microcell/fluid_shear.py	FluidTractionPhase	class	69	solver		fluid_shear.py:union_fluid_traction; micro_diagnostics.py:sample_fluid_traction
+microcell/fluid_shear.py	_NAN2	constant	93	solver		fluid_shear.py:failed_shear_fields; fluid_shear.py:union_fluid_traction
+microcell/fluid_shear.py	union_fluid_traction	function	96	solver		api.py:microsolver
+microcell/fluid_shear.py	shear_fields	function	126	solver		api.py:microsolver
+microcell/fluid_shear.py	failed_shear_fields	function	140	solver		api.py:_failed_raw
+microcell/contact_shear.py	<module>	module code	0	solver		
+microcell/contact_shear.py	CONTACT_SAMPLER	constant	54	solver		contact_shear.py:CONTACT_SHEAR_DEFINITION; contact_shear.py:ContactTractionPhase
+microcell/contact_shear.py	FLUID_SAMPLER	constant	55	solver		contact_shear.py:CONTACT_SHEAR_DEFINITION
+microcell/contact_shear.py	CONTACT_SHEAR_DEFINITION	constant	56	solver		contact_shear.py:contact_shear_fields; contact_shear.py:failed_contact_shear_fields
+microcell/contact_shear.py	MEAN_CHECK_BUDGET	constant	59	solver		contact_shear.py:phase_from_reductions
+microcell/contact_shear.py	FFT_MODEL	constant	61	solver		micro_diagnostics.py:sample_contact_traction
+microcell/contact_shear.py	OK	constant	65	solver		contact_shear.py:phase_from_reductions; contact_shear.py:union_contact_traction
+microcell/contact_shear.py	NO_SUPPORT	constant	66	solver		contact_shear.py:phase_from_reductions; contact_shear.py:union_contact_traction
+microcell/contact_shear.py	STATE_INVALID	constant	68	solver		contact_shear.py:_PHASE_BAD; contact_shear.py:phase_from_reductions; micro_diagnostics.py:sample_contact_traction
+microcell/contact_shear.py	STATE_MISMATCH	constant	70	solver		contact_shear.py:_PHASE_BAD; contact_shear.py:mismatch
+microcell/contact_shear.py	CHECK_FAILED	constant	72	solver		contact_shear.py:_PHASE_BAD; contact_shear.py:phase_from_reductions; micro_diagnostics.py:sample_contact_traction
+microcell/contact_shear.py	PHASE_INVALID	constant	73	solver		contact_shear.py:union_contact_traction
+microcell/contact_shear.py	FAILED	constant	74	solver		contact_shear.py:failed_contact_shear_fields
+microcell/contact_shear.py	NO_FRAME	constant	75	solver		contact_shear.py:phase_from_reductions; contact_shear.py:union_contact_traction
+microcell/contact_shear.py	UNAVAILABLE	constant	76	solver		contact_shear.py:union_contact_traction; micro_diagnostics.py:sample_contact_traction
+microcell/contact_shear.py	_PHASE_BAD	constant	78	solver		contact_shear.py:union_contact_traction
+microcell/contact_shear.py	_nan2	function	81	solver		contact_shear.py:failed_contact_shear_fields; contact_shear.py:invalid_phase; contact_shear.py:phase_from_reductions; contact_shear.py:union_contact_traction
+microcell/contact_shear.py	ContactTractionPhase	class	87	solver		contact_shear.py:invalid_phase; contact_shear.py:mismatch; contact_shear.py:phase_from_reductions; contact_shear.py:union_contact_traction
+microcell/contact_shear.py	_contact_support_numbers	function	110	solver		contact_shear.py:phase_from_reductions
+microcell/contact_shear.py	invalid_phase	function	115	solver		contact_shear.py:mismatch; contact_shear.py:phase_from_reductions; micro_diagnostics.py:sample_contact_traction
+microcell/contact_shear.py	mean_check	function	129	solver		contact_shear.py:ContactTractionPhase; contact_shear.py:invalid_phase; contact_shear.py:union_contact_traction; micro_diagnostics.py:sample_contact_traction
+microcell/contact_shear.py	phase_from_reductions	function	140	solver		micro_diagnostics.py:sample_contact_traction
+microcell/contact_shear.py	mismatch	function	179	solver		micro_diagnostics.py:finish_contact_traction
+microcell/contact_shear.py	_wmean	function	186	solver		contact_shear.py:union_contact_traction
+microcell/contact_shear.py	union_contact_traction	function	190	solver		api.py:microsolver
+microcell/contact_shear.py	FIELDS	constant	235	solver		contact_shear.py:failed_contact_shear_fields
+microcell/contact_shear.py	contact_shear_fields	function	243	solver		api.py:microsolver
+microcell/contact_shear.py	failed_contact_shear_fields	function	262	solver		api.py:_failed_raw
+microcell/contact_sample.py	<module>	module code	0	solver		
+microcell/contact_sample.py	CONTACT_SAMPLER	constant	108	solver		contact_sample.py:ContactSamples
+microcell/contact_sample.py	SAMPLER_DEFINITION	constant	109	none		
+microcell/contact_sample.py	FFT_MODEL	constant	112	solver		contact_sample.py:sample_contact; micro_diagnostics.py:sample_contact_traction
+microcell/contact_sample.py	STATUS_OK	constant	114	solver		contact_sample.py:CONTACT_VALID_STATUSES; contact_sample.py:sample_contact
+microcell/contact_sample.py	STATUS_NO_SUPPORT	constant	115	solver		contact_sample.py:CONTACT_VALID_STATUSES; contact_sample.py:sample_contact
+microcell/contact_sample.py	STATUS_STATE_INVALID	constant	116	solver		contact_sample.py:sample_contact
+microcell/contact_sample.py	CONTACT_VALID_STATUSES	constant	117	solver		contact_sample.py:ContactSamples
+microcell/contact_sample.py	STATISTIC_NATIVE	constant	119	solver		contact_sample.py:sample_contact
+microcell/contact_sample.py	STATISTIC_INTERPOLATED	constant	120	solver		contact_sample.py:_empty; contact_sample.py:sample_contact
+microcell/contact_sample.py	SNAP_TOL	constant	123	solver		contact_sample.py:_grid_coords
+microcell/contact_sample.py	ZERO_SPEED_EPS	constant	125	solver		contact_sample.py:sliding_direction
+microcell/contact_sample.py	ContactSamples	class	129	solver		contact_sample.py:_empty; contact_sample.py:reduce_contact_and_total; contact_sample.py:sample_contact; contact_sample.py:support_report
+microcell/contact_sample.py	_grid_coords	function	162	solver		contact_sample.py:periodic_p1
+microcell/contact_sample.py	periodic_p1	function	183	solver		contact_sample.py:sample_contact
+microcell/contact_sample.py	_empty	function	208	solver		contact_sample.py:sample_contact
+microcell/contact_sample.py	sample_contact	function	216	solver		micro_diagnostics.py:sample_contact_traction
+microcell/contact_sample.py	p1_lumped_weights	function	249	none		
+microcell/contact_sample.py	sliding_direction	function	269	solver		micro_diagnostics.py:_local_sliding_direction
+microcell/contact_sample.py	asperity_traction	function	279	solver		contact_sample.py:reduce_contact_and_total
+microcell/contact_sample.py	_pad3	function	294	solver		contact_sample.py:reduce_contact_and_total; contact_sample.py:total_traction
+microcell/contact_sample.py	total_traction	function	301	solver		contact_sample.py:reduce_contact_and_total
+microcell/contact_sample.py	support_report	function	313	solver		contact_sample.py:reduce_contact_and_total
+microcell/contact_sample.py	ContactTotalReduction	class	347	solver		contact_sample.py:reduce_contact_and_total
+microcell/contact_sample.py	reduce_contact_and_total	function	360	solver		micro_diagnostics.py:sample_contact_traction
+microcell/pressure.py	<module>	module code	0	solver		
+microcell/pressure.py	DELTA_P_DEFINITION	constant	8	solver		api.py:_failed_raw; api.py:microsolver; micro_phase_neutral_class.py:MicroPhaseNeutralSolver; pressure.py:average_pressure_ledgers
+microcell/pressure.py	PRESSURE_FIELDS	constant	9	solver		api.py:microsolver; pressure.py:average_pressure_ledgers
+microcell/pressure.py	PRESSURE_EXTREMA_SAMPLER	constant	29	solver		micro_diagnostics.py:<module>; micro_diagnostics.py:sample_fluid_pressure_extrema; pressure.py:FluidPressureExtrema; pressure.py:PRESSURE_EXTREMA_DEFINITION
+microcell/pressure.py	PRESSURE_EXTREMA_DEFINITION	constant	30	solver		api.py:_failed_raw; api.py:microsolver
+microcell/pressure.py	EXTREMA_OK	constant	33	solver		pressure.py:union_pressure_extrema
+microcell/pressure.py	EXTREMA_NO_FLUID	constant	34	solver		pressure.py:union_pressure_extrema
+microcell/pressure.py	EXTREMA_PHASE_INVALID	constant	35	solver		pressure.py:union_pressure_extrema
+microcell/pressure.py	EXTREMA_FAILED	constant	36	solver		api.py:_failed_raw
+microcell/pressure.py	PHASE_OK	constant	39	solver		micro_diagnostics.py:<module>; micro_diagnostics.py:sample_fluid_pressure_extrema; pressure.py:union_pressure_extrema
+microcell/pressure.py	PHASE_NO_FLUID	constant	39	solver		micro_diagnostics.py:<module>; micro_diagnostics.py:sample_fluid_pressure_extrema; pressure.py:union_pressure_extrema
+microcell/pressure.py	PHASE_NONFINITE	constant	39	solver		micro_diagnostics.py:<module>; micro_diagnostics.py:sample_fluid_pressure_extrema
+microcell/pressure.py	FluidPressureExtrema	class	43	solver		micro_diagnostics.py:<module>; micro_diagnostics.py:sample_fluid_pressure_extrema
+microcell/pressure.py	union_pressure_extrema	function	55	solver		api.py:microsolver
+microcell/pressure.py	LEVEL_CONSTRAINT_RUN_DEFAULT	constant	94	solver		micro_phase_neutral_class.py:<module>
+microcell/pressure.py	average_pressure_ledgers	function	97	solver		api.py:microsolver
+microcell/ideal_ht.py	<module>	module code	0	solver		
+microcell/ideal_ht.py	CosineContactDescriptor	class	63	solver		ideal_ht.py:_rebuild_descriptor; ideal_ht.py:make_ideal_ht; micro_diagnostics.py:_film_at_points
+microcell/ideal_ht.py	_rebuild_descriptor	function	130	solver		ideal_ht.py:CosineContactDescriptor
+microcell/ideal_ht.py	make_ideal_ht	function	135	solver		api.py:microsolver
+microcell/surface_ht.py	<module>	module code	0	solver		
+microcell/surface_ht.py	_mesh_of	function	36	solver		surface_ht.py:make_surface_ht
+microcell/surface_ht.py	make_surface_ht	function	44	solver		api.py:microsolver
+microcell/contact.py	FFT	constant	8	solver		micro_phase_neutral_class_contact.py:<module>; micro_phase_neutral_class_contact.py:MicroPhaseNeutralContactSolver; micro_phase_neutral_class_contact.py:PhaseNeutralContactSettings
+microcell/contact.py	ContactResolutionError	class	11	solver		api.py:microsolver; elastic_contact.py:<module>; elastic_contact.py:ContactInfeasibleError; elastic_contact.py:ContactNotConvergedError
+microcell/elastic_contact.py	<module>	module code	0	solver		
+microcell/elastic_contact.py	ContactInfeasibleError	class	57	solver		elastic_contact.py:contact_tangent; elastic_contact.py:solve_contact
+microcell/elastic_contact.py	ContactNotConvergedError	class	61	solver		elastic_contact.py:contact_tangent; elastic_contact.py:solve_contact; micro_phase_neutral_class_contact.py:MicroPhaseNeutralContactSolver
+microcell/elastic_contact.py	PeriodicHalfSpace	class	68	solver		elastic_contact.py:contact_tangent; elastic_contact.py:solve_contact; micro_phase_neutral_class_contact.py:MicroPhaseNeutralContactSolver; ripple.py:<module>; ripple.py:ripple; ripple.py:ripple_operator
+microcell/elastic_contact.py	ContactSolution	class	117	solver		elastic_contact.py:solve_contact; micro_phase_neutral_class_contact.py:MicroPhaseNeutralContactSolver
+microcell/elastic_contact.py	_complementarity	function	135	solver		elastic_contact.py:solve_contact
+microcell/elastic_contact.py	solve_contact	function	142	solver		micro_phase_neutral_class_contact.py:MicroPhaseNeutralContactSolver
+microcell/elastic_contact.py	contact_tangent	function	237	solver		micro_phase_neutral_class_contact.py:MicroPhaseNeutralContactSolver
+microcell/elastic_contact.py	p1_area	function	276	solver		micro_phase_neutral_class_contact.py:MicroPhaseNeutralContactSolver
+microcell/elastic_contact.py	periodic_components	function	307	solver		micro_phase_neutral_class_contact.py:MicroPhaseNeutralContactSolver
+microcell/elastic_contact.py	band_limited_sample	function	345	solver		ripple.py:<module>; ripple.py:pattern_shift

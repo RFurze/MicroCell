@@ -1,0 +1,17 @@
+c1_gensa40_h200_ripple: PASS  (155 comparisons, 0 outside 1e-12, 0.8 s)
+c2_gensa40_h130_ripple: PASS  (155 comparisons, 0 outside 1e-12, 0.7 s)
+c3_gensa40_h130_noripple: PASS  (154 comparisons, 0 outside 1e-12, 0.5 s)
+c4_wangpair10_h25_offset: PASS  (154 comparisons, 0 outside 1e-12, 1.6 s)
+c5_cosine_fullfilm: PASS  (131 comparisons, 0 outside 1e-12, 0.2 s)
+c6_cosine_fft_sqrt: PASS  (153 comparisons, 0 outside 1e-12, 0.6 s)
+c7_gensa40_h130_ripple_steady: PASS  (155 comparisons, 0 outside 1e-12, 0.5 s)
+c8_cosine_fullfilm_steady: PASS  (131 comparisons, 0 outside 1e-12, 0.1 s)
+parity: PASS -- 8 of 8 cells PASS, 0 FAIL, 0 not run 
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 5 unused database options. They are:
+Option left: name:-ksp_error_if_not_converged value: true source: code
+Option left: name:-ksp_gmres_restart value: 100 source: code
+Option left: name:-ksp_initial_guess_nonzero value: true source: code
+Option left: name:-ksp_max_it value: 80 source: code
+Option left: name:-ksp_rtol value: 1e-5 source: code

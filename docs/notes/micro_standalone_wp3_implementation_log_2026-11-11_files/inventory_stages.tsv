@@ -1,0 +1,7 @@
+stage	commit	total	solver	tests	examples	tools	dead_only	none
+base	c89915a	428	282	0	0	0	85	61
+g1	548ecaa	353	282	0	0	0	29	42
+g2	e47664c	345	278	0	0	0	29	38
+g3	05d034d	334	278	0	0	0	25	31
+g5_store	a9a056d	311	241	0	0	9	33	28
+g4	6c047c1	168	166	0	0	0	0	2

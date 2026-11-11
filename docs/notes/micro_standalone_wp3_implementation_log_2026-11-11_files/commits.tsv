@@ -1,0 +1,6 @@
+group	commit	files_changed	insertions	deletions	subject
+1	548ecaa	2	9	550	MicroCell WP3: remove the macro-frame and batch code of fluid_shear.py and contact_shear.py
+2	e47664c	5	11	79	MicroCell WP3: remove the remains of the removed contact laws (unsupported-model status and branches, finish_unsupported, effective_modulus, CONTACT_MODELS)
+3	05d034d	1	6	77	MicroCell WP3: remove the macro-side helpers of pressure.py (require_definition, the level-constraint record helpers, the batch statuses)
+5	a9a056d	3	18	289	MicroCell WP3: remove the surface store and its EHL_SURFACE_STORE read (roughness/case.py, the descriptor loader of runtime.py)
+4	6c047c1	13	108	2878	MicroCell WP3: remove the roughness plumbing behind the Roughness front end (spec, prepare, targets, report, modes, assets, stats; the unused generator, quantile, pair and evaluator code); Roughness.generated calls the generator directly

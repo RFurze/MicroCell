@@ -4,10 +4,11 @@ The micro-cell solver of Rob Furze's transient multiscale mixed-lubrication mode
 standalone Python call: one periodic rough cell, a macro state in, homogenised corrections
 and fields out.  FEniCS 2019.1.0 (conda env `ehl-fenics`, `environment.yml`), run in WSL/Linux.
 
-Extracted from `MultiscaleMixedBallinSocket` at commit `2aaccad`.  State: WP2 of
+Extracted from `MultiscaleMixedBallinSocket` at commit `2aaccad`.  State: WP3 of
 `docs/notes/micro_standalone_plan_2026-11-11.md` (the physics and hooks the plan dropped are
-pruned from five solver files, marked in the provenance table; the other files are verbatim
-copies; the settings collapse is a later work package).
+pruned from five solver files in WP2, and the helpers the solve does not reach are pruned or
+removed in WP3; both are marked in the provenance table; the other files are verbatim copies;
+the settings collapse is a later work package).
 
 ## The call
 
@@ -75,8 +76,18 @@ text: the spring film coupling (`k_spring`), the `legacy_patch_v1` and `hertz_su
 Roelands and compressibility stubs, `gauge_lift`, the `c2` cavitation form, the solver's export
 hooks, the warm-start plumbing, the contact-table code and the solver's environment reads are
 gone.  What went, group by group, with the parity after each:
-`docs/notes/micro_standalone_wp2_implementation_log_2026-11-11.md`.  The unmarked files are
-still the parent's.
+`docs/notes/micro_standalone_wp2_implementation_log_2026-11-11.md`.
+
+WP3 (11 Nov 2026) pruned the helpers.  The files marked "pruned in WP3" lost the code the
+micro solve does not reach: the macro-frame and batch code of the shear modules, the remains
+of the removed contact laws, the macro-side helpers of `pressure.py`, the surface store and its
+`EHL_SURFACE_STORE` read, and in `roughness/` everything but the Gaussian IAAFT generator, the
+Fourier evaluator, the in-memory surface field and the translating surface's kinematics
+(`ideal_ht.py`: a docstring only).  The eight files marked "removed in WP3" are no longer in
+the repo; their rows stay as the record of what was copied.  `Roughness.generated` calls the
+generator directly and returns the same arrays, bit for bit.  What went, group by group, with
+the parity after each: `docs/notes/micro_standalone_wp3_implementation_log_2026-11-11.md`.
+The unmarked files are still the parent's.
 
 | File | Parent path | Parent blob |
 |---|---|---|
@@ -84,30 +95,30 @@ still the parent's.
 | `microcell/micro_phase_neutral_class_mixed.py` (pruned) | `microscale/src/functions/micro_phase_neutral_class_mixed.py` | 8feecdbaff |
 | `microcell/micro_phase_neutral_class_contact.py` (pruned) | `microscale/src/functions/micro_phase_neutral_class_contact.py` | eea045cf74 |
 | `microcell/micro_diagnostics.py` (pruned) | `microscale/src/functions/micro_diagnostics.py` | a09479ce6b |
-| `microcell/contact_sample.py` | `microscale/src/functions/contact_sample.py` | 4f77a66bac |
-| `microcell/ideal_ht.py` | `microscale/src/functions/ideal_ht.py` | f314c7af1b |
+| `microcell/contact_sample.py` (pruned in WP3) | `microscale/src/functions/contact_sample.py` | 4f77a66bac |
+| `microcell/ideal_ht.py` (pruned in WP3) | `microscale/src/functions/ideal_ht.py` | f314c7af1b |
 | `microcell/surface_ht.py` | `microscale/src/functions/surface_ht.py` | 6775f693ea |
-| `microcell/contact.py` (pruned) | `ehl/contact.py` | 1ac7dff6ec |
+| `microcell/contact.py` (pruned, and again in WP3) | `ehl/contact.py` | 1ac7dff6ec |
 | `microcell/elastic_contact.py` | `ehl/elastic_contact.py` | 95ed9d78bf |
 | `microcell/ripple.py` | `ehl/ripple.py` | a869e99b30 |
-| `microcell/pressure.py` | `ehl/pressure.py` | 1c7da166fc |
+| `microcell/pressure.py` (pruned in WP3) | `ehl/pressure.py` | 1c7da166fc |
 | `microcell/shear_reduce.py` | `ehl/shear_reduce.py` | ca9e9f9984 |
-| `microcell/fluid_shear.py` | `ehl/fluid_shear.py` | d927ff9942 |
-| `microcell/contact_shear.py` | `ehl/contact_shear.py` | e659bf06ee |
-| `microcell/roughness/__init__.py` | `ehl/roughness/__init__.py` | 8b51a21a22 |
-| `microcell/roughness/assets.py` | `ehl/roughness/assets.py` | bfe9e91419 |
-| `microcell/roughness/case.py` | `ehl/roughness/case.py` | c17eb1b970 |
-| `microcell/roughness/evaluator.py` | `ehl/roughness/evaluator.py` | 7e9c2e37b5 |
-| `microcell/roughness/generation.py` | `ehl/roughness/generation.py` | e504b70d2a |
-| `microcell/roughness/modes.py` | `ehl/roughness/modes.py` | f536399412 |
-| `microcell/roughness/pair.py` | `ehl/roughness/pair.py` | 4ccdc3b411 |
-| `microcell/roughness/prepare.py` | `ehl/roughness/prepare.py` | a295e10e72 |
-| `microcell/roughness/quantiles.py` | `ehl/roughness/quantiles.py` | b6404d1533 |
-| `microcell/roughness/report.py` | `ehl/roughness/report.py` | d07a6018a7 |
-| `microcell/roughness/runtime.py` | `ehl/roughness/runtime.py` | 5bf5215837 |
-| `microcell/roughness/spec.py` | `ehl/roughness/spec.py` | f8692c4625 |
-| `microcell/roughness/stats.py` | `ehl/roughness/stats.py` | 0fab7913cb |
-| `microcell/roughness/targets.py` | `ehl/roughness/targets.py` | 63449dd2ef |
+| `microcell/fluid_shear.py` (pruned in WP3) | `ehl/fluid_shear.py` | d927ff9942 |
+| `microcell/contact_shear.py` (pruned in WP3) | `ehl/contact_shear.py` | e659bf06ee |
+| `microcell/roughness/__init__.py` (pruned in WP3) | `ehl/roughness/__init__.py` | 8b51a21a22 |
+| `microcell/roughness/assets.py` (removed in WP3) | `ehl/roughness/assets.py` | bfe9e91419 |
+| `microcell/roughness/case.py` (removed in WP3) | `ehl/roughness/case.py` | c17eb1b970 |
+| `microcell/roughness/evaluator.py` (pruned in WP3) | `ehl/roughness/evaluator.py` | 7e9c2e37b5 |
+| `microcell/roughness/generation.py` (pruned in WP3) | `ehl/roughness/generation.py` | e504b70d2a |
+| `microcell/roughness/modes.py` (removed in WP3) | `ehl/roughness/modes.py` | f536399412 |
+| `microcell/roughness/pair.py` (pruned in WP3) | `ehl/roughness/pair.py` | 4ccdc3b411 |
+| `microcell/roughness/prepare.py` (removed in WP3) | `ehl/roughness/prepare.py` | a295e10e72 |
+| `microcell/roughness/quantiles.py` (pruned in WP3) | `ehl/roughness/quantiles.py` | b6404d1533 |
+| `microcell/roughness/report.py` (removed in WP3) | `ehl/roughness/report.py` | d07a6018a7 |
+| `microcell/roughness/runtime.py` (pruned in WP3) | `ehl/roughness/runtime.py` | 5bf5215837 |
+| `microcell/roughness/spec.py` (removed in WP3) | `ehl/roughness/spec.py` | f8692c4625 |
+| `microcell/roughness/stats.py` (removed in WP3) | `ehl/roughness/stats.py` | 0fab7913cb |
+| `microcell/roughness/targets.py` (removed in WP3) | `ehl/roughness/targets.py` | 63449dd2ef |
 | `microcell/form_compiler.py` | `utils/form_compiler.py` | 583df10d92 |
 | `microcell/process_settings.py` | `macroscale/src/functions/process_settings.py` | 3893447028 |
 | `scripts/ehl_env.sh` | `scripts/ehl_env.sh` | 1c7dca4e8f |
