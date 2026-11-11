@@ -1,13 +1,13 @@
-"""The prepared surfaces of a run, as a micro worker uses them (R4, R5a).
+"""The surfaces of a cell, as the solver uses them (R4, R5a).
 
-A worker receives the arrangement *descriptor* (``MicroCase.surface``, the
-canonical JSON of :mod:`ehl.roughness.case`) and loads it once into a
-:class:`SurfaceField`: every member artefact read and verified against the
-descriptor (recipe id, array hash, shape, cell), one
-:class:`~ehl.roughness.evaluator.FourierSurface` per member with the recorded
-bandwidth, and the member offsets.  Everything the solver sees of the surface
-comes from :meth:`SurfaceField.nodal` / :meth:`SurfaceField.at_unit`, i.e.
-from the one Fourier evaluator (decision D4).
+:class:`SurfaceField` holds the evaluation of the cell's member surfaces: one
+:class:`~microcell.roughness.evaluator.FourierSurface` per member with its
+bandwidth and offset.  It is built in memory by
+:class:`microcell.roughness.frontend.ArrayField` (the parent loaded it from a
+case descriptor and the artefact store; MicroCell WP3 removed that loader and
+the store).  Everything the solver sees of the surface comes from
+:meth:`SurfaceField.nodal` / :meth:`SurfaceField.at_unit`, i.e. from the one
+Fourier evaluator (decision D4).
 
 :class:`SurfaceContactHeight` is the rigid film ``fft_elastic_v1`` reads
 (``ht.contact_cosine.height`` in the contact solver): the interface of
@@ -27,22 +27,16 @@ Only NumPy and the standard library are imported (no FEniCS).
 """
 from __future__ import annotations
 
-import json
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Optional, Tuple
 
 import numpy as np
 
-from . import assets as A
-from .case import DESCRIPTOR_FORMAT, _abs
-from .evaluator import EVALUATOR_REVISION, Bandwidth, FourierSurface
 from .pair import pattern_displacement
 
-__all__ = ["RUNTIME_REVISION", "SurfaceField", "SurfaceMotion", "SurfaceContactHeight", "load_field"]
+__all__ = ["SurfaceField", "SurfaceMotion", "SurfaceContactHeight"]
 
 Shift = Tuple[float, float]
 _ZERO: Shift = (0.0, 0.0)
-
-RUNTIME_REVISION = "ehl.roughness.runtime/1"
 
 _CELL_RTOL = 1e-9
 
@@ -52,7 +46,8 @@ def _close(a: float, b: float) -> bool:
 
 
 class SurfaceField:
-    """The surfaces of one descriptor, loaded and verified.
+    """The member surfaces of one cell (the attributes are set by the subclass
+    :class:`microcell.roughness.frontend.ArrayField`).
 
     ``nodal(nx, ny, s)`` -> the summed gap perturbation ``z[j_y, i_x]`` [m] on
     the half-open ``ny x nx`` grid of the cell, the stationary member at its
@@ -61,50 +56,6 @@ class SurfaceField:
     coordinates (exact lattice look-up when the points lie on an n x m
     lattice, direct Fourier evaluation otherwise).
     """
-
-    def __init__(self, descriptor: Union[str, Dict[str, Any]]):
-        d = json.loads(descriptor) if isinstance(descriptor, str) else dict(descriptor)
-        if d.get("format") != DESCRIPTOR_FORMAT:
-            raise ValueError(f"surface descriptor format {d.get('format')!r} != {DESCRIPTOR_FORMAT!r}")
-        if d.get("sign") != "gap" or d.get("layout") != "z[j_y,i_x]":
-            raise ValueError("surface descriptor: sign must be 'gap' and layout 'z[j_y,i_x]'")
-        rec = d.get("reconstruction", {})
-        if rec.get("evaluator") != EVALUATOR_REVISION:
-            raise ValueError(f"surface descriptor: evaluator {rec.get('evaluator')!r} is not this code's "
-                             f"{EVALUATOR_REVISION!r} (a changed reconstruction is a new case)")
-        self.descriptor_json = A.canonical_json(d)
-        self.arrangement = str(d["arrangement"])
-        self.Lx, self.Ly = (float(v) for v in d["cell_m"])
-        self.bandwidth = Bandwidth(**rec.get("bandwidth", {}))
-        self.envelope_m = float(d["envelope_m"])
-        self.members: Dict[str, Tuple[FourierSurface, Tuple[float, float]]] = {}
-        self.member_ids: Dict[str, str] = {}
-        source_n = 0
-        for role in ("stationary", "translating"):
-            m = d["members"].get(role)
-            if m is None:
-                continue
-            p = A.load_artefact(_abs(m["artefact"]))
-            if p.recipe_id != m["recipe_id"] or p.array_sha256 != m["array_sha256"]:
-                raise A.ArtefactCorruptError(
-                    f"{m['artefact']}: recipe id / array hash differ from the descriptor's "
-                    f"({p.recipe_id[:12]}/{p.array_sha256[:12]} vs {m['recipe_id'][:12]}/"
-                    f"{m['array_sha256'][:12]})")
-            if list(p.z.shape) != list(m["shape"]):
-                raise A.ArtefactCorruptError(f"{m['artefact']}: shape {p.z.shape} != {m['shape']}")
-            if not (_close(p.Lx, self.Lx) and _close(p.Ly, self.Ly)):
-                raise ValueError(f"{m['artefact']}: cell {p.Lx:.6g} x {p.Ly:.6g} m != the descriptor's "
-                                 f"{self.Lx:.6g} x {self.Ly:.6g} m")
-            self.members[role] = (FourierSurface(p.z, p.Lx, p.Ly, self.bandwidth),
-                                  (float(m["offset_m"][0]), float(m["offset_m"][1])))
-            self.member_ids[role] = p.array_sha256
-            source_n = max(source_n, *p.z.shape)
-        if not self.members:
-            raise ValueError("surface descriptor has no members")
-        self.source_n = int(source_n)
-        self.translating = "translating" in self.members
-        self._static_cache: Dict[Tuple[int, int], np.ndarray] = {}
-        self._moving_cache: Dict[Tuple[int, int], Tuple[Shift, np.ndarray]] = {}
 
     def _shift(self, role: str, s: Shift) -> Shift:
         off = self.members[role][1]
@@ -192,20 +143,6 @@ def _lattice(u: np.ndarray, n_max: int = 2048) -> int:
     if np.allclose(v * n, np.rint(v * n), atol=1e-9, rtol=0) and np.rint(v * n).min() == 0:
         return n
     return 0
-
-
-_FIELDS: Dict[str, SurfaceField] = {}
-
-
-def load_field(descriptor: str) -> SurfaceField:
-    """The field of ``descriptor``, loaded once per process (worker
-    initialiser and tasks share it)."""
-    f = _FIELDS.get(descriptor)
-    if f is None:
-        f = SurfaceField(descriptor)
-        _FIELDS.clear()                         # one case per worker; drop a previous case's field
-        _FIELDS[descriptor] = f
-    return f
 
 
 class SurfaceMotion:

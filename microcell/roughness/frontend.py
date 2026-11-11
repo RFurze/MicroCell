@@ -11,10 +11,10 @@ Sign convention (the parent's): arrays are GAP perturbations ``z[j_y, i_x]`` [m]
 ``h = H0 + HT*t + z``; ``z < 0`` is an asperity.
 
 The parent loads a generated surface from a prepared artefact on disk through a case
-descriptor (``roughness/case.py``, ``roughness/runtime.py``).  Here the same
+descriptor (its ``roughness/case.py`` and ``roughness/runtime.py``).  Here the same
 ``SurfaceField`` object is built in memory from the arrays; the solver reads the field's
-attributes only, never a file.  ``roughness/case.py`` and the artefact store are not used
-(WP3 removes them).
+attributes only, never a file.  The parent's ``roughness/case.py``, its artefact store and
+the ``EHL_SURFACE_STORE`` read are not in this repo (removed in WP3).
 """
 from __future__ import annotations
 
@@ -36,8 +36,8 @@ class ArrayField(SurfaceField):
     """A ``SurfaceField`` built from arrays in memory.
 
     ``members``: role -> ``(z, (off_x, off_y))`` with role in ``("stationary", "translating")``.
-    Sets exactly the attributes ``SurfaceField.__init__`` sets, with the same arithmetic
-    (the envelope as ``roughness/case.py`` computes it), without the descriptor or the store."""
+    Sets exactly the attributes the parent's ``SurfaceField.__init__`` set, with the same arithmetic
+    (the envelope as the parent's ``roughness/case.py`` computes it), without the descriptor or the store."""
 
     def __init__(self, members: Dict[str, Tuple[np.ndarray, Tuple[float, float]]], Lx: float, Ly: float,
                  bandwidth: Optional[Bandwidth] = None):
