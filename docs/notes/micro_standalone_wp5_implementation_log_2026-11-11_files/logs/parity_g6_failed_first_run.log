@@ -1,0 +1,64 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________________________ test_parity_summary ______________________________
+
+    def test_parity_summary():
+        import test_parity as tp
+    
+        assert Path(tp.__file__).resolve().parent == TREE / "tests", f"test_parity imported from {tp.__file__}"
+        cols = ["cell", "status", "n_total", "n_exact", "n_outside", "max_rel", "worst", "n_setting", "n_scalar",
+                "n_diagnostic", "n_field"]
+        rows = ["\t".join(cols)]
+        detail = ["\t".join(["cell", "kind", "name", "rel", "ok"])]
+        total = exact = outside = 0
+        worst_all = 0.0
+        for cell in tp.reference_cells():
+>           res = tp.run_cell(cell)
+                  ^^^^^^^^^^^^^^^^^
+
+docs/notes/micro_standalone_wp5_implementation_log_2026-11-11_files/parity_summary.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_parity.py:464: in run_cell
+    out = microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+solver = <microcell.solver_contact.MicroPhaseNeutralContactSolver object at 0x7f9a265d6990>
+
+    def sample_contact_traction(solver):
+        """The asperity and total traction statistics of the solver's current phase (contact class, called
+        at the end of ``spatial_homogenisation``, on the sample set the fluid sampler of that call kept):
+    
+        * ``fft_elastic_v1``: ``p_a`` of the stored solution if its state key is current (no refresh here:
+          it would change the mask the fluid was solved with), checked against the grid and the solution's
+          own ``Pasp_hom`` (``contact_shear.MEAN_CHECK_BUDGET``), then M3a's ``reduce_contact_and_total``
+          in the local frame (the means).
+        """
+        from microcell import shear as cs
+        from microcell.shear import GLOBAL_X, VALID_STATUSES as _FLUID_OK
+        smp = getattr(solver, "fluid_traction_samples", None)
+        fl = getattr(solver, "fluid_traction", None)
+        if smp is None or fl is None or smp.xy is None:
+            raise RuntimeError("sample_contact_traction needs this phase's fluid samples (sample_fluid_traction "
+                               "in spatial_homogenisation)")
+>       model = cs.FFT_MODEL                                        # the one contact law
+                ^^^^^^^^^^^^
+E       AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+
+microcell/samplers.py:495: AttributeError
+=========================== short test summary info ============================
+FAILED docs/notes/micro_standalone_wp5_implementation_log_2026-11-11_files/parity_summary.py::test_parity_summary
+1 failed in 3.11s
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 5 unused database options. They are:
+Option left: name:-ksp_error_if_not_converged value: true source: code
+Option left: name:-ksp_gmres_restart value: 100 source: code
+Option left: name:-ksp_initial_guess_nonzero value: true source: code
+Option left: name:-ksp_max_it value: 80 source: code
+Option left: name:-ksp_rtol value: 1e-5 source: code

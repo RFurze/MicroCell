@@ -1,0 +1,22 @@
+status        OK 
+dP            -1.305600e+05 Pa        (fluid pressure per cell area - P)
+P_asp         7.956753e+06 Pa        (asperity load per cell area)
+contact_frac  0.003200
+Q             (5.038756e-10, 7.855983e-12) m^2/s
+tau_fluid     (2.809790e+03, 5.458420e+01) Pa
+tau_asperity  (3.182701e+06, 0.000000e+00) Pa
+h_min, h_max  1.782500e-11, 6.269202e-08 m
+window        t_start 1.999625000e-02 s, dt 1.250000e-06 s, 3 steps
+iterations    Newton 22, contact 393, ripple passes 3
+wall time     3.60 s
+ParaView files:
+  /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/examples/output/pair_sa10_h25/cell.vts
+  /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/examples/output/pair_sa10_h25/cell.xdmf
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 5 unused database options. They are:
+Option left: name:-ksp_error_if_not_converged value: true source: code
+Option left: name:-ksp_gmres_restart value: 100 source: code
+Option left: name:-ksp_initial_guess_nonzero value: true source: code
+Option left: name:-ksp_max_it value: 80 source: code
+Option left: name:-ksp_rtol value: 1e-5 source: code

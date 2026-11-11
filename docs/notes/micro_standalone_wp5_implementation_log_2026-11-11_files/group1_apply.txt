@@ -1,0 +1,48 @@
+# WP5 group 1, part 2: the commands run by hand in Git Bash from MicroCell/ after group1_build.sh
+M=microcell; B=_to_delete/wp5_2026-11-11/group1_build
+# the moves
+git mv $M/shear_reduce.py $M/shear.py;          cp "$B/shear.py" $M/shear.py
+git rm -q $M/fluid_shear.py $M/contact_shear.py
+git mv $M/micro_diagnostics.py $M/samplers.py;  cp "$B/samplers.py" $M/samplers.py
+git rm -q $M/contact_sample.py
+git mv $M/ideal_ht.py $M/film.py;               cp "$B/film.py" $M/film.py
+git rm -q $M/surface_ht.py
+cp "$B/contact.py" $M/contact.py
+git rm -q $M/elastic_contact.py
+git mv $M/micro_phase_neutral_class.py         $M/solver_base.py
+git mv $M/micro_phase_neutral_class_mixed.py   $M/solver_mixed.py
+git mv $M/micro_phase_neutral_class_contact.py $M/solver_contact.py
+
+# ---------------------------------------------------------------- imports of the files that stay
+sed -i -e '58s/microcell\.micro_diagnostics/microcell.samplers/' $M/solver_base.py
+sed -i -e '47s/microcell\.micro_phase_neutral_class /microcell.solver_base /' \
+       -e '54s/microcell\.micro_diagnostics/microcell.samplers/' $M/solver_mixed.py
+sed -i -e '30s/import elastic_contact as _ec/import contact as _ec/' \
+       -e '32s/microcell\.micro_phase_neutral_class_mixed/microcell.solver_mixed/' \
+       -e '73s/microcell\.micro_diagnostics/microcell.samplers/' \
+       -e '325s/microcell\.micro_diagnostics/microcell.samplers/' $M/solver_contact.py
+sed -i -e '47s/microcell\.elastic_contact/microcell.contact/' $M/ripple.py
+sed -i -e '300s/import contact_shear as _cshear/import shear as _cshear/' \
+       -e '315s/import contact_shear as _cshear/import shear as _cshear/' \
+       -e '316s/microcell\.fluid_shear/microcell.shear/' \
+       -e '413s/import contact_shear as _cshear/import shear as _cshear/' \
+       -e '417s/microcell\.fluid_shear/microcell.shear/' \
+       -e '418s/microcell\.ideal_ht/microcell.film/' \
+       -e '419s/microcell\.micro_phase_neutral_class /microcell.solver_base /' \
+       -e '420s/microcell\.micro_phase_neutral_class_contact/microcell.solver_contact/' \
+       -e '423s/microcell\.surface_ht/microcell.film/' $M/api.py
+
+# ---------------------------------------------------------------- the tests: import statements only
+for f in tests/*.py; do
+  sed -i -E '/^\s*(from|import) /{
+    s/micro_phase_neutral_class_contact/solver_contact/g
+    s/micro_phase_neutral_class_mixed/solver_mixed/g
+    s/micro_phase_neutral_class/solver_base/g
+    s/microcell\.(ideal_ht|surface_ht)/microcell.film/g
+    s/microcell\.(micro_diagnostics|contact_sample)/microcell.samplers/g
+    s/microcell\.elastic_contact/microcell.contact/g
+    s/from microcell import elastic_contact as/from microcell import contact as/
+    s/microcell\.(shear_reduce|fluid_shear|contact_shear)/microcell.shear/g
+  }' "$f"
+done
+echo "group 1 moves done"

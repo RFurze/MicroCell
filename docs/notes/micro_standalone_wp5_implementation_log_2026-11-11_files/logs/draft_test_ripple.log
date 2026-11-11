@@ -1,0 +1,17 @@
+................                                                         [100%]
+============================= slowest 6 durations ==============================
+6.48s call     tests/test_ripple_micro_fenics.py::test_mixed_per_step_record_holds_the_final_pass_only
+6.06s call     tests/test_ripple_micro_fenics.py::test_ripple_changes_the_solution_and_off_is_the_plain_solver
+3.23s call     tests/test_ripple_micro_fenics.py::test_DV1_smooth_cell_has_no_ripple_and_the_mean_film_is_H0
+2.28s call     tests/test_ripple_micro_fenics.py::test_DV2_one_mode_target_is_the_analytic_response
+1.70s call     tests/test_ripple_micro_fenics.py::test_DV3_tiled_fe_cell_gives_the_tiled_target
+1.50s call     tests/test_ripple_micro_fenics.py::test_rippled_cell_accepts_after_at_least_two_passes_with_zero_mean
+16 passed in 26.65s
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 5 unused database options. They are:
+Option left: name:-ksp_error_if_not_converged value: true source: code
+Option left: name:-ksp_gmres_restart value: 100 source: code
+Option left: name:-ksp_initial_guess_nonzero value: true source: code
+Option left: name:-ksp_max_it value: 80 source: code
+Option left: name:-ksp_rtol value: 1e-5 source: code

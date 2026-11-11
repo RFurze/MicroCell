@@ -1,0 +1,10 @@
+gate	count_line
+g0_base_d3b88ae	60 passed in 17.47s
+draft_g3_tests_on_base	104 passed, 2 warnings in 25.06s
+g1	104 passed, 2 warnings in 26.70s
+g2	109 passed, 2 warnings in 26.92s
+g3	109 passed in 27.13s
+g4	109 passed in 26.75s
+g5	109 passed in 27.04s
+g6	25 failed, 84 passed in 29.96s
+g6	109 passed in 26.51s

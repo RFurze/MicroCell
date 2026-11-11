@@ -1,0 +1,466 @@
+....FF.F..........................FFFF.FF..F..FFF.FFFFFF.FF.F....FF.F... [ 66%]
+.....................................                                    [100%]
+=================================== FAILURES ===================================
+______________ test_G2b_steady_and_transient_reproduce_numpy[0.0] ______________
+tests/test_fft_micro_fenics.py:174: in test_G2b_steady_and_transient_reproduce_numpy
+    s.spatial_homogenisation()
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+______________ test_G2b_steady_and_transient_reproduce_numpy[1.0] ______________
+tests/test_fft_micro_fenics.py:174: in test_G2b_steady_and_transient_reproduce_numpy
+    s.spatial_homogenisation()
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+_____________ test_G2b_reset_task_zeroes_and_matches_fresh_bitwise _____________
+tests/test_fft_micro_fenics.py:209: in test_G2b_reset_task_zeroes_and_matches_fresh_bitwise
+    ra = a.spatial_homogenisation(), a.compute_asperity_load()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+_____________________ test_parity[c1_gensa40_h200_ripple] ______________________
+tests/test_parity.py:549: in test_parity
+    res = run_cell(cell)
+          ^^^^^^^^^^^^^^
+tests/test_parity.py:464: in run_cell
+    out = microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+_____________________ test_parity[c2_gensa40_h130_ripple] ______________________
+tests/test_parity.py:549: in test_parity
+    res = run_cell(cell)
+          ^^^^^^^^^^^^^^
+tests/test_parity.py:464: in run_cell
+    out = microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+____________________ test_parity[c3_gensa40_h130_noripple] _____________________
+tests/test_parity.py:549: in test_parity
+    res = run_cell(cell)
+          ^^^^^^^^^^^^^^
+tests/test_parity.py:464: in run_cell
+    out = microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+____________________ test_parity[c4_wangpair10_h25_offset] _____________________
+tests/test_parity.py:549: in test_parity
+    res = run_cell(cell)
+          ^^^^^^^^^^^^^^
+tests/test_parity.py:464: in run_cell
+    out = microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+_______________________ test_parity[c6_cosine_fft_sqrt] ________________________
+tests/test_parity.py:549: in test_parity
+    res = run_cell(cell)
+          ^^^^^^^^^^^^^^
+tests/test_parity.py:464: in run_cell
+    out = microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+__________________ test_parity[c7_gensa40_h130_ripple_steady] __________________
+tests/test_parity.py:549: in test_parity
+    res = run_cell(cell)
+          ^^^^^^^^^^^^^^
+tests/test_parity.py:464: in run_cell
+    out = microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+____________________ test_comparator_sees_a_perturbed_solve ____________________
+tests/test_parity.py:579: in test_comparator_sees_a_perturbed_solve
+    res = run_cell("c2_gensa40_h130_ripple")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_parity.py:464: in run_cell
+    out = microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+__________________ test_failed_result_layout[contact_in_load] __________________
+tests/test_results.py:109: in test_failed_result_layout
+    ok = solve_ok(cell)
+         ^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+__________________ test_failed_result_layout[contact_in_run] ___________________
+tests/test_results.py:109: in test_failed_result_layout
+    ok = solve_ok(cell)
+         ^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+______________________ test_failed_result_layout[newton] _______________________
+tests/test_results.py:109: in test_failed_result_layout
+    ok = solve_ok(cell)
+         ^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+______________________ test_failed_result_layout[ripple] _______________________
+tests/test_results.py:109: in test_failed_result_layout
+    ok = solve_ok(cell)
+         ^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+____________________ test_table_names_outputs_and_statuses _____________________
+tests/test_results.py:212: in test_table_names_outputs_and_statuses
+    out = solve_ok(MIXED_CELL)
+          ^^^^^^^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+______ test_every_nan_has_a_status_reference_cell[c1_gensa40_h200_ripple] ______
+tests/test_results.py:222: in test_every_nan_has_a_status_reference_cell
+    out = solve_ok(cell)
+          ^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+______ test_every_nan_has_a_status_reference_cell[c2_gensa40_h130_ripple] ______
+tests/test_results.py:222: in test_every_nan_has_a_status_reference_cell
+    out = solve_ok(cell)
+          ^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+_____ test_every_nan_has_a_status_reference_cell[c3_gensa40_h130_noripple] _____
+tests/test_results.py:222: in test_every_nan_has_a_status_reference_cell
+    out = solve_ok(cell)
+          ^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+_____ test_every_nan_has_a_status_reference_cell[c4_wangpair10_h25_offset] _____
+tests/test_results.py:222: in test_every_nan_has_a_status_reference_cell
+    out = solve_ok(cell)
+          ^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+________ test_every_nan_has_a_status_reference_cell[c6_cosine_fft_sqrt] ________
+tests/test_results.py:222: in test_every_nan_has_a_status_reference_cell
+    out = solve_ok(cell)
+          ^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+__ test_every_nan_has_a_status_reference_cell[c7_gensa40_h130_ripple_steady] ___
+tests/test_results.py:222: in test_every_nan_has_a_status_reference_cell
+    out = solve_ok(cell)
+          ^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+_________ test_every_nan_has_a_status_forced_failure[contact_in_load] __________
+tests/test_results.py:231: in test_every_nan_has_a_status_forced_failure
+    out = solve_forced(case, monkeypatch)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_results.py:87: in solve_forced
+    return solve(cell)
+           ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+_________________ test_unexplained_nan_fails_the_result[field] _________________
+tests/test_results.py:243: in test_unexplained_nan_fails_the_result
+    ok = solve_ok(cell)
+         ^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+________________ test_unexplained_nan_fails_the_result[number] _________________
+tests/test_results.py:243: in test_unexplained_nan_fails_the_result
+    ok = solve_ok(cell)
+         ^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+_____________________ test_listed_output_needs_its_status ______________________
+tests/test_results.py:261: in test_listed_output_needs_its_status
+    mixed = solve_ok(MIXED_CELL)
+            ^^^^^^^^^^^^^^^^^^^^
+tests/test_results.py:64: in solve_ok
+    _OK[cell] = solve(cell)
+                ^^^^^^^^^^^
+tests/test_results.py:55: in solve
+    return microsolver(
+microcell/api.py:546: in microsolver
+    _p_max, _p_min, h_max, h_min, _qymax, _qymin, fmax, fmin) = solver.spatial_homogenisation()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/solver_contact.py:74: in spatial_homogenisation
+    self.contact_traction = sample_contact_traction(self)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+microcell/samplers.py:495: in sample_contact_traction
+    model = cs.FFT_MODEL                                        # the one contact law
+            ^^^^^^^^^^^^
+E   AttributeError: module 'microcell.shear' has no attribute 'FFT_MODEL'
+=========================== short test summary info ============================
+FAILED tests/test_fft_micro_fenics.py::test_G2b_steady_and_transient_reproduce_numpy[0.0]
+FAILED tests/test_fft_micro_fenics.py::test_G2b_steady_and_transient_reproduce_numpy[1.0]
+FAILED tests/test_fft_micro_fenics.py::test_G2b_reset_task_zeroes_and_matches_fresh_bitwise
+FAILED tests/test_parity.py::test_parity[c1_gensa40_h200_ripple] - AttributeE...
+FAILED tests/test_parity.py::test_parity[c2_gensa40_h130_ripple] - AttributeE...
+FAILED tests/test_parity.py::test_parity[c3_gensa40_h130_noripple] - Attribut...
+FAILED tests/test_parity.py::test_parity[c4_wangpair10_h25_offset] - Attribut...
+FAILED tests/test_parity.py::test_parity[c6_cosine_fft_sqrt] - AttributeError...
+FAILED tests/test_parity.py::test_parity[c7_gensa40_h130_ripple_steady] - Att...
+FAILED tests/test_parity.py::test_comparator_sees_a_perturbed_solve - Attribu...
+FAILED tests/test_results.py::test_failed_result_layout[contact_in_load] - At...
+FAILED tests/test_results.py::test_failed_result_layout[contact_in_run] - Att...
+FAILED tests/test_results.py::test_failed_result_layout[newton] - AttributeEr...
+FAILED tests/test_results.py::test_failed_result_layout[ripple] - AttributeEr...
+FAILED tests/test_results.py::test_table_names_outputs_and_statuses - Attribu...
+FAILED tests/test_results.py::test_every_nan_has_a_status_reference_cell[c1_gensa40_h200_ripple]
+FAILED tests/test_results.py::test_every_nan_has_a_status_reference_cell[c2_gensa40_h130_ripple]
+FAILED tests/test_results.py::test_every_nan_has_a_status_reference_cell[c3_gensa40_h130_noripple]
+FAILED tests/test_results.py::test_every_nan_has_a_status_reference_cell[c4_wangpair10_h25_offset]
+FAILED tests/test_results.py::test_every_nan_has_a_status_reference_cell[c6_cosine_fft_sqrt]
+FAILED tests/test_results.py::test_every_nan_has_a_status_reference_cell[c7_gensa40_h130_ripple_steady]
+FAILED tests/test_results.py::test_every_nan_has_a_status_forced_failure[contact_in_load]
+FAILED tests/test_results.py::test_unexplained_nan_fails_the_result[field] - ...
+FAILED tests/test_results.py::test_unexplained_nan_fails_the_result[number]
+FAILED tests/test_results.py::test_listed_output_needs_its_status - Attribute...
+25 failed, 84 passed in 29.96s
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 5 unused database options. They are:
+Option left: name:-ksp_error_if_not_converged value: true source: code
+Option left: name:-ksp_gmres_restart value: 100 source: code
+Option left: name:-ksp_initial_guess_nonzero value: true source: code
+Option left: name:-ksp_max_it value: 80 source: code
+Option left: name:-ksp_rtol value: 1e-5 source: code

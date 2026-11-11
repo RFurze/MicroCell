@@ -1,0 +1,19 @@
+cell	mesh_n	contact	ripple	t_end_s	n_steps_asked	steps_from_cfl_rule	status	t_start_s	dt_s	steps_marched	newton_iters	contact_iters	ripple_passes	wall_s	wall_per_step_s	dP_Pa	P_asp_Pa
+A_gensa40_h130_stationary	100	True	True	2.000000000e-02	3	16000	OK	1.999625000e-02	1.250000000e-06	3	6	49	2	3.36	1.119	-7.415780452e+04	6.026039579e+07
+A_gensa40_h130_stationary	100	True	True	1.300000000e-05	1000000	11	OK	0.000000000e+00	1.181818182e-06	11	14	57	2	0.91	0.082	-7.415780462e+04	6.026039579e+07
+A_gensa40_h130_stationary	100	True	True	2.600000000e-05	1000000	21	OK	0.000000000e+00	1.238095238e-06	21	24	67	2	1.31	0.062	-7.415780454e+04	6.026039579e+07
+B_gensa40_h130_translating	100	True	True	2.000000000e-02	3	16000	FAILED_NEWTON	1.999625000e-02	1.250000000e-06	-1	0	82	1	14.42	14.416	nan	nan
+B_gensa40_h130_translating	100	True	True	1.300000000e-05	1000000	11	FAILED_NEWTON	0.000000000e+00	1.181818182e-06	-1	0	84	1	14.79	14.791	nan	nan
+B_gensa40_h130_translating	100	True	True	2.600000000e-05	1000000	21	FAILED_NEWTON	0.000000000e+00	1.238095238e-06	-1	0	82	1	14.35	14.347	nan	nan
+C_cosine_fullfilm_translating	32	False	False	3.320312500e-05	1000000	9	OK	0.000000000e+00	3.689236111e-06	9	20	0	0	6.90	0.767	8.149072528e-10	0.000000000e+00
+C_cosine_fullfilm_translating	32	False	False	3.320312500e-05	9	9	OK	0.000000000e+00	3.689236111e-06	9	20	0	0	0.15	0.016	8.149072528e-10	0.000000000e+00
+C_cosine_fullfilm_translating	32	False	False	3.320312500e-05	12	9	OK	0.000000000e+00	3.689236111e-06	9	20	0	0	0.15	0.016	8.149072528e-10	0.000000000e+00
+C_cosine_fullfilm_translating	32	False	False	3.320312500e-05	3	9	OK	2.148437500e-05	3.906250000e-06	3	8	0	0	0.09	0.031	1.629814506e-09	0.000000000e+00
+
+check	result
+C: n_steps=10**6 bitwise equal to n_steps=9	True
+C: n_steps=10**6 bitwise equal to n_steps=12	True
+C: n_steps=10**6 bitwise equal to n_steps=3 (a 3-step window; expected False)	False
+C: t_start of n_steps=10**6	0.0
+C: dt * 9 - t_end of n_steps=10**6	0.0
+C: dP n_steps=10**6 / n_steps=3	8.149072527885437e-10 / 1.6298145055770874e-09

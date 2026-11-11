@@ -1,0 +1,17 @@
+                      status       dP [Pa]      Qx [m^2/s]  tau_fluid_x [Pa]    p_min [Pa]    p_max [Pa]     h_min [m]  Newton  wall [s]
+pocket_stationary         OK     1.038e-08    1.919138e-09      4.210410e+02  9.711496e+04  1.028850e+05  9.095279e-08       5      2.51
+pocket_translating        OK     1.519e-07    2.081139e-09      3.994671e+02  9.711512e+04  1.028865e+05  9.095279e-08       8      0.70
+ParaView files, pocket_stationary:
+  /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/examples/output/pocket_stationary/cell.vts
+  /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/examples/output/pocket_stationary/cell.xdmf
+ParaView files, pocket_translating:
+  /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/examples/output/pocket_translating/cell.vts
+  /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/examples/output/pocket_translating/cell.xdmf
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 5 unused database options. They are:
+Option left: name:-ksp_error_if_not_converged value: true source: code
+Option left: name:-ksp_gmres_restart value: 100 source: code
+Option left: name:-ksp_initial_guess_nonzero value: true source: code
+Option left: name:-ksp_max_it value: 80 source: code
+Option left: name:-ksp_rtol value: 1e-5 source: code

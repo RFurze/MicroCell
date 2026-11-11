@@ -1,0 +1,28 @@
+file	lines	target_of_plan	n_top_level_names	top_level_names
+__init__.py	13	(not in a merge)	1	__all__
+api.py	628	(not in a merge)	29	OK CONTACT_OFF FAILED_NEWTON FAILED_RIPPLE FAILED_CONTACT FAILED_NONFINITE STATUSES _EXTREMA _FLUID _ASPERITY _TOTAL NAN_STATUS _NAN Zeta ContactSettings RippleSettings MicroSettings MicroResult _PROCESS_READY _ensure_process reynolds_flux _SOLVE_NUMBERS _RIPPLE_NUMBERS _vec2 _full_film_contact_shear _failed_result _not_finite unexplained_nonfinite microsolver
+contact.py	12	contact.py	2	FFT ContactResolutionError
+contact_sample.py	394	samplers.py	23	CONTACT_SAMPLER SAMPLER_DEFINITION STATUS_OK STATUS_NO_SUPPORT STATUS_STATE_INVALID CONTACT_VALID_STATUSES STATISTIC_NATIVE STATISTIC_INTERPOLATED SNAP_TOL ZERO_SPEED_EPS ContactSamples _grid_coords periodic_p1 _empty sample_contact p1_lumped_weights sliding_direction asperity_traction _pad3 total_traction support_report ContactTotalReduction reduce_contact_and_total
+contact_shear.py	247	shear.py	25	CONTACT_SAMPLER FLUID_SAMPLER CONTACT_SHEAR_DEFINITION MEAN_CHECK_BUDGET OK NO_SUPPORT STATE_INVALID STATE_MISMATCH CHECK_FAILED PHASE_INVALID FAILED UNAVAILABLE _PHASE_BAD _nan2 ContactTractionPhase _contact_support_numbers invalid_phase mean_check phase_from_reductions mismatch _wmean union_contact_traction FIELDS contact_shear_fields failed_contact_shear_fields
+elastic_contact.py	365	contact.py	11	__all__ ContactInfeasibleError ContactNotConvergedError PeriodicHalfSpace ContactSolution _complementarity solve_contact contact_tangent p1_area periodic_components band_limited_sample
+fields.py	195	(not in a merge)	7	NM MPA extract_fields to_si _b64 write_vts write_xdmf
+fluid_shear.py	127	shear.py	9	SHEAR_SAMPLER SHEAR_EXTREMA_DEFINITION SHEAR_PHASE_INVALID SHEAR_FAILED FluidTractionPhase _NAN2 union_fluid_traction shear_fields failed_shear_fields
+form_compiler.py	92	(not in a merge)	14	QDEG_MACRO_SINGLE_SCALE QDEG_MACRO_MULTISCALE QDEG_MICRO_PHASE_NEUTRAL QDEG_MICRO_MIXED _PINNED _PINNED_BY _fc set_at_import pin pin_single_scale pin_multiscale pin_micro_worker pinned check
+ideal_ht.py	275	film.py	3	CosineContactDescriptor _rebuild_descriptor make_ideal_ht
+micro_diagnostics.py	435	samplers.py	23	__all__ MASK_CONTACT MASK_FILM FluidPressureSamples _vertex_maps fluid_pressure_samples quadrature_audit sample_fluid_pressure_extrema FILM_ANALYTIC FILM_CG1 _RULES _rule _quadrature_degree _cell_geometry _cg1_film_parts _film_at_points FluidTractionSamples fluid_traction_samples sample_fluid_traction _local_sliding_direction _grid_matches_mesh sample_contact_traction finish_contact_traction
+micro_phase_neutral_class.py	2735	solver.py (one file)	22	logger _EPSP_ND_CAP ADAPTIVE_DAMPING OMEGA_MIN NEWTON_BACKTRACK_MAX NEWTON_BACKTRACK_TOL NEWTON_BACKTRACK_WARMUP_ITERS OMEGA_RECOVERY_FACTOR OMEGA_CAP_SHRINK_FACTOR PRINT_NEWTON PRINT_TIMING TRACE_NEWTON BETA PATCH_PIN PATCH_PIN_KAPPA LEVEL_CONSTRAINT_WHOLE_CELL LEVEL_CONSTRAINT_FLUID_MEAN _PASS_COUNTERS PAIR_RIPPLE_MAXIT PeriodicBoundary DampingPolicy MicroPhaseNeutralSolver
+micro_phase_neutral_class_contact.py	328	solver.py (one file)	1	MicroPhaseNeutralContactSolver
+micro_phase_neutral_class_mixed.py	705	solver.py (one file)	2	MicroPhaseNeutralMixedSolver MicroPhaseNeutralSolver
+pressure.py	101	(not in a merge)	14	DELTA_P_DEFINITION PRESSURE_FIELDS PRESSURE_EXTREMA_SAMPLER PRESSURE_EXTREMA_DEFINITION EXTREMA_OK EXTREMA_NO_FLUID EXTREMA_PHASE_INVALID EXTREMA_FAILED PHASE_OK PHASE_NO_FLUID PHASE_NONFINITE FluidPressureExtrema union_pressure_extrema average_pressure_ledgers
+process_settings.py	70	(not in a merge)	7	MACRO_PETSC_OPTIONS MACRO_FORM_COMPILER _APPLIED apply_petsc_options apply_form_compiler_flags apply_macro_process_settings applied
+ripple.py	312	(not in a merge)	23	__all__ RIPPLE_MODEL FLUID_DEFORMATION_MODES ZERO_MEAN_TOL RippleNotConvergedError ripple_operator fluid_traction ripple_traction ripple zero_mean_residual check_zero_mean seam_traction_jump FIELD_TOL FORCE_TOL AREA_ABS_TOL AREA_REL_TOL SET_ABS_TOL SET_REL_TOL CONTRACTION_MAX transition_checks residual_acceptance deformation_model_tag pattern_shift
+roughness/__init__.py	29	(not in a merge)	1	__all__
+roughness/evaluator.py	327	(not in a merge)	5	__all__ EVALUATOR_REVISION Bandwidth _extended_axis FourierSurface
+roughness/frontend.py	207	(not in a merge)	7	ENVELOPE_OVERSAMPLE ROLES SA_RTOL SA_ATOL _mean_abs ArrayField Roughness
+roughness/generation.py	194	roughness/generation.py	12	__all__ HDS_CORR_LEN wavenumber_grid normalise_amplitude psd_gaussian_acf hpd_sorted_sample IAAFTResult _apply_order rank_remap iaaft err_h_legacy err_s_legacy
+roughness/pair.py	29	roughness/runtime.py	2	__all__ pattern_displacement
+roughness/quantiles.py	107	roughness/generation.py	12	__all__ _S2PI _EXPM2 _P0 _Q0 _P1 _Q1 _P2 _Q2 _polevl _p1evl norm_ppf
+roughness/runtime.py	212	roughness/runtime.py	9	__all__ Shift _ZERO _CELL_RTOL _close SurfaceField _lattice SurfaceMotion SurfaceContactHeight
+shear_reduce.py	186	shear.py	15	SHEAR_REDUCE_VERSION STATUS_OK STATUS_NO_SUPPORT STATUS_INVALID_SAMPLES STATUS_STATE_INVALID STATUS_PHASE_INVALID VALID_STATUSES STATISTIC_SAMPLE GLOBAL_X UNIT_TOL _NAN3 ShearReduction _direction _invalid reduce_traction
+surface_ht.py	88	film.py	2	_mesh_of make_surface_ht
+TOTAL	8413			

@@ -1,0 +1,14 @@
+              status       dP [Pa]      Qx [m^2/s]  tau_fluid_x [Pa]    p_min [Pa]    p_max [Pa]     h_min [m]  Newton  wall [s]
+transient         OK    -4.351e-06    2.249061e-09      3.675056e+02  4.079656e+07  4.080344e+07  7.566133e-08       5      2.18
+steady            OK    -4.448e-06    2.290823e-09      3.604079e+02  4.079675e+07  4.080325e+07  7.766133e-08       2      0.14
+ParaView files:
+  /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/examples/output/cosine_h120/cell.vts
+  /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/examples/output/cosine_h120/cell.xdmf
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 5 unused database options. They are:
+Option left: name:-ksp_error_if_not_converged value: true source: code
+Option left: name:-ksp_gmres_restart value: 100 source: code
+Option left: name:-ksp_initial_guess_nonzero value: true source: code
+Option left: name:-ksp_max_it value: 80 source: code
+Option left: name:-ksp_rtol value: 1e-5 source: code

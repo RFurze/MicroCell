@@ -1,0 +1,33 @@
+candidate	source_list	defined_in	uses_in_microcell_excl_definition_line	uses_in_tests_examples_tools	uses_in_the_four_parent_test_files
+reset_task	WP4 10	micro_phase_neutral_class.py 	4	1	6
+_reset_task_subclass	WP4 10	micro_phase_neutral_class.py micro_phase_neutral_class_contact.py micro_phase_neutral_class_mixed.py 	2	0	0
+_print_timing_summary	WP4 10	micro_phase_neutral_class.py 	1	0	0
+PRINT_NEWTON	WP4 10	micro_phase_neutral_class.py 	2	1	0
+PRINT_TIMING	WP4 10	micro_phase_neutral_class.py 	1	1	0
+TRACE_NEWTON	WP4 10	micro_phase_neutral_class.py 	1	0	0
+PATCH_PIN	WP4 10	micro_phase_neutral_class.py 	2	1	0
+FLUID_DEFORMATION_MODES	WP4 10	ripple.py 	3	0	0
+deformation_model_tag	WP4 10	ripple.py 	1	0	0
+ContactTotalReduction.as_dict / ShearReduction.as_dict	WP4 10, WP3 B3	contact_sample.py shear_reduce.py 	2	0	0
+SAMPLER_DEFINITION	WP3 A1	contact_sample.py 	0	0	0
+p1_lumped_weights	WP3 A2	contact_sample.py 	1	0	0
+FourierSurface.from_modes	WP3 B1	roughness/evaluator.py 	1	0	0
+FourierSurface.identity	WP3 B1	roughness/evaluator.py 	7	0	0
+FourierSurface.variances	WP3 B1	roughness/evaluator.py 	1	0	0
+FourierSurface.kx	WP3 B1	roughness/evaluator.py 	28	1	16
+SurfaceField.h_geom_min_bound	WP3 B2	roughness/runtime.py 	0	0	0
+ContactSamples.summary	WP3 B4	contact_sample.py 	2	2	0
+IAAFTResult.history	WP3 B5	roughness/generation.py 	25	0	5
+err_h_legacy	WP3 B6	roughness/generation.py 	2	0	0
+err_s_legacy	WP3 B6	roughness/generation.py 	2	0	0
+two_surface	WP3 B8	api.py ideal_ht.py 	16	0	1
+static_moving	WP3 B8	ideal_ht.py 	10	0	0
+h_base_nd	WP2		3	0	3
+MicroPhaseNeutralSolver alias (mixed file, last line)	WP2		1	0	0
+auto_solve	WP2	api.py micro_phase_neutral_class.py 	2	0	9
+logger	WP2	micro_phase_neutral_class.py 	1	0	0
+_epsP_nd_capped	WP2		2	0	0
+_contact_restarts	WP2	micro_phase_neutral_class_contact.py 	3	0	0
+_contact_restart_kinds	WP2	micro_phase_neutral_class_contact.py 	4	0	0
+record_homog	(seen in step 1)	micro_phase_neutral_class_mixed.py 	6	0	2
+homog_history	(seen in step 1)	micro_phase_neutral_class_mixed.py 	8	0	1

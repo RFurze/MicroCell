@@ -1,0 +1,6 @@
+.                                                                        [100%]
+1 passed in 2.02s
+s  (/home/robin/miniforge3/envs/ehl-fenics/bin/python)
+  PYTHONPATH /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell
+  DIJITSO    /home/robin/.cache/dijitso
+wslrun: [ehl-fenics] /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell $ python -m pytest docs/notes/micro_standalone_wp5_implementation_log_2026-11-11_files/check_unused_names.py -q -p no:cacheprovider 

@@ -1,0 +1,119 @@
+tests/test_fft_micro_fenics.py::test_G2b_mask_area_mesh_cells_equal_numpy_p1[40-5.8e-08-4e-08-0.337]
+tests/test_fft_micro_fenics.py::test_G2b_mask_area_mesh_cells_equal_numpy_p1[100-2e-08-1e-09-0.337]
+tests/test_fft_micro_fenics.py::test_G2b_mask_area_mesh_cells_equal_numpy_p1[100-1.95e-08-1e-09-1.9]
+tests/test_fft_micro_fenics.py::test_G2b_bdf_history_contains_uc_at_history_times
+tests/test_fft_micro_fenics.py::test_G2b_steady_and_transient_reproduce_numpy[0.0]
+tests/test_fft_micro_fenics.py::test_G2b_steady_and_transient_reproduce_numpy[1.0]
+tests/test_fft_micro_fenics.py::test_G2b_translation_refreshes_the_contact_state
+tests/test_fft_micro_fenics.py::test_G2b_reset_task_zeroes_and_matches_fresh_bitwise
+tests/test_fft_micro_fenics.py::test_G2b_infeasible_mean_gap_is_a_contact_failure
+tests/test_fluid_mean_fenics.py::test_i_ii_flooded_fluid_mean_and_dP
+tests/test_fluid_mean_fenics.py::test_iii_cavitating_dP_identity
+tests/test_fluid_mean_fenics.py::test_iv_no_fluid_bypass
+tests/test_fluid_mean_fenics.py::test_iv_small_fluid_region_converges
+tests/test_fluid_mean_fenics.py::test_v_rolls_leave_dP_invariant[one_node]
+tests/test_fluid_mean_fenics.py::test_v_rolls_leave_dP_invariant[quarter]
+tests/test_fluid_mean_fenics.py::test_vi_vii_interior_perturbation_and_pin
+tests/test_fluid_mean_fenics.py::test_off_is_bitwise_and_takes_no_fluid_mean_path
+tests/test_fluid_mean_fenics.py::test_full_film_fluid_mean_is_bitwise_whole_cell
+tests/test_fluid_mean_fenics.py::test_mf_reassembled_when_chi_changes
+tests/test_fluid_mean_fenics.py::test_unknown_setting_refused
+tests/test_fluid_mean_fenics.py::test_base_class_full_film_is_bitwise
+tests/test_fluid_mean_fenics.py::test_sampler_leaves_out_every_mf_zero_vertex
+tests/test_march.py::test_march_covers_the_whole_window
+tests/test_march.py::test_march_equals_the_integer_window_that_does_not_fit[0]
+tests/test_march.py::test_march_equals_the_integer_window_that_does_not_fit[3]
+tests/test_march.py::test_march_differs_from_the_three_step_window
+tests/test_march.py::test_a_steady_solve_ignores_n_steps
+tests/test_micro_phase_neutral_steady.py::test_flooded_baseline
+tests/test_micro_phase_neutral_steady.py::test_mesh_convergence
+tests/test_micro_phase_neutral_steady.py::test_newton_robustness_phase_sweep
+tests/test_micro_phase_neutral_steady.py::test_zero_mean_w_fluc
+tests/test_micro_phase_neutral_steady.py::test_symmetric_gradient
+tests/test_micro_phase_neutral_steady.py::test_import_and_instantiate
+tests/test_parity.py::test_references_present
+tests/test_parity.py::test_parity[c1_gensa40_h200_ripple]
+tests/test_parity.py::test_parity[c2_gensa40_h130_ripple]
+tests/test_parity.py::test_parity[c3_gensa40_h130_noripple]
+tests/test_parity.py::test_parity[c4_wangpair10_h25_offset]
+tests/test_parity.py::test_parity[c5_cosine_fullfilm]
+tests/test_parity.py::test_parity[c6_cosine_fft_sqrt]
+tests/test_parity.py::test_parity[c7_gensa40_h130_ripple_steady]
+tests/test_parity.py::test_parity[c8_cosine_fullfilm_steady]
+tests/test_parity.py::test_generated_surface_reproduces_reference
+tests/test_parity.py::test_comparator_sees_a_perturbed_solve
+tests/test_parity.py::test_removed_setting_is_checked
+tests/test_parity.py::test_removed_spring_is_checked
+tests/test_results.py::test_failed_result_layout[contact_in_load]
+tests/test_results.py::test_failed_result_layout[contact_in_run]
+tests/test_results.py::test_failed_result_layout[newton]
+tests/test_results.py::test_failed_result_layout[newton_full_film]
+tests/test_results.py::test_failed_result_layout[ripple]
+tests/test_results.py::test_table_names_outputs_and_statuses
+tests/test_results.py::test_every_nan_has_a_status_reference_cell[c1_gensa40_h200_ripple]
+tests/test_results.py::test_every_nan_has_a_status_reference_cell[c2_gensa40_h130_ripple]
+tests/test_results.py::test_every_nan_has_a_status_reference_cell[c3_gensa40_h130_noripple]
+tests/test_results.py::test_every_nan_has_a_status_reference_cell[c4_wangpair10_h25_offset]
+tests/test_results.py::test_every_nan_has_a_status_reference_cell[c5_cosine_fullfilm]
+tests/test_results.py::test_every_nan_has_a_status_reference_cell[c6_cosine_fft_sqrt]
+tests/test_results.py::test_every_nan_has_a_status_reference_cell[c7_gensa40_h130_ripple_steady]
+tests/test_results.py::test_every_nan_has_a_status_reference_cell[c8_cosine_fullfilm_steady]
+tests/test_results.py::test_every_nan_has_a_status_forced_failure[contact_in_load]
+tests/test_results.py::test_every_nan_has_a_status_forced_failure[contact_in_run]
+tests/test_results.py::test_every_nan_has_a_status_forced_failure[newton]
+tests/test_results.py::test_every_nan_has_a_status_forced_failure[newton_full_film]
+tests/test_results.py::test_every_nan_has_a_status_forced_failure[ripple]
+tests/test_results.py::test_unexplained_nan_fails_the_result[field]
+tests/test_results.py::test_unexplained_nan_fails_the_result[number]
+tests/test_results.py::test_unexplained_nan_fails_the_result[number_full_film]
+tests/test_results.py::test_listed_output_needs_its_status
+tests/test_ripple_micro_fenics.py::test_DV2_one_mode_target_is_the_analytic_response
+tests/test_ripple_micro_fenics.py::test_DV1_smooth_cell_has_no_ripple_and_the_mean_film_is_H0
+tests/test_ripple_micro_fenics.py::test_rippled_cell_accepts_after_at_least_two_passes_with_zero_mean
+tests/test_ripple_micro_fenics.py::test_ripple_changes_the_solution_and_off_is_the_plain_solver
+tests/test_ripple_micro_fenics.py::test_cap_raises_a_recorded_micro_failure_with_task_counters
+tests/test_ripple_micro_fenics.py::test_manufactured_contraction_pass_counts[0.0-2]
+tests/test_ripple_micro_fenics.py::test_manufactured_contraction_pass_counts[-0.5-3]
+tests/test_ripple_micro_fenics.py::test_manufactured_contraction_pass_counts[-2.0-3]
+tests/test_ripple_micro_fenics.py::test_manufactured_positive_gain_converges_at_the_clamp_and_gain_above_one_hits_the_cap
+tests/test_ripple_micro_fenics.py::test_reused_solver_equals_fresh_bitwise
+tests/test_ripple_micro_fenics.py::test_history_levels_carry_the_ripple_in_the_surface_frame[0.0]
+tests/test_ripple_micro_fenics.py::test_history_levels_carry_the_ripple_in_the_surface_frame[1.0]
+tests/test_ripple_micro_fenics.py::test_mixed_per_step_record_holds_the_final_pass_only
+tests/test_ripple_micro_fenics.py::test_DV3_tiled_fe_cell_gives_the_tiled_target
+tests/test_ripple_micro_fenics.py::test_DV3_seam_crossing_cavitation_is_reported
+tests/test_ripple_micro_fenics.py::test_refusals
+tests/test_settings.py::test_check_refuses[E_star nan]
+tests/test_settings.py::test_check_refuses[E_star nan, contact only]
+tests/test_settings.py::test_check_refuses[E_star nan, ripple only]
+tests/test_settings.py::test_check_refuses[E_star zero]
+tests/test_settings.py::test_check_refuses[contact.k_asp_mode]
+tests/test_settings.py::test_check_refuses[delta_h negative]
+tests/test_settings.py::test_check_refuses[eps_smooth inf]
+tests/test_settings.py::test_check_refuses[eps_solid nan]
+tests/test_settings.py::test_check_refuses[h_min nan with contact]
+tests/test_settings.py::test_check_refuses[h_min zero with contact]
+tests/test_settings.py::test_check_refuses[jacobian_reg_eps nan]
+tests/test_settings.py::test_check_refuses[level_constraint]
+tests/test_settings.py::test_check_refuses[mesh_n]
+tests/test_settings.py::test_check_refuses[ripple.maxpass]
+tests/test_settings.py::test_check_refuses[ripple.omega above one]
+tests/test_settings.py::test_check_refuses[ripple.omega zero]
+tests/test_settings.py::test_check_refuses[ripple.tol]
+tests/test_settings.py::test_check_refuses[spos_form]
+tests/test_settings.py::test_check_accepts[E_star nan with contact and ripple off]
+tests/test_settings.py::test_check_accepts[defaults]
+tests/test_settings.py::test_check_accepts[delta_h zero]
+tests/test_settings.py::test_check_accepts[full film, no ripple]
+tests/test_settings.py::test_check_accepts[h_min zero without contact]
+tests/test_settings.py::test_one_modulus
+
+109 tests collected in 2.85s
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 5 unused database options. They are:
+Option left: name:-ksp_error_if_not_converged value: true source: code
+Option left: name:-ksp_gmres_restart value: 100 source: code
+Option left: name:-ksp_initial_guess_nonzero value: true source: code
+Option left: name:-ksp_max_it value: 80 source: code
+Option left: name:-ksp_rtol value: 1e-5 source: code

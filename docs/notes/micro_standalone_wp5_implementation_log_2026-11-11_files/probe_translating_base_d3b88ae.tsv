@@ -1,0 +1,6 @@
+cell	status	newton_iters	contact_iters	ripple_passes	wall_s	dP_Pa	P_asp_Pa	contact_frac	reason
+gen Sa40 translating, H130, contact+ripple, n_steps=3	FAILED_NEWTON	0	82	1	17.17	nan	nan	nan	RuntimeError('MicroPhaseNeutralSolver: Newton (Schur) did not converge after 300 iterations.  ||F|| = 1.0654e-06  G = 1.9540e-14  H = -8.8818e-16  λ = 4.0546e+00')
+gen Sa40 translating, H130, contact, no ripple, n_steps=3	FAILED_NEWTON	0	82	0	13.95	nan	nan	nan	RuntimeError('MicroPhaseNeutralSolver: Newton (Schur) did not converge after 300 iterations.  ||F|| = 1.0654e-06  G = 1.9540e-14  H = -8.8818e-16  λ = 4.0546e+00')
+gen Sa40 translating, H200, contact+ripple, n_steps=3	OK	8	0	1	0.75	4.447997e-06	0.000000e+00	0.000000	
+gen Sa40 translating, H130, steady	OK	3	42	2	0.47	-7.415780e+04	6.026040e+07	0.001817	
+gen Sa40 translating, H400, full film, no ripple, n_steps=3	OK	8	0	0	6.70	9.976793e-08	0.000000e+00	0.000000	

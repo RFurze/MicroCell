@@ -1,0 +1,10 @@
+gate	tree	count_line	comparisons	exact	outside_1e-12	max_rel
+g0_base_d3b88ae	d3b88ae	60 passed in 17.47s	1100	1100	0	0.0
+draft_g3_tests_on_base	d3b88ae + untracked drafts	104 passed, 2 warnings in 25.06s	1100	1100	0	0.0
+g1	42fe16f	104 passed, 2 warnings in 26.70s	1100	1100	0	0.0
+g2	1f8005f	109 passed, 2 warnings in 26.92s	1100	1100	0	0.0
+g3	dc8ff75	109 passed in 27.13s	1100	1100	0	0.0
+g4	978623d	109 passed in 26.75s	1100	1100	0	0.0
+g5	413d773	109 passed in 27.04s	1100	1100	0	0.0
+g6	g6 edits, first try (not committed)	25 failed, 84 passed in 29.96s	-	-	-	-
+g6	f694669	109 passed in 26.51s	1100	1100	0	0.0

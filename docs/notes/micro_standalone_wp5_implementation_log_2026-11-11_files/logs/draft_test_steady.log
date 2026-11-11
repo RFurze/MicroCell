@@ -1,0 +1,29 @@
+......                                                                   [100%]
+=============================== warnings summary ===============================
+tests/test_micro_phase_neutral_steady.py:202
+  /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/tests/test_micro_phase_neutral_steady.py:202: PytestUnknownMarkWarning: Unknown pytest.mark.slow - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.slow
+
+tests/test_micro_phase_neutral_steady.py:237
+  /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell/tests/test_micro_phase_neutral_steady.py:237: PytestUnknownMarkWarning: Unknown pytest.mark.slow - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.slow
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================= slowest 10 durations =============================
+8.21s call     tests/test_micro_phase_neutral_steady.py::test_flooded_baseline
+6.25s call     tests/test_micro_phase_neutral_steady.py::test_mesh_convergence
+5.77s call     tests/test_micro_phase_neutral_steady.py::test_symmetric_gradient
+5.26s call     tests/test_micro_phase_neutral_steady.py::test_import_and_instantiate
+1.32s call     tests/test_micro_phase_neutral_steady.py::test_newton_robustness_phase_sweep
+0.12s call     tests/test_micro_phase_neutral_steady.py::test_zero_mean_w_fluc
+
+(4 durations < 0.005s hidden.  Use -vv to show these durations.)
+6 passed, 2 warnings in 27.12s
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 5 unused database options. They are:
+Option left: name:-ksp_error_if_not_converged value: true source: code
+Option left: name:-ksp_gmres_restart value: 100 source: code
+Option left: name:-ksp_initial_guess_nonzero value: true source: code
+Option left: name:-ksp_max_it value: 80 source: code
+Option left: name:-ksp_rtol value: 1e-5 source: code
