@@ -418,7 +418,6 @@ class MicroPhaseNeutralSolver:
         solver_settings: MicroSolverSettings,
         ht: Callable,
         auto_solve: bool = True,
-        warm_start_state: "dict | None" = None,
     ) -> None:
         # ---- persistent inputs ----
         self.mesh_m = mesh_m
@@ -466,58 +465,8 @@ class MicroPhaseNeutralSolver:
         self.spring_rtol: float = 1e-6
         self._area_total: float = 1.0
 
-        # ---- optional warm-start across cases (item 4 of the speedup
-        # investigation).  If a compatible state dict is supplied, seed
-        # (w_fluc, lambda_nd, mu_nd) with the previous case's converged
-        # values so the first Newton step starts much closer to the new
-        # solution.  Only applied when the local DOF count matches, so
-        # passing stale state from a different mesh is a no-op rather
-        # than a crash.
-        if warm_start_state is not None:
-            self._apply_warm_start(warm_start_state)
-
         if auto_solve:
             self.run_steady()
-
-    def _apply_warm_start(self, state: "dict") -> None:
-        """Seed (w, lambda_nd, mu_nd) from a previous solver's final state.
-
-        ``state`` may contain any subset of ``{"w", "lambda_nd", "mu_nd"}``;
-        missing keys are silently skipped.  ``w`` must be a 1-D array of
-        length ``self.w.vector().local_size()``; mismatched sizes are
-        logged and skipped (no crash) so the sweep driver can safely pass
-        state across mesh-compatible cases without manual validation.
-        """
-        w_vals = state.get("w")
-        if w_vals is not None:
-            v_arr = np.asarray(w_vals, dtype=float).ravel()
-            local_n = self.w.vector().local_size()
-            if v_arr.size == local_n:
-                self.w.vector().set_local(v_arr)
-                self.w.vector().apply("insert")
-            else:
-                logger.warning(
-                    f"warm_start_state['w'] size mismatch "
-                    f"({v_arr.size} vs {local_n}); seeding skipped for w."
-                )
-        lam = state.get("lambda_nd")
-        if lam is not None:
-            self.lambda_nd.assign(float(lam))
-        mu = state.get("mu_nd")
-        if mu is not None:
-            self.mu_nd = float(mu)
-
-    def warm_start_snapshot(self) -> "dict":
-        """Return a minimal (w, lambda_nd, mu_nd) dict suitable for
-        passing into another solver's ``warm_start_state``.  The ``w``
-        array is a *copy*, so subsequent solves on this instance won't
-        mutate it.
-        """
-        return {
-            "w": self.w.vector().get_local().copy(),
-            "lambda_nd": float(self.lambda_nd),
-            "mu_nd": float(self.mu_nd),
-        }
 
     # -------------------------
     # [Micro-perf P2.3c] Task re-targeting for per-worker solver reuse
@@ -1459,13 +1408,6 @@ class MicroPhaseNeutralSolver:
     # -------------------------
     _ripple_on = False          # class default: subclasses that never run the base film setup
     _pair_active = False        # [phase-table WP3] class default: the pair branch is never entered off
-    # [phase-table WP7a] the pair's u_r warm start across coupling iterations (WP7 plan section 3.1): class
-    # defaults, so that a path that never arms it (set_pair_warm) reads None everywhere
-    _pair_level = None          # the pair level being solved: None (the history build), 0 the seed, k step k
-    _pair_warm = None           # armed by set_pair_warm, taken by the next run()
-    _pair_warm_active = None    # the warm levels in use during a run
-    _pair_warm_out = None       # the run's converged (u_r, reference shift) per level, for the writer
-    _pair_warm_status = None
 
     def _ripple_setup(self) -> None:
         """Validate the setting and allocate ``ur_nd_func`` (from ``_setup_film_and_mask``;
@@ -1512,11 +1454,6 @@ class MicroPhaseNeutralSolver:
         self._pair_ref_shift = (0.0, 0.0)
         self._pair_written = None            # the field now in ur_nd_func [m]
         self._pair_iters = []                # inner iterations per level
-        self._pair_level = None              # [phase-table WP7a] nothing armed, applied or recorded
-        self._pair_warm = None
-        self._pair_warm_active = None
-        self._pair_warm_out = None
-        self._pair_warm_status = None
 
     def _periodic_grid(self):
         """``(n, i, j)``: Vper dof ``k`` is node ``(i[k], j[k])`` of the structured
@@ -1614,16 +1551,6 @@ class MicroPhaseNeutralSolver:
         converges the field at its own time in the lab frame; ripple_s3 ``_ripple_write_field``)."""
         if self._pair_active:
             s = self._ripple_surface_shift()
-            wa = self._pair_warm_active
-            if wa is not None and self._pair_level is not None and self._pair_level >= 1:
-                # [phase-table WP7a, WP7 plan section 3.1] step k of a warm run: iteration c - 1's converged
-                # step-k field, carried by the surface shift since its reference shift, in place of the
-                # previous level's carried field; _pair_u unchanged (the probe's injection point)
-                uw, sw = wa["levels"][self._pair_level]
-                d = (s[0] - sw[0], s[1] - sw[1])
-                self._pair_write(uw if (d[0] == 0.0 and d[1] == 0.0)
-                                 else _rp.pattern_shift(uw, d[0] / float(self.Lx), d[1] / float(self.Ly)))
-                return
             d = (s[0] - self._pair_ref_shift[0], s[1] - self._pair_ref_shift[1])
             u = self._pair_u if d == (0.0, 0.0) else _rp.pattern_shift(self._pair_u, d[0] / float(self.Lx),
                                                                         d[1] / float(self.Ly))
@@ -1868,7 +1795,7 @@ class MicroPhaseNeutralSolver:
     # recorded micro failure, kNN-filled as any other; review F12).  ``ripple_info["passes"]`` is the
     # largest inner-iteration count of a level and ``omega`` is NaN (ripple_s3 90-100).
     # -------------------------
-    def _pair_ripple_run(self, body: Callable, warm: "dict | None" = None) -> None:
+    def _pair_ripple_run(self, body: Callable) -> None:
         self._ripple_check_task()
         n, _i, _j = self._periodic_grid()
         self._ripple_u = None
@@ -1880,12 +1807,6 @@ class MicroPhaseNeutralSolver:
         self._pair_u = np.zeros((n, n))
         self._pair_iters = []
         self._pair_active = True
-        # [phase-table WP7a] armed (set_pair_warm, transient run only): record every level; the history build
-        # matches no level (WP7 plan section 3.1, R finding 2)
-        self._pair_level = None
-        self._pair_warm_active = None
-        self._pair_warm_out = None if warm is None else {}
-        self._pair_warm_status = None if warm is None else "cold"
         motion = getattr(self.ht_cb, "surface_motion", None)
         if motion is not None:
             # the kinematics the film refresh would set, needed for the reference shift before the
@@ -1894,13 +1815,10 @@ class MicroPhaseNeutralSolver:
         self._pair_ref_shift = self._ripple_surface_shift()
         self._pair_write(self._pair_u)
         self._on_ripple_pass_start()
-        if warm is not None and warm.get("levels") is not None:
-            self._pair_warm_begin(warm, n)
         try:
             body()
         finally:
             self._pair_active = False
-            self._pair_warm_active = None
         tgt = self._ripple_target()
         H0 = float(self.params.H0)
         u = self._pair_u
@@ -1911,58 +1829,6 @@ class MicroPhaseNeutralSolver:
                             "proj_err": tgt["proj_err"], "traction_overlap": tgt["overlap"],
                             "omega": float("nan"), "worst": {}, "model": _rp.RIPPLE_MODEL,
                             "inner_iterations": [int(k) for k in self._pair_iters]}
-
-    # -------------------------
-    # [phase-table WP7a] The pair's u_r warm start across transient coupling iterations
-    # (docs/plans/phase_table_wp7_plan_2026-11-05.md D2, section 3.1; the probe tests/phase_table/wp7_probe.py
-    # is the reference, gate G2).  The worker arms a transient pair run with iteration c - 1's converged
-    # u_r and reference shift at each level (seed 0, steps 1..n_steps) of the same node; unarmed, nothing
-    # below runs.  The seed level is set at the pass start, after the zero write, so the BDF history is
-    # built with it (``_ripple_write_field`` carries ``_pair_u``); step k's is written by
-    # ``_ripple_write_field`` at the step's geometry refresh.  The Newton state starts as it always does.
-    # -------------------------
-    def set_pair_warm(self, levels: "dict | None" = None, n_steps: "int | None" = None) -> None:
-        """Arm the next ``run`` (taken by it, whatever its path; only its transient pair branch uses it):
-        record each level's converged u_r [m] and reference shift [m] (:meth:`pair_warm_record`) and,
-        with ``levels`` = ``{level: (u (n x n), (sx, sy))}`` written for ``n_steps``, start from them.
-        A level shape other than the grid's, or an ``n_steps`` or a level set other than the run's, runs
-        cold (bitwise the unarmed run) and says why."""
-        self._pair_warm = {"levels": levels, "n_steps": None if n_steps is None else int(n_steps)}
-
-    def pair_warm_record(self) -> "dict | None":
-        """The last armed pair run's ``{"status", "levels", "n_steps"}``: status ``warm``, ``cold`` (armed
-        without levels), ``shape`` or ``n_steps`` (the levels did not fit; ran cold); ``levels`` the converged
-        levels ``{level: (u, shift)}`` (every level when the run succeeded).  None when not armed."""
-        if self._pair_warm_out is None:
-            return None
-        return {"status": self._pair_warm_status, "levels": self._pair_warm_out,
-                "n_steps": int(getattr(self, "n_steps_run", -1))}
-
-    def _pair_warm_begin(self, warm: dict, n: int) -> None:
-        """The seed level at the pass start (the probe's ``_on_ripple_pass_start``): ``_pair_u`` and
-        ``_pair_ref_shift`` from level 0, no write; the cold values kept for :meth:`_pair_warm_check`."""
-        lv = warm["levels"]
-        if 0 not in lv:
-            self._pair_warm_status = "n_steps"
-            return
-        if any(np.shape(u) != (n, n) or len(sh) != 2 for u, sh in lv.values()):
-            self._pair_warm_status = "shape"
-            return
-        self._pair_warm_cold = (self._pair_u, self._pair_ref_shift)
-        u0, s0 = lv[0]
-        self._pair_u = np.array(u0, dtype=float, copy=True)
-        self._pair_ref_shift = (float(s0[0]), float(s0[1]))
-        self._pair_warm_active = {"levels": lv, "n_steps": warm.get("n_steps")}
-        self._pair_warm_status = "warm"
-
-    def _pair_warm_check(self, n_steps: int) -> None:
-        """``_run_once``, once its ``n_steps`` is final and before the history build's first refresh: the
-        levels must be this run's (``n_steps`` and the level set 0..n_steps), else the cold state back."""
-        wa = self._pair_warm_active
-        if wa["n_steps"] != int(n_steps) or set(wa["levels"]) != set(range(int(n_steps) + 1)):
-            self._pair_u, self._pair_ref_shift = self._pair_warm_cold
-            self._pair_warm_active = None
-            self._pair_warm_status = "n_steps"
 
     def _pair_write(self, u) -> None:
         """``ur_nd_func`` <- ``u`` [m] (lab frame, the current time); every write bumps the contact
@@ -2022,11 +1888,6 @@ class MicroPhaseNeutralSolver:
         self._pair_u = u
         self._pair_ref_shift = self._ripple_surface_shift()
         self._pair_iters.append(it)
-        if self._pair_warm_out is not None and self._pair_level is not None:
-            # [phase-table WP7a] the level's converged field for the writer (the probe records the same)
-            self._pair_warm_out[int(self._pair_level)] = (np.array(u, dtype=float, copy=True),
-                                                          (float(self._pair_ref_shift[0]),
-                                                           float(self._pair_ref_shift[1])))
 
     def _steady_solve(self) -> None:
         """[Mixed P1.0 seam] Solve site used by run_steady().
@@ -2657,7 +2518,6 @@ class MicroPhaseNeutralSolver:
         any caller's hook): then every pass is a whole run and the callback fires in
         every pass (``self._ripple_pass`` says which).
         """
-        warm, self._pair_warm = self._pair_warm, None      # [phase-table WP7a] armed for this run only
         Tf = float(Tf)
         if Tf <= 0.0 or n_steps < 1:
             self.run_steady()
@@ -2667,7 +2527,7 @@ class MicroPhaseNeutralSolver:
                 # [phase-table WP3, plan D5] two members: the converged per-step branch replaces the
                 # pass loop (one run, u_r converged at every level); no end-level pass
                 self._pair_ripple_run(lambda: self._run_once(Tf, n_steps, cfl_target, dt_override,
-                                                             step_callback), warm=warm)
+                                                             step_callback))
                 return
             later = self._run_end_level_once if step_callback is None else None
             self._ripple_run(lambda: self._run_once(Tf, n_steps, cfl_target, dt_override,
@@ -2851,8 +2711,6 @@ class MicroPhaseNeutralSolver:
         self.T_start = T_start
         self.dt_dim_run = dt_dim
         self.n_steps_run = n_steps
-        if self._pair_warm_active is not None:
-            self._pair_warm_check(n_steps)      # [phase-table WP7a] before the history build's first refresh
         self.cfl_actual = Umax * dt_dim / h_elem if h_elem > 0 else 0.0
 
         # --- Initialise at T_start (rolling-steady fast-forward seed) -----
@@ -2913,7 +2771,6 @@ class MicroPhaseNeutralSolver:
         # [Mixed P1.0 seam] base: raw solve (pre-port behaviour); mixed
         # subclass overrides to _solve_with_spring() (spring-coupled seed).
         self._phase = "transient-seed"
-        self._pair_level = 0                     # [phase-table WP7a] the level index (a label; section 3.1)
         if self._ripple_on:
             self._ripple_level_begin("seed")
         self._seed_solve()
@@ -2947,7 +2804,6 @@ class MicroPhaseNeutralSolver:
         # --- Time-stepping loop ---
         for step in range(1, n_steps + 1):
             self._phase = f"step {step}/{n_steps}"
-            self._pair_level = step              # [phase-table WP7a] set before the step's refresh
             _t0 = time.perf_counter()
             t_dim = T_start + step * dt_dim
             self._set_time_level(t_dim)      # [WP2] time Constants, velocities, gradients, P_re
