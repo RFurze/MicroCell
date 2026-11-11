@@ -1,0 +1,405 @@
+cell	part	key	value
+c1	info	mesh_n	100
+c1	info	steady	False
+c1	info	t_end	0.02
+c1	info	n_steps	3
+c1	info	offset	(0.0, 0.0)
+c1	info	roughness_velocity_ratio	0.0
+c1	info	newton_iters	5
+c1	info	contact_iters	0
+c1	info	ripple_passes	1
+c1	info	contact_residual	0.0
+c1	info	contact_resolution	0.0
+c1	info	lambda_nd	0.0
+c1	info	spos_mean	0.0
+c1	info	t_start	0.01999625
+c1	info	dt	1.25e-06
+c1	info.fields	n	100
+c1	info.fields	T_end_s	0.02
+c1	info.fields	film_vs_solver_max_nm	1.1117307432712692e-12
+c1	info.fields	contact_residual_m	0.0
+c1	info.fields	film_min_nm	18.935814251123848
+c1	info.fields	film_rigid_min_nm	18.935814251123848
+c1	info.fields	p_fluid_max_MPa	40.802186952789015
+c1	info.fields	p_contact_max_MPa	0.0
+c1	info.fields	contact_nodes	0
+c1	info.fields	u_ripple_maxabs_nm	0.0
+c1	info.fields	u_contact_maxabs_nm	0.0
+c1	info.fields	chi_dg0_mean	1.0
+c1	info	wall_time	0.7879974842071533
+c1	info	pressure_extrema_status	ok
+c1	info	shear_extrema_status	no_frame
+c1	info	shear_asperity_status	no_frame
+c1	info	shear_total_status	no_frame
+c1	info	deformation_model	ripple_halfspace_v1
+c1	info	contact_model	fft_elastic_v1
+c1	info	level_constraint	whole_cell
+c1	fields	p_contact	shape (101, 101)
+c1	fields	clearance	shape (101, 101)
+c1	fields	mask_level	shape (101, 101)
+c1	fields	overclosure	shape (101, 101)
+c1	fields	p_fluid	shape (101, 101)
+c1	fields	p_fluid_masked	shape (101, 101)
+c1	fields	p_total	shape (101, 101)
+c1	fields	film	shape (101, 101)
+c1	fields	film_rigid	shape (101, 101)
+c1	fields	surface_height	shape (101, 101)
+c1	fields	u_ripple	shape (101, 101)
+c1	fields	u_contact	shape (101, 101)
+c1	fields	u_total	shape (101, 101)
+c1	fields	contact	shape (101, 101)
+c1	fields	chi_fluid	shape (101, 101)
+c1	fields	x	shape (101, 101)
+c1	fields	y	shape (101, 101)
+c1	fields	chi_fluid_dg0	shape (20000,)
+c2	info	mesh_n	100
+c2	info	steady	False
+c2	info	t_end	0.02
+c2	info	n_steps	3
+c2	info	offset	(0.0, 0.0)
+c2	info	roughness_velocity_ratio	0.0
+c2	info	newton_iters	6
+c2	info	contact_iters	49
+c2	info	ripple_passes	2
+c2	info	contact_residual	9.21810074629094e-21
+c2	info	contact_resolution	7.0
+c2	info	lambda_nd	0.0
+c2	info	spos_mean	0.0
+c2	info	t_start	0.01999625
+c2	info	dt	1.25e-06
+c2	info.fields	n	100
+c2	info.fields	T_end_s	0.02
+c2	info.fields	film_vs_solver_max_nm	6.088049308390284e-13
+c2	info.fields	contact_residual_m	9.21810074629094e-21
+c2	info.fields	film_min_nm	0.010330999993595361
+c2	info.fields	film_rigid_min_nm	-51.06418574887614
+c2	info.fields	p_fluid_max_MPa	41.83211155373441
+c2	info.fields	p_contact_max_MPa	82734.87678682207
+c2	info.fields	contact_nodes	20
+c2	info.fields	u_ripple_maxabs_nm	0.04103892169312418
+c2	info.fields	u_contact_maxabs_nm	51.11555567057795
+c2	info.fields	chi_dg0_mean	0.9981833333333334
+c2	info	wall_time	0.6451683044433594
+c2	info	pressure_extrema_status	ok
+c2	info	shear_extrema_status	no_frame
+c2	info	shear_asperity_status	no_frame
+c2	info	shear_total_status	no_frame
+c2	info	deformation_model	ripple_halfspace_v1
+c2	info	contact_model	fft_elastic_v1
+c2	info	level_constraint	whole_cell
+c2	fields	p_contact	shape (101, 101)
+c2	fields	clearance	shape (101, 101)
+c2	fields	mask_level	shape (101, 101)
+c2	fields	overclosure	shape (101, 101)
+c2	fields	p_fluid	shape (101, 101)
+c2	fields	p_fluid_masked	shape (101, 101)
+c2	fields	p_total	shape (101, 101)
+c2	fields	film	shape (101, 101)
+c2	fields	film_rigid	shape (101, 101)
+c2	fields	surface_height	shape (101, 101)
+c2	fields	u_ripple	shape (101, 101)
+c2	fields	u_contact	shape (101, 101)
+c2	fields	u_total	shape (101, 101)
+c2	fields	contact	shape (101, 101)
+c2	fields	chi_fluid	shape (101, 101)
+c2	fields	x	shape (101, 101)
+c2	fields	y	shape (101, 101)
+c2	fields	chi_fluid_dg0	shape (20000,)
+c3	info	mesh_n	100
+c3	info	steady	False
+c3	info	t_end	0.02
+c3	info	n_steps	3
+c3	info	offset	(0.0, 0.0)
+c3	info	roughness_velocity_ratio	0.0
+c3	info	newton_iters	5
+c3	info	contact_iters	33
+c3	info	ripple_passes	0
+c3	info	contact_residual	1.6060538773329585e-20
+c3	info	contact_resolution	7.0
+c3	info	lambda_nd	0.0
+c3	info	spos_mean	0.0
+c3	info	t_start	0.01999625
+c3	info	dt	1.25e-06
+c3	info.fields	n	100
+c3	info.fields	T_end_s	0.02
+c3	info.fields	film_vs_solver_max_nm	7.940933880509066e-13
+c3	info.fields	contact_residual_m	1.6060538773329585e-20
+c3	info.fields	film_min_nm	0.010330999983940508
+c3	info.fields	film_rigid_min_nm	-51.06418574887614
+c3	info.fields	p_fluid_max_MPa	41.83211155373441
+c3	info.fields	p_contact_max_MPa	82695.95138395298
+c3	info.fields	contact_nodes	20
+c3	info.fields	u_ripple_maxabs_nm	0.0
+c3	info.fields	u_contact_maxabs_nm	51.074516748871254
+c3	info.fields	chi_dg0_mean	0.9981833333333334
+c3	info	wall_time	0.525263786315918
+c3	info	pressure_extrema_status	ok
+c3	info	shear_extrema_status	no_frame
+c3	info	shear_asperity_status	no_frame
+c3	info	shear_total_status	no_frame
+c3	info	deformation_model	off
+c3	info	contact_model	fft_elastic_v1
+c3	info	level_constraint	whole_cell
+c3	fields	p_contact	shape (101, 101)
+c3	fields	clearance	shape (101, 101)
+c3	fields	mask_level	shape (101, 101)
+c3	fields	overclosure	shape (101, 101)
+c3	fields	p_fluid	shape (101, 101)
+c3	fields	p_fluid_masked	shape (101, 101)
+c3	fields	p_total	shape (101, 101)
+c3	fields	film	shape (101, 101)
+c3	fields	film_rigid	shape (101, 101)
+c3	fields	surface_height	shape (101, 101)
+c3	fields	u_contact	shape (101, 101)
+c3	fields	u_total	shape (101, 101)
+c3	fields	contact	shape (101, 101)
+c3	fields	chi_fluid	shape (101, 101)
+c3	fields	x	shape (101, 101)
+c3	fields	y	shape (101, 101)
+c3	fields	chi_fluid_dg0	shape (20000,)
+c4	info	mesh_n	100
+c4	info	steady	False
+c4	info	t_end	0.02
+c4	info	n_steps	3
+c4	info	offset	(1.25e-06, 6.25e-07)
+c4	info	roughness_velocity_ratio	1.0
+c4	info	newton_iters	24
+c4	info	contact_iters	707
+c4	info	ripple_passes	4
+c4	info	contact_residual	4.119607604697844e-20
+c4	info	contact_resolution	2.0
+c4	info	lambda_nd	0.0
+c4	info	spos_mean	0.0
+c4	info	t_start	0.01999642857142857
+c4	info	dt	1.1904761904761906e-06
+c4	info.fields	n	100
+c4	info.fields	T_end_s	0.02
+c4	info.fields	film_vs_solver_max_nm	1.4558378780933287e-13
+c4	info.fields	contact_residual_m	4.119607604697844e-20
+c4	info.fields	film_min_nm	0.017824999958804117
+c4	info.fields	film_rigid_min_nm	-21.138113831849356
+c4	info.fields	p_fluid_max_MPa	296.02841179193416
+c4	info.fields	p_contact_max_MPa	13763.866973772181
+c4	info.fields	contact_nodes	225
+c4	info.fields	u_ripple_maxabs_nm	0.1336960442810123
+c4	info.fields	u_contact_maxabs_nm	21.257963934970533
+c4	info.fields	chi_dg0_mean	0.9802500000000002
+c4	info	wall_time	1.613436222076416
+c4	info	pressure_extrema_status	ok
+c4	info	shear_extrema_status	no_frame
+c4	info	shear_asperity_status	no_frame
+c4	info	shear_total_status	no_frame
+c4	info	deformation_model	ripple_halfspace_v1
+c4	info	contact_model	fft_elastic_v1
+c4	info	level_constraint	fluid_mean_v1
+c4	fields	p_contact	shape (101, 101)
+c4	fields	clearance	shape (101, 101)
+c4	fields	mask_level	shape (101, 101)
+c4	fields	overclosure	shape (101, 101)
+c4	fields	p_fluid	shape (101, 101)
+c4	fields	p_fluid_masked	shape (101, 101)
+c4	fields	p_total	shape (101, 101)
+c4	fields	film	shape (101, 101)
+c4	fields	film_rigid	shape (101, 101)
+c4	fields	surface_height	shape (101, 101)
+c4	fields	u_ripple	shape (101, 101)
+c4	fields	u_contact	shape (101, 101)
+c4	fields	u_total	shape (101, 101)
+c4	fields	contact	shape (101, 101)
+c4	fields	chi_fluid	shape (101, 101)
+c4	fields	x	shape (101, 101)
+c4	fields	y	shape (101, 101)
+c4	fields	chi_fluid_dg0	shape (20000,)
+c5	info	mesh_n	60
+c5	info	steady	False
+c5	info	t_end	0.02
+c5	info	n_steps	3
+c5	info	offset	(0.0, 0.0)
+c5	info	roughness_velocity_ratio	0.0
+c5	info	newton_iters	5
+c5	info	contact_iters	0
+c5	info	ripple_passes	0
+c5	info	contact_residual	0.0
+c5	info	contact_resolution	0.0
+c5	info	lambda_nd	0.0
+c5	info	spos_mean	0.0
+c5	info	t_start	0.01999404761904762
+c5	info	dt	1.984126984126984e-06
+c5	info.fields	n	60
+c5	info.fields	T_end_s	0.02
+c5	info.fields	film_min_nm	75.66132737973221
+c5	info.fields	film_rigid_min_nm	75.66132737973221
+c5	info.fields	p_fluid_max_MPa	41.03689391755899
+c5	info.fields	p_contact_max_MPa	0.0
+c5	info.fields	contact_nodes	0
+c5	info.fields	u_ripple_maxabs_nm	0.0
+c5	info.fields	u_contact_maxabs_nm	0.0
+c5	info.fields	chi_dg0_mean	1.0000000000000002
+c5	info	wall_time	0.19930696487426758
+c5	info	pressure_extrema_status	ok
+c5	info	shear_extrema_status	no_frame
+c5	info	shear_asperity_status	unavailable
+c5	info	shear_total_status	unavailable
+c5	info	deformation_model	off
+c5	info	contact_model	off
+c5	info	level_constraint	whole_cell
+c5	fields	p_fluid	shape (61, 61)
+c5	fields	p_fluid_masked	shape (61, 61)
+c5	fields	p_total	shape (61, 61)
+c5	fields	film	shape (61, 61)
+c5	fields	film_rigid	shape (61, 61)
+c5	fields	surface_height	shape (61, 61)
+c5	fields	contact	shape (61, 61)
+c5	fields	chi_fluid	shape (61, 61)
+c5	fields	x	shape (61, 61)
+c5	fields	y	shape (61, 61)
+c5	fields	chi_fluid_dg0	shape (7200,)
+c6	info	mesh_n	100
+c6	info	steady	False
+c6	info	t_end	0.02
+c6	info	n_steps	3
+c6	info	offset	(0.0, 0.0)
+c6	info	roughness_velocity_ratio	0.0
+c6	info	newton_iters	5
+c6	info	contact_iters	47
+c6	info	ripple_passes	0
+c6	info	contact_residual	2.1713491079516976e-21
+c6	info	contact_resolution	233.0
+c6	info	lambda_nd	0.0
+c6	info	spos_mean	0.0
+c6	info	t_start	0.01999625
+c6	info	dt	1.25e-06
+c6	info.fields	n	100
+c6	info.fields	T_end_s	0.02
+c6	info.fields	film_vs_solver_max_nm	0.015264976103902452
+c6	info.fields	contact_residual_m	2.1713491079516976e-21
+c6	info.fields	film_min_nm	39.99999999999783
+c6	info.fields	film_rigid_min_nm	34.99999999999999
+c6	info.fields	p_fluid_max_MPa	41.42612245373194
+c6	info.fields	p_contact_max_MPa	1800.8362408730204
+c6	info.fields	contact_nodes	233
+c6	info.fields	u_ripple_maxabs_nm	0.0
+c6	info.fields	u_contact_maxabs_nm	5.000000000001291
+c6	info.fields	chi_dg0_mean	0.9775333333333334
+c6	info	wall_time	0.5649144649505615
+c6	info	pressure_extrema_status	ok
+c6	info	shear_extrema_status	no_frame
+c6	info	shear_asperity_status	no_frame
+c6	info	shear_total_status	no_frame
+c6	info	deformation_model	off
+c6	info	contact_model	fft_elastic_v1
+c6	info	level_constraint	whole_cell
+c6	fields	p_contact	shape (101, 101)
+c6	fields	clearance	shape (101, 101)
+c6	fields	mask_level	shape (101, 101)
+c6	fields	overclosure	shape (101, 101)
+c6	fields	p_fluid	shape (101, 101)
+c6	fields	p_fluid_masked	shape (101, 101)
+c6	fields	p_total	shape (101, 101)
+c6	fields	film	shape (101, 101)
+c6	fields	film_rigid	shape (101, 101)
+c6	fields	surface_height	shape (101, 101)
+c6	fields	u_contact	shape (101, 101)
+c6	fields	u_total	shape (101, 101)
+c6	fields	contact	shape (101, 101)
+c6	fields	chi_fluid	shape (101, 101)
+c6	fields	x	shape (101, 101)
+c6	fields	y	shape (101, 101)
+c6	fields	chi_fluid_dg0	shape (20000,)
+c7	info	mesh_n	100
+c7	info	steady	True
+c7	info	t_end	0.0
+c7	info	n_steps	0
+c7	info	offset	(0.0, 0.0)
+c7	info	roughness_velocity_ratio	0.0
+c7	info	newton_iters	3
+c7	info	contact_iters	42
+c7	info	ripple_passes	2
+c7	info	contact_residual	4.448908206555204e-20
+c7	info	contact_resolution	7.0
+c7	info	lambda_nd	0.0
+c7	info	spos_mean	0.0
+c7	info	t_start	None
+c7	info	dt	None
+c7	info.fields	n	100
+c7	info.fields	T_end_s	0.0
+c7	info.fields	film_vs_solver_max_nm	6.088049308390284e-13
+c7	info.fields	contact_residual_m	4.448908206555204e-20
+c7	info.fields	film_min_nm	0.010330999955511965
+c7	info.fields	film_rigid_min_nm	-51.06418574887614
+c7	info.fields	p_fluid_max_MPa	41.83211155534679
+c7	info.fields	p_contact_max_MPa	82734.87678681492
+c7	info.fields	contact_nodes	20
+c7	info.fields	u_ripple_maxabs_nm	0.04103892169482931
+c7	info.fields	u_contact_maxabs_nm	51.115555670566366
+c7	info.fields	chi_dg0_mean	0.9981833333333334
+c7	info	wall_time	0.4956221580505371
+c7	info	pressure_extrema_status	ok
+c7	info	shear_extrema_status	no_frame
+c7	info	shear_asperity_status	no_frame
+c7	info	shear_total_status	no_frame
+c7	info	deformation_model	ripple_halfspace_v1
+c7	info	contact_model	fft_elastic_v1
+c7	info	level_constraint	whole_cell
+c7	fields	p_contact	shape (101, 101)
+c7	fields	clearance	shape (101, 101)
+c7	fields	mask_level	shape (101, 101)
+c7	fields	overclosure	shape (101, 101)
+c7	fields	p_fluid	shape (101, 101)
+c7	fields	p_fluid_masked	shape (101, 101)
+c7	fields	p_total	shape (101, 101)
+c7	fields	film	shape (101, 101)
+c7	fields	film_rigid	shape (101, 101)
+c7	fields	surface_height	shape (101, 101)
+c7	fields	u_ripple	shape (101, 101)
+c7	fields	u_contact	shape (101, 101)
+c7	fields	u_total	shape (101, 101)
+c7	fields	contact	shape (101, 101)
+c7	fields	chi_fluid	shape (101, 101)
+c7	fields	x	shape (101, 101)
+c7	fields	y	shape (101, 101)
+c7	fields	chi_fluid_dg0	shape (20000,)
+c8	info	mesh_n	60
+c8	info	steady	True
+c8	info	t_end	0.0
+c8	info	n_steps	0
+c8	info	offset	(0.0, 0.0)
+c8	info	roughness_velocity_ratio	0.0
+c8	info	newton_iters	2
+c8	info	contact_iters	0
+c8	info	ripple_passes	0
+c8	info	contact_residual	0.0
+c8	info	contact_resolution	0.0
+c8	info	lambda_nd	0.0
+c8	info	spos_mean	0.0
+c8	info	t_start	None
+c8	info	dt	None
+c8	info.fields	n	60
+c8	info.fields	T_end_s	0.0
+c8	info.fields	film_min_nm	77.6613273797322
+c8	info.fields	film_rigid_min_nm	77.6613273797322
+c8	info.fields	p_fluid_max_MPa	40.833078790305215
+c8	info.fields	p_contact_max_MPa	0.0
+c8	info.fields	contact_nodes	0
+c8	info.fields	u_ripple_maxabs_nm	0.0
+c8	info.fields	u_contact_maxabs_nm	0.0
+c8	info.fields	chi_dg0_mean	1.0000000000000002
+c8	info	wall_time	0.1458272933959961
+c8	info	pressure_extrema_status	ok
+c8	info	shear_extrema_status	no_frame
+c8	info	shear_asperity_status	unavailable
+c8	info	shear_total_status	unavailable
+c8	info	deformation_model	off
+c8	info	contact_model	off
+c8	info	level_constraint	whole_cell
+c8	fields	p_fluid	shape (61, 61)
+c8	fields	p_fluid_masked	shape (61, 61)
+c8	fields	p_total	shape (61, 61)
+c8	fields	film	shape (61, 61)
+c8	fields	film_rigid	shape (61, 61)
+c8	fields	surface_height	shape (61, 61)
+c8	fields	contact	shape (61, 61)
+c8	fields	chi_fluid	shape (61, 61)
+c8	fields	x	shape (61, 61)
+c8	fields	y	shape (61, 61)
+c8	fields	chi_fluid_dg0	shape (7200,)

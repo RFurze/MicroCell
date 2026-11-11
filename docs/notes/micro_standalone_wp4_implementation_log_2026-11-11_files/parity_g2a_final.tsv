@@ -1,0 +1,10 @@
+cell	status	n_total	n_exact	n_outside	max_rel	worst	n_setting	n_scalar	n_diagnostic	n_field
+c1_gensa40_h200_ripple	PASS	155	155	0	0.0		45	82	12	16
+c2_gensa40_h130_ripple	PASS	155	155	0	0.0		45	82	12	16
+c3_gensa40_h130_noripple	PASS	154	154	0	0.0		45	82	12	15
+c4_wangpair10_h25_offset	PASS	154	154	0	0.0		45	81	12	16
+c5_cosine_fullfilm	PASS	131	131	0	0.0		30	82	10	9
+c6_cosine_fft_sqrt	PASS	153	153	0	0.0		44	82	12	15
+c7_gensa40_h130_ripple_steady	PASS	155	155	0	0.0		45	82	12	16
+c8_cosine_fullfilm_steady	PASS	131	131	0	0.0		30	82	10	9
+All	PASS	1188	1188	0	0.0					

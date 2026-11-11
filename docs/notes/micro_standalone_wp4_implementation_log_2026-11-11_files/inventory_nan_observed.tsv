@@ -1,0 +1,449 @@
+case	status	where	name	n_nan	n_values	pressure_extrema_status	shear_extrema_status	shear_asperity_status	shear_total_status	deformation_model	contact_model	level_constraint
+c1	OK	raw	shear_asperity_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c1	OK	raw	shear_asperity_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c1	OK	raw	shear_asperity_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c1	OK	raw	shear_total_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c1	OK	raw	shear_total_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c1	OK	raw	shear_total_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c1	OK	raw	shear_fluid_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c1	OK	raw	shear_fluid_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c1	OK	raw	shear_fluid_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c1	OK	raw	shear_fluid_support_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c1	OK	raw	shear_fluid_support_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c2	OK	raw	shear_asperity_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c2	OK	raw	shear_asperity_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c2	OK	raw	shear_asperity_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c2	OK	raw	shear_total_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c2	OK	raw	shear_total_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c2	OK	raw	shear_total_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c2	OK	raw	shear_fluid_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c2	OK	raw	shear_fluid_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c2	OK	raw	shear_fluid_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c2	OK	raw	shear_fluid_support_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c2	OK	raw	shear_fluid_support_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c2	OK	fields	p_fluid_masked	20	10201	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c3	OK	raw	shear_asperity_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c3	OK	raw	shear_asperity_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c3	OK	raw	shear_asperity_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c3	OK	raw	shear_total_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c3	OK	raw	shear_total_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c3	OK	raw	shear_total_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c3	OK	raw	shear_fluid_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c3	OK	raw	shear_fluid_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c3	OK	raw	shear_fluid_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c3	OK	raw	shear_fluid_support_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c3	OK	raw	shear_fluid_support_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c3	OK	fields	p_fluid_masked	20	10201	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c4	OK	raw	shear_asperity_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	fluid_mean_v1
+c4	OK	raw	shear_asperity_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	fluid_mean_v1
+c4	OK	raw	shear_asperity_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	fluid_mean_v1
+c4	OK	raw	shear_total_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	fluid_mean_v1
+c4	OK	raw	shear_total_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	fluid_mean_v1
+c4	OK	raw	shear_total_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	fluid_mean_v1
+c4	OK	raw	shear_fluid_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	fluid_mean_v1
+c4	OK	raw	shear_fluid_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	fluid_mean_v1
+c4	OK	raw	shear_fluid_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	fluid_mean_v1
+c4	OK	raw	shear_fluid_support_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	fluid_mean_v1
+c4	OK	raw	shear_fluid_support_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	fluid_mean_v1
+c4	OK	fields	p_fluid_masked	225	10201	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	fluid_mean_v1
+c5	OK	named	tau_asperity	2	2	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	named	tau_total	2	2	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_asperity_mean_local_Pa	2	2	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_asperity_gx_min_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_asperity_gx_max_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_asperity_gx_sample_mean_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_asperity_support_fraction	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_total_mean_local_Pa	2	2	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_total_gx_min_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_total_gx_max_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_total_gx_sample_mean_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_contact_overlap_fraction	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_contact_force_on_fluid_fraction	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_contact_obstruction_without_pressure_fraction	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_contact_mean_check	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_fluid_gx_min_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_fluid_gx_max_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_fluid_gx_sample_mean_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_fluid_support_gx_min_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c5	OK	raw	shear_fluid_support_gx_max_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c6	OK	raw	shear_asperity_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c6	OK	raw	shear_asperity_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c6	OK	raw	shear_asperity_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c6	OK	raw	shear_total_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c6	OK	raw	shear_total_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c6	OK	raw	shear_total_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c6	OK	raw	shear_fluid_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c6	OK	raw	shear_fluid_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c6	OK	raw	shear_fluid_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c6	OK	raw	shear_fluid_support_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c6	OK	raw	shear_fluid_support_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c6	OK	fields	p_fluid_masked	233	10201	ok	no_frame	no_frame	no_frame	off	fft_elastic_v1	whole_cell
+c7	OK	raw	shear_asperity_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c7	OK	raw	shear_asperity_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c7	OK	raw	shear_asperity_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c7	OK	raw	shear_total_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c7	OK	raw	shear_total_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c7	OK	raw	shear_total_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c7	OK	raw	shear_fluid_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c7	OK	raw	shear_fluid_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c7	OK	raw	shear_fluid_gx_sample_mean_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c7	OK	raw	shear_fluid_support_gx_min_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c7	OK	raw	shear_fluid_support_gx_max_Pa	1	1	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c7	OK	fields	p_fluid_masked	20	10201	ok	no_frame	no_frame	no_frame	ripple_halfspace_v1	fft_elastic_v1	whole_cell
+c8	OK	named	tau_asperity	2	2	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	named	tau_total	2	2	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_asperity_mean_local_Pa	2	2	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_asperity_gx_min_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_asperity_gx_max_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_asperity_gx_sample_mean_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_asperity_support_fraction	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_total_mean_local_Pa	2	2	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_total_gx_min_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_total_gx_max_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_total_gx_sample_mean_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_contact_overlap_fraction	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_contact_force_on_fluid_fraction	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_contact_obstruction_without_pressure_fraction	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_contact_mean_check	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_fluid_gx_min_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_fluid_gx_max_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_fluid_gx_sample_mean_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_fluid_support_gx_min_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c8	OK	raw	shear_fluid_support_gx_max_Pa	1	1	ok	no_frame	unavailable	unavailable	off	off	whole_cell
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	dQ	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	dP	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	Q	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	Pst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	P_f	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	Fst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	tau_fluid	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	tau_asperity	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	tau_total	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	P_asp	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	contact_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	A_mech_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	k_asp	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	p_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	p_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	h_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	named	h_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	delta_Q	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	delta_P	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	Pst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	Q	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	Fst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	tau_res	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	p_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	p_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	h_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	h_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	fmax	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	fmin	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	lambda_nd	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	spos_mean	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	Pasp_hom	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	contact_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	A_patch_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	n_patches	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	pasp_patch_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	k_asp_hom	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	A_mech_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	contact_residual	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	contact_resolution	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	ripple_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	ripple_resid	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	ripple_mean_resid	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	ripple_seam_mismatch	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	ripple_proj_err	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	P_f	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	Pst_fluid	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	P_patch	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	P_fluid_pos	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	P_fluid_neg	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_mean_local_Pa	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_gx_sample_mean_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_support_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_support_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_support_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_asperity_mean_local_Pa	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_asperity_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_asperity_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_asperity_gx_sample_mean_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_asperity_support_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_total_mean_local_Pa	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_total_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_total_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_total_gx_sample_mean_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_contact_overlap_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_contact_force_on_fluid_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_contact_obstruction_without_pressure_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_contact_mean_check	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_NEWTON	FAILED_NEWTON	fields	(no fields: empty dict)	0	0	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	dQ	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	dP	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	Q	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	Pst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	P_f	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	Fst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	tau_fluid	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	tau_asperity	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	tau_total	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	P_asp	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	contact_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	A_mech_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	k_asp	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	p_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	p_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	h_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	named	h_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	delta_Q	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	delta_P	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	Pst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	Q	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	Fst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	tau_res	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	p_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	p_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	h_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	h_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	fmax	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	fmin	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	lambda_nd	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	spos_mean	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	Pasp_hom	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	contact_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	A_patch_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	n_patches	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	pasp_patch_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	k_asp_hom	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	A_mech_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	contact_residual	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	contact_resolution	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	ripple_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	ripple_resid	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	ripple_mean_resid	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	ripple_seam_mismatch	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	ripple_proj_err	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	P_f	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	Pst_fluid	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	P_patch	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	P_fluid_pos	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	P_fluid_neg	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_fluid_mean_local_Pa	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_fluid_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_fluid_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_fluid_gx_sample_mean_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_fluid_support_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_fluid_support_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_fluid_support_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_asperity_mean_local_Pa	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_asperity_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_asperity_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_asperity_gx_sample_mean_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_asperity_support_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_total_mean_local_Pa	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_total_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_total_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_total_gx_sample_mean_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_contact_overlap_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_contact_force_on_fluid_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_contact_obstruction_without_pressure_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	raw	shear_contact_mean_check	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_RIPPLE	FAILED_RIPPLE	fields	(no fields: empty dict)	0	0	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	dQ	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	dP	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	Q	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	Pst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	P_f	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	Fst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	tau_fluid	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	tau_asperity	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	tau_total	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	P_asp	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	contact_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	A_mech_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	k_asp	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	p_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	p_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	h_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	named	h_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	delta_Q	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	delta_P	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	Pst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	Q	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	Fst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	tau_res	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	p_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	p_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	h_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	h_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	fmax	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	fmin	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	lambda_nd	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	spos_mean	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	Pasp_hom	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	contact_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	A_patch_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	n_patches	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	pasp_patch_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	k_asp_hom	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	A_mech_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	contact_residual	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	contact_resolution	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	ripple_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	ripple_resid	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	ripple_mean_resid	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	ripple_seam_mismatch	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	ripple_proj_err	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	P_f	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	Pst_fluid	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	P_patch	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	P_fluid_pos	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	P_fluid_neg	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_fluid_mean_local_Pa	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_fluid_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_fluid_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_fluid_gx_sample_mean_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_fluid_support_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_fluid_support_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_fluid_support_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_asperity_mean_local_Pa	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_asperity_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_asperity_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_asperity_gx_sample_mean_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_asperity_support_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_total_mean_local_Pa	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_total_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_total_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_total_gx_sample_mean_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_contact_overlap_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_contact_force_on_fluid_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_contact_obstruction_without_pressure_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	raw	shear_contact_mean_check	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in run)	FAILED_CONTACT	fields	(no fields: empty dict)	0	0	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	dQ	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	dP	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	Q	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	Pst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	P_f	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	Fst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	tau_fluid	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	tau_asperity	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	tau_total	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	P_asp	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	contact_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	A_mech_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	k_asp	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	p_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	p_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	h_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	named	h_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	delta_Q	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	delta_P	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	Pst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	Q	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	Fst	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	tau_res	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	p_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	p_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	h_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	h_min	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	fmax	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	fmin	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	lambda_nd	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	spos_mean	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	Pasp_hom	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	contact_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	A_patch_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	n_patches	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	pasp_patch_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	k_asp_hom	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	A_mech_frac	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	contact_residual	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	contact_resolution	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	ripple_max	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	ripple_resid	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	ripple_mean_resid	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	ripple_seam_mismatch	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	ripple_proj_err	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	P_f	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	Pst_fluid	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	P_patch	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	P_fluid_pos	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	P_fluid_neg	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_fluid_mean_local_Pa	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_fluid_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_fluid_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_fluid_gx_sample_mean_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_fluid_support_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_fluid_support_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_fluid_support_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_asperity_mean_local_Pa	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_asperity_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_asperity_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_asperity_gx_sample_mean_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_asperity_support_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_total_mean_local_Pa	2	2	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_total_gx_min_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_total_gx_max_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_total_gx_sample_mean_Pa	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_contact_overlap_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_contact_force_on_fluid_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_contact_obstruction_without_pressure_fraction	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	raw	shear_contact_mean_check	1	1	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c2 forced FAILED_CONTACT (in compute_asperity_load)	FAILED_CONTACT	fields	(no fields: empty dict)	0	0	failed	failed	failed	failed	ripple_halfspace_v1	fft_elastic_v1	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	dQ	2	2	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	dP	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	Q	2	2	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	Pst	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	P_f	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	Fst	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	tau_fluid	2	2	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	tau_asperity	2	2	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	tau_total	2	2	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	P_asp	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	contact_frac	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	A_mech_frac	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	k_asp	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	p_max	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	p_min	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	h_max	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	named	h_min	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	delta_Q	2	2	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	delta_P	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	Pst	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	Q	2	2	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	Fst	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	tau_res	2	2	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	p_max	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	p_min	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	h_max	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	h_min	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	fmax	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	fmin	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	lambda_nd	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	spos_mean	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	Pasp_hom	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	contact_frac	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	A_patch_frac	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	n_patches	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	pasp_patch_max	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	k_asp_hom	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	A_mech_frac	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	contact_residual	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	contact_resolution	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	P_f	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	Pst_fluid	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	P_patch	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	P_fluid_pos	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	P_fluid_neg	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_mean_local_Pa	2	2	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_gx_min_Pa	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_gx_max_Pa	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_gx_sample_mean_Pa	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_support_gx_min_Pa	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_support_gx_max_Pa	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	raw	shear_fluid_support_fraction	1	1	failed	failed	None	None	off	off	None
+c5 forced FAILED_NEWTON	FAILED_NEWTON	fields	(no fields: empty dict)	0	0	failed	failed	None	None	off	off	None

@@ -1,0 +1,97 @@
+key	in_raw	in_reference	written_at	read_by	gate	type	constant_over_refs	nan_in_ok_cells	nan_when_failed	absent_when_failed
+A_mech_frac	8/8	8/8	api.py:305,325,561,592	MicroResult field	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+A_patch_frac	8/8	8/8	api.py:304,557,591	nothing but the gate	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+Fst	8/8	8/8	api.py:302,586	MicroResult field	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+P_f	8/8	8/8	api.py:314,582 pressure.PRESSURE_FIELDS (api.py:598)	MicroResult field	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+P_fluid_neg	8/8	8/8	api.py:314 pressure.PRESSURE_FIELDS (api.py:598)	nothing but the gate	compared	float	yes: 0.0		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+P_fluid_pos	8/8	8/8	api.py:314 pressure.PRESSURE_FIELDS (api.py:598)	nothing but the gate	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+P_patch	8/8	8/8	api.py:314 pressure.PRESSURE_FIELDS (api.py:598)	nothing but the gate	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+Pasp_hom	8/8	8/8	api.py:303,554,590	MicroResult field	compared (pair cell: against coupled_json)	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+Pst	8/8	8/8	api.py:301,586,598	MicroResult field	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+Pst_fluid	8/8	8/8	api.py:314 pressure.PRESSURE_FIELDS (api.py:598)	nothing but the gate	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+Q	8/8	8/8	api.py:301,586	MicroResult field	compared	ndarray	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+amech_table	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+contact_eval_s	8/8	8/8	api.py:307,326,595	nothing but the gate	not compared (NOT_COMPARED)	float	no			
+contact_frac	8/8	8/8	api.py:303,555,590	MicroResult field	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+contact_geometry_valid	8/8	8/8	api.py:305,325,562,593	nothing but the gate	compared	float	yes: 1.0			
+contact_iters	8/8	8/8	api.py:308,326,488,596,624	info['contact_iters'] (written beside raw)	compared (pair cell: not compared)	int	no			
+contact_model	8/8	8/8	api.py:277,306,325,594	info['contact_model']	compared	str	no			
+contact_residual	8/8	8/8	api.py:308,326,596,625	info['contact_residual'] (written beside raw)	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+contact_resolution	8/8	8/8	api.py:308,326,597,626	info['contact_resolution'] (written beside raw)	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+deformation_model	8/8	8/8	api.py:313,328,605	info['deformation_model']	compared	str	no			
+delta_P	8/8	8/8	api.py:301,586	MicroResult field	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+delta_P_definition	8/8	8/8	api.py:301,599	nothing but the gate	compared	str	yes: fluid_per_cell			
+delta_Q	8/8	8/8	api.py:301,586	MicroResult field	compared	ndarray	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+escalated	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+failure_reason	8/8	8/8	api.py:307,325	nothing but the gate	compared	str	yes: 			
+fmax	8/8	8/8	api.py:302,588	nothing but the gate	compared	float	yes: 1.0		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+fmin	8/8	8/8	api.py:302,588	nothing but the gate	compared	float	yes: 0.0		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+h_geom_min	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+h_max	8/8	8/8	api.py:302,304,587,592	MicroResult field	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+h_min	8/8	8/8	api.py:302,461,587	MicroResult field	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+k_asp_hom	8/8	8/8	api.py:304,560,592	MicroResult field	compared (pair cell: against coupled_json)	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+kasp_table	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+lambda_nd	8/8	8/8	api.py:303,589,626	info['lambda_nd'] (written beside raw)	compared	float	yes: 0.0		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+level_constraint	8/8	8/8	api.py:263,337,474	info['level_constraint']	compared	str	no			mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+mesh_used	8/8	8/8	api.py:304,591	info['mesh_n'] (written beside raw)	compared	int	no			
+n_fluid_mean	8/8	8/8	api.py:337,475	nothing but the gate	compared	int	no			mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+n_no_fluid	8/8	8/8	api.py:337,475	nothing but the gate	compared	int	yes: 0			mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+n_patches	8/8	8/8	api.py:304,591	nothing but the gate	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+n_whole_cell	8/8	8/8	api.py:337,474	nothing but the gate	compared	int	yes: 0			mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+newton_iters	8/8	8/8	api.py:307,326,488,595,624	info['newton_iters'] (written beside raw)	compared	int	no			
+offset_x_m	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+offset_y_m	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+p_fluid_n_samples	8/8	8/8	api.py:609	nothing but the gate	compared	int	no			mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+p_fluid_sample_max_Pa	8/8	8/8	api.py:606	nothing but the gate	compared	float	no			mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+p_fluid_sample_min_Pa	8/8	8/8	api.py:606	nothing but the gate	compared	float	no			mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+p_max	8/8	8/8	api.py:302,587,606	MicroResult field	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+p_max_phase_mean	8/8	8/8	api.py:608	nothing but the gate	compared	float	no			mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+p_min	8/8	8/8	api.py:302,587,606	MicroResult field	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+p_min_phase_mean	8/8	8/8	api.py:608	nothing but the gate	compared	float	no			mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+pasp_contact_only	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+pasp_coupled	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+pasp_patch_max	8/8	8/8	api.py:304,592	nothing but the gate	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+pasp_table	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+phase_average	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+pid	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+pressure_extrema_definition	8/8	8/8	api.py:315,607	nothing but the gate	compared	str	yes: fluid_nodal_sharp_v1/phase_union			
+pressure_extrema_status	8/8	8/8	api.py:315,607	info['pressure_extrema_status']	compared	str	yes: ok			
+ripple_max	8/8	8/8	api.py:310,327,602	nothing but the gate	compared	float	no		mixed=True ripple=True	
+ripple_mean_resid	8/8	8/8	api.py:311,327,603	nothing but the gate	compared	float	no		mixed=True ripple=True	
+ripple_passes	8/8	8/8	api.py:309,327,489,602,625	info['ripple_passes'] (written beside raw)	compared	int	no			
+ripple_proj_err	8/8	8/8	api.py:312,328,605	nothing but the gate	compared	float	no		mixed=True ripple=True	
+ripple_resid	8/8	8/8	api.py:310,327,603	nothing but the gate	compared	float	no		mixed=True ripple=True	
+ripple_seam_mismatch	8/8	8/8	api.py:311,327,604	nothing but the gate	compared	float	yes: 0.0		mixed=True ripple=True	
+shear_asperity_gx_max_Pa	8/8	8/8	api.py:329 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	float	yes: nan	c1,c2,c3,c4,c5,c6,c7,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_asperity_gx_min_Pa	8/8	8/8	api.py:329 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	float	yes: nan	c1,c2,c3,c4,c5,c6,c7,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_asperity_gx_sample_mean_Pa	8/8	8/8	api.py:330 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	float	yes: nan	c1,c2,c3,c4,c5,c6,c7,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_asperity_mean_local_Pa	8/8	8/8	api.py:329 contact_shear.contact_shear_fields / failed_contact_shear_fields	MicroResult field	compared	tuple	no	c5,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_asperity_status	8/8	8/8	api.py:172,331 contact_shear.contact_shear_fields / failed_contact_shear_fields	info['shear_asperity_status']	compared	str	no			mixed=False ripple=False
+shear_asperity_support_fraction	8/8	8/8	api.py:330 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	float	no	c5,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_contact_definition	8/8	8/8	api.py:336 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	str	no			mixed=False ripple=False
+shear_contact_force_on_fluid_fraction	8/8	8/8	api.py:334 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	float	no	c5,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_contact_mean_check	8/8	8/8	api.py:335 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	float	no	c5,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_contact_n_samples	8/8	8/8	api.py:336 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	int	no			mixed=False ripple=False
+shear_contact_obstruction_without_pressure_fraction	8/8	8/8	api.py:335 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	float	no	c5,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_contact_overlap_fraction	8/8	8/8	api.py:334 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	float	no	c5,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_extrema_definition	8/8	8/8	 fluid_shear.shear_fields / failed_shear_fields	nothing but the gate	compared	str	yes: fluid_quadrature_sharp_v1/global_x/phase_union			
+shear_extrema_status	8/8	8/8	 fluid_shear.shear_fields / failed_shear_fields	info['shear_extrema_status']	compared	str	yes: no_frame			
+shear_fluid_gx_max_Pa	8/8	8/8	 fluid_shear.shear_fields / failed_shear_fields	nothing but the gate	compared	float	yes: nan	c1,c2,c3,c4,c5,c6,c7,c8	mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+shear_fluid_gx_min_Pa	8/8	8/8	 fluid_shear.shear_fields / failed_shear_fields	nothing but the gate	compared	float	yes: nan	c1,c2,c3,c4,c5,c6,c7,c8	mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+shear_fluid_gx_sample_mean_Pa	8/8	8/8	 fluid_shear.shear_fields / failed_shear_fields	nothing but the gate	compared	float	yes: nan	c1,c2,c3,c4,c5,c6,c7,c8	mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+shear_fluid_mean_local_Pa	8/8	8/8	 fluid_shear.shear_fields / failed_shear_fields	nothing but the gate	compared	tuple	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+shear_fluid_n_samples	8/8	8/8	 fluid_shear.shear_fields / failed_shear_fields	nothing but the gate	compared	int	no			
+shear_fluid_support_fraction	8/8	8/8	 fluid_shear.shear_fields / failed_shear_fields	nothing but the gate	compared	float	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+shear_fluid_support_gx_max_Pa	8/8	8/8	 fluid_shear.shear_fields / failed_shear_fields	nothing but the gate	compared	float	yes: nan	c1,c2,c3,c4,c5,c6,c7,c8	mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+shear_fluid_support_gx_min_Pa	8/8	8/8	 fluid_shear.shear_fields / failed_shear_fields	nothing but the gate	compared	float	yes: nan	c1,c2,c3,c4,c5,c6,c7,c8	mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+shear_total_gx_max_Pa	8/8	8/8	api.py:332 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	float	yes: nan	c1,c2,c3,c4,c5,c6,c7,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_total_gx_min_Pa	8/8	8/8	api.py:332 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	float	yes: nan	c1,c2,c3,c4,c5,c6,c7,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_total_gx_sample_mean_Pa	8/8	8/8	api.py:333 contact_shear.contact_shear_fields / failed_contact_shear_fields	nothing but the gate	compared	float	yes: nan	c1,c2,c3,c4,c5,c6,c7,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_total_mean_local_Pa	8/8	8/8	api.py:332 contact_shear.contact_shear_fields / failed_contact_shear_fields	MicroResult field	compared	tuple	no	c5,c8	mixed=True ripple=False,mixed=True ripple=True	mixed=False ripple=False
+shear_total_status	8/8	8/8	api.py:333 contact_shear.contact_shear_fields / failed_contact_shear_fields	info['shear_total_status']	compared	str	no			mixed=False ripple=False
+spos_mean	8/8	8/8	api.py:303,589,626	info['spos_mean'] (written beside raw)	compared	float	yes: 0.0		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+task	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+task_id	0/8	8/8		not in raw	not compared (NOT_COMPARED)					mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True
+tau_res	8/8	8/8	api.py:302,586	MicroResult field	compared	ndarray	no		mixed=False ripple=False,mixed=True ripple=False,mixed=True ripple=True	
+wall_time	8/8	8/8	api.py:303,489,588,636,637	info['wall_time'] (written beside raw)	not compared (NOT_COMPARED)	float	no			
+yield_flag	8/8	8/8	api.py:303,556,590	MicroResult field	compared	int	no			

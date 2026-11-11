@@ -1,0 +1,4 @@
+group	commit	files_changed	insertions	deletions	subject
+1	f77fd1d	2	3	6	MicroCell WP4: remove ContactSettings.nu and .k_asp_exponent (unread since WP2)
+2a	9f719fb	12	451	501	MicroCell WP4: solver classes read Zeta and MicroSettings directly; solver-side settings and parameter dataclasses and api._solver_settings removed
+3a	7b57abb	3	259	132	MicroCell WP4: MicroResult.raw, api._RAW_DEFAULTS and api._failed_raw removed; each output written once (named output or info), one failed-result builder, RESULT_NOW name map and a failed-result layout test

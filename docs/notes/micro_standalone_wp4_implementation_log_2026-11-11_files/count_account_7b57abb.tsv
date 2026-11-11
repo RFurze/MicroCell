@@ -1,0 +1,10 @@
+cell	compared_68bc829	compared_7b57abb	no_longer_compared	newly_compared	names_no_longer_compared
+c1_gensa40_h200_ripple	155	155	0	0	
+c2_gensa40_h130_ripple	155	155	0	0	
+c3_gensa40_h130_noripple	154	154	0	0	
+c4_wangpair10_h25_offset	154	154	0	0	
+c5_cosine_fullfilm	131	131	0	0	
+c6_cosine_fft_sqrt	153	153	0	0	
+c7_gensa40_h130_ripple_steady	155	155	0	0	
+c8_cosine_fullfilm_steady	131	131	0	0	
+All	1188	1188	0	0	

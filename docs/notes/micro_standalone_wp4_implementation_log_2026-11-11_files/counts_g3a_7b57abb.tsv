@@ -1,0 +1,29 @@
+what	n
+settings: ContactSettings	6
+settings: LEGACY_DEFAULTS	6
+settings: MicroSettings	20
+settings: RippleSettings	4
+settings: Zeta	12
+settings: fixed value (solver module)	10
+settings: microsolver argument	6
+settings: all rows	64
+parent settings fields carried (SETTINGS_NOW)	36
+results: status	2
+results: named	18
+results: info	67
+results: info.fields	12
+results: fields	18
+results: all rows	117
+parent result fields in the references	96
+parent result fields not compared (NOT_COMPARED)	15
+parent result fields held under another name or place (RESULT_NOW)	24
+compared parent result fields with no place in a MicroResult	0
+NaN on OK results: distinct names in named	2
+NaN on OK results: distinct names in info	16
+NaN on OK results: distinct names in info.fields	0
+NaN on OK results: distinct names in fields	1
+NaN in c2 forced contact_in_load (FAILED_CONTACT): names in named + info	53
+NaN in c2 forced contact_in_run (FAILED_CONTACT): names in named + info	55
+NaN in c2 forced newton (FAILED_NEWTON): names in named + info	55
+NaN in c5 forced newton_full_film (FAILED_NEWTON): names in named + info	50
+NaN in c2 forced ripple (FAILED_RIPPLE): names in named + info	55
