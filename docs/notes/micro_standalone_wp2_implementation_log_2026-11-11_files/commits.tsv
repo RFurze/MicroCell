@@ -1,0 +1,11 @@
+commit	files_changed_insertions_deletions (microcell, tests, README.md)	subject
+921c077	2 files changed, 132 deletions(-)	MicroCell WP2: group 1, remove the __main__ harness blocks and the dead parent imports (base, mixed); file the WP2 session prompt
+763a074	5 files changed, 45 insertions(+), 144 deletions(-)	MicroCell WP2: group 2 (part), remove the pointwise spring mode and the spring_pointwise setting; parity test checks removed settings against their frozen value
+90413fd	5 files changed, 87 insertions(+), 510 deletions(-)	MicroCell WP2: group 3, remove the legacy_patch_v1 and hertz_summit_v1 contact laws and the settings only they read; full-film result tag contact_model is 'off'
+7cedddb	3 files changed, 8 insertions(+), 20 deletions(-)	MicroCell WP2: group 4, remove the Roelands and compressibility stubs (roelands_eta_dim, rho_nd, eta_nd)
+16baf1e	2 files changed, 3 insertions(+), 64 deletions(-)	MicroCell WP2: group 5, remove the gauge_lift setting and the c2 cavitation form
+3eb8ae2	2 files changed, 9 insertions(+), 175 deletions(-)	MicroCell WP2: group 6, remove the solver's export hooks (export_vtk, XDMF series, post_process, output_dir) and the ignored constructor arguments mesh_h and k
+feb3e1d	1 file changed, 2 insertions(+), 146 deletions(-)	MicroCell WP2: group 7, remove the warm-start plumbing (warm_start_state, warm_start_snapshot, set_pair_warm, pair_warm_record and the pair warm levels)
+c7f799e	5 files changed, 38 insertions(+), 59 deletions(-)	MicroCell WP2: group 8, remove contact_only_load and the contact-table tag; the pair branch is selected by the plain flag pair_branch
+b482975	1 file changed, 15 insertions(+), 71 deletions(-)	MicroCell WP2: group 9, remove the solver's environment reads (MICRO_DEBUG_LOG, MICRO_NONDIM_DIAG, MICRO_UREF_FLOOR_OMEGA, MICRO_EPSP_ND_CAP, MICRO_SPOS_FORM), each frozen at its unset value
+68028f5	1 file changed, 22 insertions(+), 12 deletions(-)	MicroCell WP2: README provenance note for the pruned files; final parity report and example run

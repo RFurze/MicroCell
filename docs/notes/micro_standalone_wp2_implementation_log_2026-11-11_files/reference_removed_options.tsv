@@ -1,0 +1,99 @@
+group	option	cell	reference_value	frozen_value	agree	note
+2	micro_case.k_spring	c1_gensa40_h200_ripple	0.0	0.0	same	
+2	micro_case.k_spring	c2_gensa40_h130_ripple	0.0	0.0	same	
+2	micro_case.k_spring	c3_gensa40_h130_noripple	0.0	0.0	same	
+2	micro_case.k_spring	c4_wangpair10_h25_offset	0.0	0.0	same	
+2	micro_case.k_spring	c5_cosine_fullfilm	1e+20	0.0	DIFFERENT	KEPT: the cell-average spring is not removed (log section 2)
+2	micro_case.k_spring	c6_cosine_fft_sqrt	1e+20	0.0	DIFFERENT	KEPT: the cell-average spring is not removed (log section 2)
+2	micro_case.k_spring	c7_gensa40_h130_ripple_steady	0.0	0.0	same	
+2	micro_case.k_spring	c8_cosine_fullfilm_steady	1e+20	0.0	DIFFERENT	KEPT: the cell-average spring is not removed (log section 2)
+2	settings.spring_pointwise	c1_gensa40_h200_ripple	False	False	same	
+2	settings.spring_pointwise	c2_gensa40_h130_ripple	False	False	same	
+2	settings.spring_pointwise	c3_gensa40_h130_noripple	False	False	same	
+2	settings.spring_pointwise	c4_wangpair10_h25_offset	False	False	same	
+2	settings.spring_pointwise	c5_cosine_fullfilm	False	False	same	
+2	settings.spring_pointwise	c6_cosine_fft_sqrt	False	False	same	
+2	settings.spring_pointwise	c7_gensa40_h130_ripple_steady	False	False	same	
+2	settings.spring_pointwise	c8_cosine_fullfilm_steady	False	False	same	
+3	result.contact_model (full film)	c5_cosine_fullfilm	'legacy_patch_v1'	'off'	same	the parent's default tag on a cell with no contact; reported as 'off' now
+3	result.contact_model (full film)	c8_cosine_fullfilm_steady	'legacy_patch_v1'	'off'	same	the parent's default tag on a cell with no contact; reported as 'off' now
+3	settings.contact_model	c1_gensa40_h200_ripple	'fft_elastic_v1'	'fft_elastic_v1'	same	
+3	settings.contact_model	c2_gensa40_h130_ripple	'fft_elastic_v1'	'fft_elastic_v1'	same	
+3	settings.contact_model	c3_gensa40_h130_noripple	'fft_elastic_v1'	'fft_elastic_v1'	same	
+3	settings.contact_model	c4_wangpair10_h25_offset	'fft_elastic_v1'	'fft_elastic_v1'	same	
+3	settings.contact_model	c6_cosine_fft_sqrt	'fft_elastic_v1'	'fft_elastic_v1'	same	
+3	settings.contact_model	c7_gensa40_h130_ripple_steady	'fft_elastic_v1'	'fft_elastic_v1'	same	
+3	settings.overclosure_measure	c1_gensa40_h200_ripple	'patch_max'	'patch_max'	same	
+3	settings.overclosure_measure	c2_gensa40_h130_ripple	'patch_max'	'patch_max'	same	
+3	settings.overclosure_measure	c3_gensa40_h130_noripple	'patch_max'	'patch_max'	same	
+3	settings.overclosure_measure	c4_wangpair10_h25_offset	'patch_max'	'patch_max'	same	
+3	settings.overclosure_measure	c6_cosine_fft_sqrt	'patch_max'	'patch_max'	same	
+3	settings.overclosure_measure	c7_gensa40_h130_ripple_steady	'patch_max'	'patch_max'	same	
+3	settings.use_reduced_modulus	c1_gensa40_h200_ripple	False	False	same	
+3	settings.use_reduced_modulus	c2_gensa40_h130_ripple	False	False	same	
+3	settings.use_reduced_modulus	c3_gensa40_h130_noripple	False	False	same	
+3	settings.use_reduced_modulus	c4_wangpair10_h25_offset	False	False	same	
+3	settings.use_reduced_modulus	c6_cosine_fft_sqrt	False	False	same	
+3	settings.use_reduced_modulus	c7_gensa40_h130_ripple_steady	False	False	same	
+5	settings.gauge_lift	c1_gensa40_h200_ripple	False	False	same	
+5	settings.gauge_lift	c2_gensa40_h130_ripple	False	False	same	
+5	settings.gauge_lift	c3_gensa40_h130_noripple	False	False	same	
+5	settings.gauge_lift	c4_wangpair10_h25_offset	False	False	same	
+5	settings.gauge_lift	c5_cosine_fullfilm	False	False	same	
+5	settings.gauge_lift	c6_cosine_fft_sqrt	False	False	same	
+5	settings.gauge_lift	c7_gensa40_h130_ripple_steady	False	False	same	
+5	settings.gauge_lift	c8_cosine_fullfilm_steady	False	False	same	
+5	settings.spos_form is not c2	c1_gensa40_h200_ripple	'sqrt'	'spline or sqrt'	same	
+5	settings.spos_form is not c2	c2_gensa40_h130_ripple	'sqrt'	'spline or sqrt'	same	
+5	settings.spos_form is not c2	c3_gensa40_h130_noripple	'sqrt'	'spline or sqrt'	same	
+5	settings.spos_form is not c2	c4_wangpair10_h25_offset	'sqrt'	'spline or sqrt'	same	
+5	settings.spos_form is not c2	c5_cosine_fullfilm	'spline'	'spline or sqrt'	same	
+5	settings.spos_form is not c2	c6_cosine_fft_sqrt	'sqrt'	'spline or sqrt'	same	
+5	settings.spos_form is not c2	c7_gensa40_h130_ripple_steady	'sqrt'	'spline or sqrt'	same	
+5	settings.spos_form is not c2	c8_cosine_fullfilm_steady	'spline'	'spline or sqrt'	same	
+8	settings.phase_average -> pair_branch	c1_gensa40_h200_ripple	'off'	False	same	
+8	settings.phase_average -> pair_branch	c2_gensa40_h130_ripple	'off'	False	same	
+8	settings.phase_average -> pair_branch	c3_gensa40_h130_noripple	'off'	False	same	
+8	settings.phase_average -> pair_branch	c4_wangpair10_h25_offset	'contact_table_v1'	True	same	pair cell
+8	settings.phase_average -> pair_branch	c6_cosine_fft_sqrt	'off'	False	same	
+8	settings.phase_average -> pair_branch	c7_gensa40_h130_ripple_steady	'off'	False	same	
+9	env.MICRO_DEBUG_LOG	c1_gensa40_h200_ripple	None	None	same	reference made with the variable unset
+9	env.MICRO_DEBUG_LOG	c2_gensa40_h130_ripple	None	None	same	reference made with the variable unset
+9	env.MICRO_DEBUG_LOG	c3_gensa40_h130_noripple	None	None	same	reference made with the variable unset
+9	env.MICRO_DEBUG_LOG	c4_wangpair10_h25_offset	None	None	same	reference made with the variable unset
+9	env.MICRO_DEBUG_LOG	c5_cosine_fullfilm	None	None	same	reference made with the variable unset
+9	env.MICRO_DEBUG_LOG	c6_cosine_fft_sqrt	None	None	same	reference made with the variable unset
+9	env.MICRO_DEBUG_LOG	c7_gensa40_h130_ripple_steady	None	None	same	reference made with the variable unset
+9	env.MICRO_DEBUG_LOG	c8_cosine_fullfilm_steady	None	None	same	reference made with the variable unset
+9	env.MICRO_EPSP_ND_CAP	c1_gensa40_h200_ripple	None	None	same	reference made with the variable unset
+9	env.MICRO_EPSP_ND_CAP	c2_gensa40_h130_ripple	None	None	same	reference made with the variable unset
+9	env.MICRO_EPSP_ND_CAP	c3_gensa40_h130_noripple	None	None	same	reference made with the variable unset
+9	env.MICRO_EPSP_ND_CAP	c4_wangpair10_h25_offset	None	None	same	reference made with the variable unset
+9	env.MICRO_EPSP_ND_CAP	c5_cosine_fullfilm	None	None	same	reference made with the variable unset
+9	env.MICRO_EPSP_ND_CAP	c6_cosine_fft_sqrt	None	None	same	reference made with the variable unset
+9	env.MICRO_EPSP_ND_CAP	c7_gensa40_h130_ripple_steady	None	None	same	reference made with the variable unset
+9	env.MICRO_EPSP_ND_CAP	c8_cosine_fullfilm_steady	None	None	same	reference made with the variable unset
+9	env.MICRO_NONDIM_DIAG	c1_gensa40_h200_ripple	None	None	same	reference made with the variable unset
+9	env.MICRO_NONDIM_DIAG	c2_gensa40_h130_ripple	None	None	same	reference made with the variable unset
+9	env.MICRO_NONDIM_DIAG	c3_gensa40_h130_noripple	None	None	same	reference made with the variable unset
+9	env.MICRO_NONDIM_DIAG	c4_wangpair10_h25_offset	None	None	same	reference made with the variable unset
+9	env.MICRO_NONDIM_DIAG	c5_cosine_fullfilm	None	None	same	reference made with the variable unset
+9	env.MICRO_NONDIM_DIAG	c6_cosine_fft_sqrt	None	None	same	reference made with the variable unset
+9	env.MICRO_NONDIM_DIAG	c7_gensa40_h130_ripple_steady	None	None	same	reference made with the variable unset
+9	env.MICRO_NONDIM_DIAG	c8_cosine_fullfilm_steady	None	None	same	reference made with the variable unset
+9	env.MICRO_SPOS_FORM	c1_gensa40_h200_ripple	None	None	same	reference made with the variable unset
+9	env.MICRO_SPOS_FORM	c2_gensa40_h130_ripple	None	None	same	reference made with the variable unset
+9	env.MICRO_SPOS_FORM	c3_gensa40_h130_noripple	None	None	same	reference made with the variable unset
+9	env.MICRO_SPOS_FORM	c4_wangpair10_h25_offset	None	None	same	reference made with the variable unset
+9	env.MICRO_SPOS_FORM	c5_cosine_fullfilm	None	None	same	reference made with the variable unset
+9	env.MICRO_SPOS_FORM	c6_cosine_fft_sqrt	None	None	same	reference made with the variable unset
+9	env.MICRO_SPOS_FORM	c7_gensa40_h130_ripple_steady	None	None	same	reference made with the variable unset
+9	env.MICRO_SPOS_FORM	c8_cosine_fullfilm_steady	None	None	same	reference made with the variable unset
+9	env.MICRO_UREF_FLOOR_OMEGA	c1_gensa40_h200_ripple	None	None	same	reference made with the variable unset
+9	env.MICRO_UREF_FLOOR_OMEGA	c2_gensa40_h130_ripple	None	None	same	reference made with the variable unset
+9	env.MICRO_UREF_FLOOR_OMEGA	c3_gensa40_h130_noripple	None	None	same	reference made with the variable unset
+9	env.MICRO_UREF_FLOOR_OMEGA	c4_wangpair10_h25_offset	None	None	same	reference made with the variable unset
+9	env.MICRO_UREF_FLOOR_OMEGA	c5_cosine_fullfilm	None	None	same	reference made with the variable unset
+9	env.MICRO_UREF_FLOOR_OMEGA	c6_cosine_fft_sqrt	None	None	same	reference made with the variable unset
+9	env.MICRO_UREF_FLOOR_OMEGA	c7_gensa40_h130_ripple_steady	None	None	same	reference made with the variable unset
+9	env.MICRO_UREF_FLOOR_OMEGA	c8_cosine_fullfilm_steady	None	None	same	reference made with the variable unset
