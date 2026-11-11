@@ -47,19 +47,15 @@ import numpy as np
 from microcell.contact import PeriodicHalfSpace, band_limited_sample
 
 __all__ = [
-    "RIPPLE_MODEL", "FLUID_DEFORMATION_MODES", "ZERO_MEAN_TOL",
+    "RIPPLE_MODEL", "ZERO_MEAN_TOL",
     "RippleNotConvergedError", "ripple_operator", "fluid_traction", "ripple_traction",
     "ripple", "zero_mean_residual", "check_zero_mean", "seam_traction_jump",
     "pattern_shift", "transition_checks", "CONTRACTION_MAX", "residual_acceptance",
-    "deformation_model_tag",
 ]
 
 #: deformation-model tag carried by results and checkpoints (plan O7). v1: the field is
 #: held fixed during each micro run in the frame of the rough surface (plan O6).
 RIPPLE_MODEL = "ripple_halfspace_v1"
-
-#: the values of the micro setting ``fluid_deformation`` (18.15 item 4)
-FLUID_DEFORMATION_MODES = ("off", "ripple_halfspace")
 
 #: zero-mean check of 18.13.2: |integral u dA| <= tol * A * max|u|.  On the uniform
 #: periodic grid every node has the same tributary area, so the nodal mean is the
@@ -290,15 +286,6 @@ def residual_acceptance(resid_max, prev_resid_max, prev_set, cur_set, *, H0, def
         info["end_set_abs"] = info["end_set_rel"] = float("inf")
         ok = False
     return bool(ok), info
-
-
-def deformation_model_tag(fluid_deformation) -> str:
-    """The identity tag of a micro fluid-deformation setting (plan O7): ``ripple_halfspace_v1``
-    for ``"ripple_halfspace"``, ``"off"`` for ``"off"`` (or None)."""
-    mode = "off" if fluid_deformation is None else str(fluid_deformation)
-    if mode not in FLUID_DEFORMATION_MODES:
-        raise ValueError(f"fluid_deformation must be one of {FLUID_DEFORMATION_MODES}, got {mode!r}")
-    return "off" if mode == "off" else RIPPLE_MODEL
 
 
 def pattern_shift(u, shift_x: float, shift_y: float) -> np.ndarray:

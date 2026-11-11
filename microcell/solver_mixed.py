@@ -48,7 +48,6 @@ from microcell.solver_base import (  # noqa: F401
     MicroPhaseNeutralSolver as _BaseSolver,
     PATCH_PIN,
     PATCH_PIN_KAPPA,
-    PeriodicBoundary,               # re-export (back-compat)
 )
 # [extrema M1] the shared fluid pressure extrema sampler; [extrema M2b] the fluid traction sampler
 from microcell.samplers import sample_fluid_pressure_extrema, sample_fluid_traction
@@ -697,9 +696,3 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
             Qx, Qy, Pst, Fst, taust_x, taust_y,
             p_max, p_min, h_max, h_min, qymax, qymin, fmax, fmin,
         )
-
-
-# ---------------------------------------------------------------------------
-# Back-compat alias (module previously exported the base class name)
-# ---------------------------------------------------------------------------
-MicroPhaseNeutralSolver = MicroPhaseNeutralMixedSolver

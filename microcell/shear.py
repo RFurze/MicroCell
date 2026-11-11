@@ -191,17 +191,6 @@ class ShearReduction:
         """The numbers are physical (status ``ok`` or ``no_support``)."""
         return self.status in VALID_STATUSES
 
-    def as_dict(self) -> dict:
-        """Plain floats / ints / strings (picklable, JSON-ready)."""
-        return {
-            "mean": [float(v) for v in self.mean], "min": float(self.min), "max": float(self.max),
-            "sample_mean": float(self.sample_mean), "support_min": float(self.support_min),
-            "support_max": float(self.support_max), "support_fraction": float(self.support_fraction),
-            "n_samples": int(self.n_samples), "n_support": int(self.n_support), "status": self.status,
-            "direction": [float(v) for v in self.direction], "statistic": self.statistic,
-            "version": SHEAR_REDUCE_VERSION,
-        }
-
 
 def _direction(direction) -> np.ndarray:
     d = np.asarray(direction, dtype=float).reshape(-1)

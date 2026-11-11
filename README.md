@@ -277,11 +277,17 @@ Nine files are merged into four (`samplers.py`, `film.py`, `contact.py`, `shear.
 part in the order of its rows below.  The code moved verbatim: only module docstrings (the old
 ones are kept inside the new one), import lines and `__all__` changed.  The paragraphs above
 use the file names of their time; the table gives each file's name now, and
-`docs/notes/provenance.tsv` has both (`file`, `file_since_wp5`).  The check and the parity:
+`docs/notes/provenance.tsv` has both (`file`, `file_since_wp5`).  After the move, WP5 removed
+names that nothing reads: the Newton prints, the timing summary and the Newton trace
+(`solver_base.py`), a back-compat alias (`solver_mixed.py`), `SAMPLER_DEFINITION` and an
+`as_dict` (`samplers.py`), an `as_dict` (`shear.py`), `FLUID_DEFORMATION_MODES` and
+`deformation_model_tag` (`ripple.py`, marked "pruned in WP5"), `h_geom_min_bound`
+(`roughness/runtime.py`), the two legacy error metrics of the generator
+(`roughness/generation.py`), and three unused imports.  The checks and the parity:
 `docs/notes/micro_standalone_wp5_implementation_log_2026-11-11.md`.
 
-Still the parent's text: `ripple.py`, `form_compiler.py`,
-`process_settings.py`, `scripts/ehl_env.sh`, and the `elastic_contact.py` part of `contact.py`.
+Still the parent's text: `form_compiler.py`, `process_settings.py`, `scripts/ehl_env.sh`, and
+the `elastic_contact.py` part of `contact.py`.
 
 | File | Parent path | Parent blob |
 |---|---|---|
@@ -294,7 +300,7 @@ Still the parent's text: `ripple.py`, `form_compiler.py`,
 | `microcell/film.py`, second part (edited in WP4; merged in WP5) | `microscale/src/functions/surface_ht.py` | 6775f693ea |
 | `microcell/contact.py`, first part (pruned, and again in WP3; merged in WP5) | `ehl/contact.py` | 1ac7dff6ec |
 | `microcell/contact.py`, second part (merged in WP5) | `ehl/elastic_contact.py` | 95ed9d78bf |
-| `microcell/ripple.py` | `ehl/ripple.py` | a869e99b30 |
+| `microcell/ripple.py` (pruned in WP5) | `ehl/ripple.py` | a869e99b30 |
 | `microcell/pressure.py` (pruned in WP3) | `ehl/pressure.py` | 1c7da166fc |
 | `microcell/shear.py`, first part (pruned in WP4; merged in WP5) | `ehl/shear_reduce.py` | ca9e9f9984 |
 | `microcell/shear.py`, second part (pruned in WP3; merged in WP5) | `ehl/fluid_shear.py` | d927ff9942 |

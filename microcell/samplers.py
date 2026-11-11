@@ -549,8 +549,6 @@ import numpy as np
 from microcell.shear import GLOBAL_X, reduce_traction   # pure numpy; ehl/__init__ imports nothing
 
 CONTACT_SAMPLER = "fft_nodal_p1_periodic_v1"
-SAMPLER_DEFINITION = ("sol.p of the stored fft_elastic_v1 solution, periodic P1 interpolant on the "
-                      "'right'-diagonal grid (UnitSquareMesh cells), Pa")
 
 from microcell.contact import FFT as FFT_MODEL      # the one contact law (one definition)
 
@@ -794,10 +792,6 @@ class ContactTotalReduction:
     total: object
     support: dict = field(default_factory=dict)
     contact: dict = field(default_factory=dict)
-
-    def as_dict(self) -> dict:
-        return {"fluid": self.fluid.as_dict(), "asperity": self.asperity.as_dict(),
-                "total": self.total.as_dict(), "support": dict(self.support), "contact": dict(self.contact)}
 
 
 def reduce_contact_and_total(t_fluid, fluid_support, fluid_valid, contact: ContactSamples, mu_material: float,

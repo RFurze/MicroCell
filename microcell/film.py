@@ -225,7 +225,7 @@ def make_ideal_ht(
     def ht(x, y, xmax, ymax, H0, HT, T, Ux, Uy):
         # Lazy dolfin import so importing this module never drags FEniCS
         # into processes that only need configuration metadata.
-        from dolfin import pi, sin, cos
+        from dolfin import pi, cos
 
         x_d = x * xmax
         y_d = y * ymax

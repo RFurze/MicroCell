@@ -14,7 +14,7 @@ iteration order) and the Gaussian height distribution, evaluated by
 :mod:`microcell.roughness.quantiles` (NumPy only) instead of ``scipy.stats``.
 
 [MicroCell WP3] Kept: what ``Roughness.generated`` calls (the Gaussian-ACF
-spectrum, the Gaussian HPD, IAAFT and its two legacy error metrics).  Removed:
+spectrum, the Gaussian HPD and IAAFT; its two legacy error metrics went in WP5).  Removed:
 the other PSD models and radial-PSD tables, the other HPD families and their
 shape fit, the Sm fit, ``generate_rough_surface``, the filtered Gaussian
 generator, ``spectral_energy_error`` and the revision / provenance constants;
@@ -34,8 +34,7 @@ from . import quantiles as _q
 
 __all__ = [
     "HDS_CORR_LEN", "wavenumber_grid", "normalise_amplitude", "psd_gaussian_acf",
-    "hpd_sorted_sample", "IAAFTResult", "iaaft", "rank_remap", "err_h_legacy",
-    "err_s_legacy",
+    "hpd_sorted_sample", "IAAFTResult", "iaaft", "rank_remap",
 ]
 
 #: Correlation length fitted for the WTC26 HDS gaussian family (Sm target
@@ -116,8 +115,6 @@ class IAAFTResult:
     Zh: np.ndarray          # exact HPD, approximate PSD
     Zs: np.ndarray          # exact PSD, approximate HPD
     n_iter: int
-    err_h: float            # legacy histogram L1 error of Zs (paper eq. 2)
-    err_s: float            # legacy relative rms spectral error of Zh (eq. 3)
     history: list = field(default_factory=list)
 
 
@@ -163,32 +160,4 @@ def iaaft(amp: np.ndarray, target_sorted: np.ndarray,
                 break
         prev_order = order
     return IAAFTResult(Zh=Zh, Zs=Zs, n_iter=used,
-                       err_h=err_h_legacy(Zs, target_sorted),
-                       err_s=err_s_legacy(Zh, amp), history=history)
-
-
-def err_h_legacy(Zs: np.ndarray, target_sorted: np.ndarray) -> float:
-    """Old ``_err_h``: L1 distance between the histograms of Zs and of the
-    target heights on Scott's-rule bins (probability-mass difference)."""
-    zs = Zs.ravel()
-    zh = target_sorted
-    n = zh.size
-    w = 3.49 * np.std(zh) * n ** (-1.0 / 3.0)
-    lo, hi = zh.min(), zh.max()
-    nb = max(int(np.ceil((hi - lo) / w)), 2)
-    edges = np.linspace(min(lo, zs.min()), max(hi, zs.max()), nb + 1)
-    nh, _ = np.histogram(zh, bins=edges, density=False)
-    ns, _ = np.histogram(zs, bins=edges, density=False)
-    return float(np.sum(np.abs(nh / n - ns / zs.size)))
-
-
-def err_s_legacy(Zh: np.ndarray, amp: np.ndarray, band_rel: float = 1e-4) -> float:
-    """Old ``_err_s``: unweighted relative rms error of |FFT(Zh)| against the
-    target over modes with ``amp > band_rel * amp.max()``.  Not an
-    acceptance metric (see module docstring)."""
-    A = np.abs(np.fft.fft2(Zh))
-    band = amp > band_rel * amp.max()
-    if not np.any(band):
-        return float("nan")
-    rel = (A[band] - amp[band]) / amp[band]
-    return float(np.sqrt(np.mean(rel ** 2)))
+                       history=history)

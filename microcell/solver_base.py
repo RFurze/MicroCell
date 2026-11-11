@@ -45,7 +45,6 @@ from the template but is not tested here (Stage 2).
 from __future__ import annotations
 
 import logging
-import sys
 import time
 from typing import Callable
 
@@ -161,12 +160,10 @@ NEWTON_BACKTRACK_TOL = 2.0
 NEWTON_BACKTRACK_WARMUP_ITERS = 3
 OMEGA_RECOVERY_FACTOR = 1.2
 OMEGA_CAP_SHRINK_FACTOR = 0.85
-#: the per-iteration Newton prints and the per-run timing summary
+#: the parent's print switches.  The prints they guarded are removed (WP5); the parity gate still
+#: checks that a reference was made with both off
 PRINT_NEWTON = False
 PRINT_TIMING = False
-#: the tolerance-audit trace of ``_newton_solve`` (the parent read it with ``getattr`` from a
-#: settings object that never carried it)
-TRACE_NEWTON = False
 #: the closure parameter of the Newton solve
 BETA = 1.0
 #: the fluid-mean level constraint's pin of the patch degrees of freedom (None: on) and its weight
@@ -503,74 +500,7 @@ class MicroPhaseNeutralSolver:
         self._n_lc_whole_cell = 0
         self._n_lc_fluid_mean = 0
         self._n_lc_no_fluid = 0
-        # Tolerance-audit trace: when ``trace_newton`` is set on settings
-        # (via getattr), each Newton iteration appends a tuple
-        # (newton_call_idx, nit, res_field, res_scalar, res_field_rel,
-        #  res_scalar_rel).  newton_call_idx increments once per call to
-        #  _newton_solve so we can slice by timestep.  Buffer is cleared
-        #  here (so it spans exactly one run/run_steady invocation).
-        self._newton_trace: list = []
         self._newton_call_idx = 0
-
-    def _print_timing_summary(self, n_steps: int, t_total: float) -> None:
-        bw = 70
-        n_time_steps = n_steps - 1
-
-        accounted = (
-            self._t_init
-            + self._t_newton_solve
-            + self._t_history_update
-            + self._t_diagnostics
-            + self._t_step_overhead
-        )
-        t_other = max(0.0, t_total - accounted)
-
-        def _row(label: str, t: float, avg_n: int = 0, prefix: str = "  ") -> str:
-            pct = 100.0 * t / t_total if t_total > 0 else 0.0
-            s = f"{prefix}{label:<34s}: {t:>8.2f}s  ({pct:5.1f}%)"
-            if avg_n > 0:
-                s += f"  avg {t / avg_n:.4f}s/step"
-            return s
-
-        n_nit = max(self._n_newton_iters_total, 1)
-        n_calls = max(self._n_newton_calls, 1)
-
-        lines = [
-            "=" * bw,
-            f"[TIMING] MicroPhaseNeutralSolver transient run  ({n_time_steps} time steps)",
-            "\u2500" * bw,
-            _row("Initialisation (t=0)", self._t_init),
-            _row("Newton solves (Schur)", self._t_newton_solve, n_time_steps),
-            f"    \u251c\u2500 FE assembly (F+J)        : {self._t_asm_total:>8.2f}s  "
-            f"({100.0 * self._t_asm_total / max(t_total, 1e-30):5.1f}%)  "
-            f"avg {self._t_asm_total / n_nit:.4f}s/Newton-it",
-            f"    \u251c\u2500 Linear solve (3x MUMPS)  : {self._t_lin_total:>8.2f}s  "
-            f"({100.0 * self._t_lin_total / max(t_total, 1e-30):5.1f}%)  "
-            f"avg {self._t_lin_total / n_nit:.4f}s/Newton-it",
-            f"    \u251c\u2500 Solution update          : {self._t_upd_total:>8.2f}s  "
-            f"({100.0 * self._t_upd_total / max(t_total, 1e-30):5.1f}%)",
-            f"    \u251c\u2500 Newton iters total       : {self._n_newton_iters_total}  "
-            f"({self._n_newton_iters_total / n_calls:.1f} avg/call)  "
-            f"calls={self._n_newton_calls}  ({self._n_newton_calls / max(n_time_steps, 1):.1f} avg/step)",
-            f"    \u2514\u2500 Damping backtracks       : {self._n_newton_backtracks_total}",
-        ]
-
-        lines += [
-            _row("History update (project)", self._t_history_update, n_time_steps),
-        ]
-
-        lines += [
-            _row("Diagnostics", self._t_diagnostics),
-            _row("Step overhead (BC/BDF)", self._t_step_overhead, n_time_steps),
-            _row("Other (setup/overhead)", t_other),
-            "\u2500" * bw,
-            f"  {'TOTAL':<34s}: {t_total:>8.2f}s",
-            f"  {'Avg per time step':<34s}: {t_total / max(n_time_steps, 1):.4f}s",
-            "=" * bw,
-        ]
-
-        print("\n".join(lines))
-        sys.stdout.flush()
 
     # -------------------------
     # Setup helpers
@@ -1982,17 +1912,6 @@ class MicroPhaseNeutralSolver:
                 res0_field = max(res_field, 1e-30)
                 res0_scalar = max(res_scalar, 1e-30)
 
-            # Tolerance-audit trace (``TRACE_NEWTON``, off).
-            if TRACE_NEWTON:
-                self._newton_trace.append((
-                    int(self._newton_call_idx),
-                    int(nit),
-                    float(res_field),
-                    float(res_scalar),
-                    float(res_field / res0_field),
-                    float(res_scalar / res0_scalar),
-                ))
-
             # --- Adaptive damping: backtrack if last step made things worse
             # (decision + omega state in DampingPolicy; conditions verbatim).
             res_sq = res_field * res_field + res_scalar * res_scalar
@@ -2017,30 +1936,12 @@ class MicroPhaseNeutralSolver:
                 # state  [b-only, U7.1].
                 _t_asm += self._assemble_newton_rhs()
 
-                if PRINT_NEWTON:
-                    print(
-                        f"    [backtrack {pol.n_bt}] res_sq {res_sq:.3e} > "
-                        f"{pol.bt_tol:.2f} * {pol.prev_res_sq:.3e}; "
-                        f"omega -> {pol.omega_current:.4f}  cap -> {pol.omega_cap:.4f}"
-                    )
-                    sys.stdout.flush()
                 # Re-enter the loop top to re-evaluate the damped state
                 continue
 
             # Step accepted: omega recovery toward the per-solve cap
             # (suppressed while diverged with an exhausted budget).
             pol.on_accept(nit, res_sq)
-
-            if PRINT_NEWTON:
-                lam_val = float(self.lambda_nd)
-                cap_str = (f"  cap = {pol.omega_cap:.3f}"
-                           if pol.omega_cap < omega_base - 1e-12 else "")
-                print(
-                    f"  Newton it {nit:2d}:  ||F|| = {res_field:.4e}  "
-                    f"G = {G:.4e}  H = {H:.4e}  λ = {lam_val:.4e}  μ = {self.mu_nd:.4e}  "
-                    f"ω = {pol.omega_current:.3f}{cap_str}"
-                )
-                sys.stdout.flush()
 
             # --- Convergence check ---
             field_ok = (res_field < atol) or (res_field / res0_field < rtol)
@@ -2428,7 +2329,6 @@ the film does not depend on the pressure, and the contact solve sees
                   dt_override: "float | None",
                   step_callback: "Callable | None") -> None:
         """One transient run (the body ``run`` always had); ``Tf > 0``, ``n_steps >= 1``."""
-        _t_run_start = time.perf_counter()
         self._reset_timers()
 
         if dt_override is not None:
@@ -2598,10 +2498,6 @@ the film does not depend on the pressure, and the contact solve sees
             # _project_to_Vper and the seed-history block for rationale.
             self._advance_history()          # [WP2] nm2 <- nm1, nm1 <- h(t_dim), mask alike
             self._t_history_update += time.perf_counter() - _t0
-
-        if PRINT_TIMING:
-            _t_run_total = time.perf_counter() - _t_run_start
-            self._print_timing_summary(n_steps + 1, _t_run_total)
 
     # -------------------------
     # Homogenisation

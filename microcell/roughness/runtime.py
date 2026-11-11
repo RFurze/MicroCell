@@ -119,13 +119,6 @@ class SurfaceField:
             raise ValueError(f"the micro cell {float(xmax):.6g} x {float(ymax):.6g} m is not the prepared "
                              f"surfaces' {self.Lx:.6g} x {self.Ly:.6g} m")
 
-    def h_geom_min_bound(self, H0: float, HT: float, times) -> float:
-        """The film minimum the predictor uses: ``min_t (H0 + HT*t) - envelope``
-        -- the reconstruction's own minimum (8x oversampled), whatever mesh
-        the solve will use (plan 7.4: a source bound, so a coarse grid cannot
-        miss a narrow asperity)."""
-        return min(float(H0) + float(HT) * float(t) for t in times) - self.envelope_m
-
 
 def _lattice(u: np.ndarray, n_max: int = 2048) -> int:
     """n when every value of ``u`` is ``k/n`` for integers k (to 1e-9), with n
