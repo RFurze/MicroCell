@@ -231,7 +231,7 @@ in `microcell/api.py` with its one default: the parent's `GenSa40-ripple` case.
 | `level_constraint` | `"whole_cell"` | pressure-level constraint (`"fluid_mean_v1"`: over the fluid region) |
 | `pattern_flux_contact` | True | flux pattern in the contact region |
 | `jacobian_reg_eps` | -1e-7 | shift of the Jacobian (0: none) |
-| `relaxation_parameter`, `max_iterations`, `abs_tolerance`, `rel_tolerance` | 1.0, 300, 1e-6, 1e-6 | Newton solve |
+| `relaxation_parameter`, `max_iterations`, `abs_tolerance`, `rel_tolerance` | 1.0, 300, 1e-6, 1e-6 | Newton solve; the parent's Sa 8, Sa 10 and Wang cases run `abs_tolerance=1e-5` |
 | `cfl_target` | 1.0 | CFL number of the transient steps |
 | `roughness_velocity_ratio` | None | None: the roughness's own ratio |
 | `contact` | `ContactSettings()` | `None` is the full-film mode |
