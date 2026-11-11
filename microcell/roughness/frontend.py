@@ -30,6 +30,16 @@ from microcell.roughness.runtime import SurfaceField
 #: the oversampling of the envelope estimate (the parent's roughness/case.py ENVELOPE_OVERSAMPLE)
 ENVELOPE_OVERSAMPLE = 8
 ROLES = ("stationary", "translating")
+#: acceptance of a generated surface's Sa: ``|got - want| <= max(atol, rtol * want)`` (the parent's
+#: ``SurfaceTargets`` defaults)
+SA_RTOL = 1e-4
+SA_ATOL = 1e-13
+
+
+def _mean_abs(z: np.ndarray) -> float:
+    """Sa of ``z`` about its own mean (the parent's ``targets.realised_amplitudes``)."""
+    zc = np.asarray(z, dtype=float) - float(np.mean(z))
+    return float(np.mean(np.abs(zc)))
 
 
 class ArrayField(SurfaceField):
@@ -103,20 +113,36 @@ class Roughness:
         """One generated surface: Gaussian autocorrelation of length ``corr_length`` [m] (default: the
         parent's ``HDS_CORR_LEN``), Gaussian height distribution, scaled to ``Sa`` [m]; the parent's
         recipe ``ehl/library/roughness.py:gaussian_generated``."""
-        from microcell.roughness import prepare
-        from microcell.roughness.generation import HDS_CORR_LEN
-        from microcell.roughness.spec import GeneratedSurface, HeightFit, HPDSpec, PSDSpec, SurfaceTargets
+        from microcell.roughness import generation as G
 
-        spec = GeneratedSurface(
-            name="gaussian-generated", Lx=float(Lx), Ly=float(Ly), nx=int(n), ny=int(n),
-            psd=PSDSpec.gaussian_acf(HDS_CORR_LEN if corr_length is None else float(corr_length)),
-            hpd=HPDSpec("gaussian"), seed=int(seed), n_iter=int(n_iter), take="Zh",
-            targets=SurfaceTargets(Sa=float(Sa)), fit=HeightFit("scale", "Sa"))
-        z, Lx_, Ly_, rep = prepare.resolve(spec)
-        status = getattr(rep["targets"], "status", None)
-        if status != "accepted":
-            raise ValueError(f"the generated surface did not meet its targets (status {status!r})")
-        return cls.array(z, Lx_, Ly_, moving=moving)
+        # [MicroCell WP3] The parent's path spec -> prepare.resolve -> targets.apply_policy, written
+        # out for this one recipe (IAAFT, take "Zh", fit "scale" on Sa) with the same arithmetic in the
+        # same order, so the array is the one that path returned, bit for bit.
+        Sa, Lx, Ly, n, seed, n_iter = float(Sa), float(Lx), float(Ly), int(n), int(seed), int(n_iter)
+        corr_len = G.HDS_CORR_LEN if corr_length is None else float(corr_length)
+        if not corr_len > 0.0:
+            raise ValueError(f"corr_len must be > 0, got {corr_len!r}")
+        if not Sa > 0.0:
+            raise ValueError(f"target Sa must be > 0, got {Sa!r}")
+        for name, v in (("Lx", Lx), ("Ly", Ly)):
+            if not v > 0.0:
+                raise ValueError(f"{name} must be > 0, got {v!r}")
+        if n < 4:
+            raise ValueError("nx must be an integer >= 4")
+        if n_iter < 0:
+            raise ValueError("n_iter must be >= 0")
+        amp = G.psd_gaussian_acf(G.wavenumber_grid(n, n, Ly, Lx), corr_len=corr_len, q1=None)
+        vec = G.hpd_sorted_sample(n * n, "gaussian", None)
+        res = G.iaaft(amp, vec, np.random.default_rng(seed), n_iter=n_iter)
+        zc = np.asarray(res.Zh, dtype=float) - float(np.mean(res.Zh))       # centred once
+        now = _mean_abs(zc)
+        if not now > 0.0:
+            raise ValueError("cannot scale a zero field")
+        zc = zc * (Sa / now)
+        got = _mean_abs(zc)
+        if not abs(got - Sa) <= max(SA_ATOL, SA_RTOL * Sa):
+            raise ValueError(f"the generated surface did not meet its target (Sa {got!r} for {Sa!r})")
+        return cls.array(zc, Lx, Ly, moving=moving)
 
     @classmethod
     def pair(cls, stationary: "Roughness", translating: "Roughness") -> "Roughness":
@@ -150,7 +176,7 @@ class Roughness:
     @property
     def velocity_ratio(self) -> float:
         """The parent's ``roughness_velocity_ratio``: 0 for a stationary pattern, 1 when a
-        member translates (``roughness/pair.py`` LEGACY_ROUGHNESS_MODES)."""
+        member translates (the parent's ``roughness/pair.py`` LEGACY_ROUGHNESS_MODES)."""
         if self.kind == "cosine":
             return 1.0 if self._data["moving"] else 0.0
         return 1.0 if "translating" in self._data["members"] else 0.0

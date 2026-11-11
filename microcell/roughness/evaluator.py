@@ -2,8 +2,8 @@
 
 Decision D4 (16 October 2026, FFT contact plan): one evaluator for every
 consumer -- FE nodal refill, the contact solve, the predictor and reports.
-Bilinear refill survives only as the labelled legacy path
-(:func:`bilinear_nodal`).
+The parent's bilinear refill (its labelled legacy path ``bilinear_nodal``) is
+not in this repo (removed in MicroCell WP3).
 
 Reconstruction contract (R0 note §4)
 ------------------------------------
@@ -54,8 +54,7 @@ from typing import Iterable, Optional, Sequence, Tuple
 
 import numpy as np
 
-__all__ = ["EVALUATOR_REVISION", "Bandwidth", "FourierSurface", "bilinear_nodal",
-           "nodal_grid"]
+__all__ = ["EVALUATOR_REVISION", "Bandwidth", "FourierSurface"]
 
 #: Version tag of the reconstruction; part of cache and artefact identity.
 EVALUATOR_REVISION = "ehl.roughness.fourier/1"
@@ -104,13 +103,6 @@ def _extended_axis(n: int) -> Tuple[np.ndarray, np.ndarray, Optional[int]]:
         src_ext = np.concatenate([src, [n // 2]])
         return k_ext, src_ext, (n // 2, n)
     return k, src, None
-
-
-def nodal_grid(nx: int, ny: int, Lx: float, Ly: float) -> Tuple[np.ndarray, np.ndarray]:
-    """(X, Y) [m] of the half-open periodic grid, shape (ny, nx): x_i = i*Lx/nx."""
-    x = np.arange(nx) * (Lx / nx)
-    y = np.arange(ny) * (Ly / ny)
-    return np.meshgrid(x, y, indexing="xy")
 
 
 class FourierSurface:
@@ -333,40 +325,3 @@ class FourierSurface:
         ny, nx = self.source_shape
         v = self.nodal(oversample * nx, oversample * ny, shift=shift)
         return float(v.min()), float(v.max())
-
-
-def bilinear_nodal(z: np.ndarray, Lx: float, Ly: float, mx: int,
-                   my: Optional[int] = None,
-                   shift: Sequence[float] = (0.0, 0.0),
-                   layout: str = "canonical") -> np.ndarray:
-    """LEGACY periodic-bilinear refill (old ``generated_surface_ht`` refill
-    and ``generated_ht_cell.sample_periodic``), on the half-open
-    ``my x mx`` grid; returns ``[j_y, i_x]``.
-
-    Kept for reproducing historical runs only: it turns every source extremum
-    into a pyramid tip and makes contact loads depend on node alignment
-    (FFT contact plan §4.3).  ``layout="legacy_xy"`` reads the source as
-    ``z[i_x, j_y]`` like ``generated_ht_cell``.
-    """
-    z = np.asarray(z, dtype=float)
-    if layout == "legacy_xy":
-        z = z.T
-    elif layout != "canonical":
-        raise ValueError(f"unknown layout {layout!r}")
-    my = mx if my is None else int(my)
-    ny, nx = z.shape
-    u = np.arange(mx) / float(mx)
-    v = np.arange(my) / float(my)
-    U, V = np.meshgrid(u, v, indexing="xy")
-    dfx = float(shift[0]) / Lx
-    dfy = float(shift[1]) / Ly
-    fx = ((U - dfx) % 1.0) * nx
-    fy = ((V - dfy) % 1.0) * ny
-    i0 = np.floor(fx).astype(int) % nx
-    j0 = np.floor(fy).astype(int) % ny
-    i1 = (i0 + 1) % nx
-    j1 = (j0 + 1) % ny
-    tx = fx - np.floor(fx)
-    ty = fy - np.floor(fy)
-    return ((1 - tx) * (1 - ty) * z[j0, i0] + tx * (1 - ty) * z[j0, i1]
-            + (1 - tx) * ty * z[j1, i0] + tx * ty * z[j1, i1])
