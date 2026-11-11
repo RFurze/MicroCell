@@ -92,13 +92,11 @@ class ContactSettings:
     """Elastic asperity contact (``fft_elastic_v1``).  ``MicroSettings.contact = None`` is the
     full-film mode."""
     E_star: float = 203775203775.2038       # reduced modulus [Pa]
-    nu: float = 0.26                        # not read since WP2 (E_star carries it); kept until WP4
     tol: float = 1e-11                      # contact solve tolerance (1e-11 for h_min near 1e-11 m)
     maxit: int = 500
     sigma_yield: float = 250e6              # [Pa]
     mu: float = 0.8                         # boundary friction coefficient of the asperity traction
-    k_asp_mode: str = "closure"
-    k_asp_exponent: float = 1.5             # not read since WP2 (the dropped legacy closure only); kept until WP4
+    k_asp_mode: str = "closure"             # "closure" | "off"
 
 
 @dataclass(frozen=True)

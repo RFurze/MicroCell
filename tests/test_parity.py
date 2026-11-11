@@ -129,9 +129,8 @@ def settings_from_reference(ref: dict):
     mc, sj, meta = ref["micro_case"], ref["settings"], ref["meta"]
     mixed = bool(mc["mixed_enabled"])
     contact = ContactSettings(
-        E_star=mc["contact_E_star"], nu=mc["nu"], tol=sj["contact_tol"], maxit=sj["contact_maxit"],
-        sigma_yield=mc["sigma_yield"], mu=mc["mu_material"], k_asp_mode=mc["k_asp_mode"],
-        k_asp_exponent=mc["k_asp_exponent"]) if mixed else None
+        E_star=mc["contact_E_star"], tol=sj["contact_tol"], maxit=sj["contact_maxit"],
+        sigma_yield=mc["sigma_yield"], mu=mc["mu_material"], k_asp_mode=mc["k_asp_mode"]) if mixed else None
     ripple = RippleSettings(E_star=mc["fluid_E_star"], tol=sj["ripple_tol"], maxpass=sj["ripple_maxpass"],
                             omega=sj["ripple_omega"]) if mc["fluid_deformation"] != "off" else None
     legacy = dict(beta=mc["beta"], delta_h=mc["delta_h"], eps_solid=mc["eps_solid"], eps_smooth=mc["eps_smooth"])
