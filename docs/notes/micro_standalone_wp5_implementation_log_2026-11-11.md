@@ -36,8 +36,8 @@ The ParaView files are written but not opened: Rob must open them himself (§7).
 **Group 6 (Tables 11, 12).** The names of Table 11, which nothing read, are gone from eight files; 22 of
 the 32 listed candidates stay.
 
-**Departures:** nine (§10). One is Rob's to accept or reverse: 10.4 (group 6 took out code
-that was reached only through a switch fixed at False, and two result fields nobody reads).
+**Departures:** nine (§10). One was Rob's to accept or reverse, 10.4 (group 6 took out code
+that was reached only through a switch fixed at False, and two result fields nobody reads): he kept it, 11 Nov 2026 ("Keep it").
 
 **Not measured:** the full-length march time (inferred); the ParaView files load (not opened);
 the gates of 42fe16f and 1f8005f on a clean checkout (§10.2).
@@ -263,7 +263,7 @@ The existing tests changed in five import lines only (group 1: `test_parity.py`,
    so the count lines of Table 5 for 42fe16f and 1f8005f include their 44 tests. Those two
    commits were not gated on a clean checkout.
 3. **Examples ran before the group 4 commit and again at the head** (the brief asks once).
-4. **Group 6 went one step past "no reader"** (Rob's to accept or reverse; reversing is a revert
+4. **Group 6 went one step past "no reader"** (Rob kept it, 11 Nov 2026: "Keep it"; reversing would be a revert
    of f694669). Removed with the listed names: the `if PRINT_TIMING:`, `if PRINT_NEWTON:` and
    `if TRACE_NEWTON:` branches, which were reached only through switches fixed at False; the
    `IAAFTResult.err_h` and `err_s` fields, which nothing read, with the two functions that
