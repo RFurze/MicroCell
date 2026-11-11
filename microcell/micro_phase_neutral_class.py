@@ -49,7 +49,7 @@ import os
 import sys
 import time
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable
 
 import numpy as np
 from fenics import *  # legacy FEniCS
@@ -262,9 +262,9 @@ LEVEL_CONSTRAINT_FLUID_MEAN = "fluid_mean_v1"
 #: [option H] the per-run counters ``_reset_timers`` zeroes; the pass loop sums
 #: them over the passes of one task so callers read task totals, as before.
 _PASS_COUNTERS = (
-    "_t_newton_solve", "_t_spring_coupling", "_t_history_update", "_t_xdmf_export",
+    "_t_newton_solve", "_t_spring_coupling", "_t_history_update",
     "_t_diagnostics", "_t_step_overhead", "_t_init", "_n_newton_calls",
-    "_n_spring_iters_total", "_n_xdmf_writes", "_t_asm_total", "_t_lin_total",
+    "_n_spring_iters_total", "_t_asm_total", "_t_lin_total",
     "_t_upd_total", "_n_newton_iters_total", "_n_newton_backtracks_total",
     # [fluid-mean WP2 (S6)] Newton solves per constraint path
     "_n_lc_whole_cell", "_n_lc_fluid_mean", "_n_lc_no_fluid",
@@ -414,20 +414,13 @@ class MicroPhaseNeutralSolver:
     def __init__(
         self,
         mesh_m: Mesh,
-        mesh_h: Mesh,
         physical_params: MicroPhysicalParameters,
         solver_settings: MicroSolverSettings,
-        k: int,
         ht: Callable,
-        export_vtk: bool = False,
-        output_dir: str = "micro_outputs",
         auto_solve: bool = True,
         warm_start_state: "dict | None" = None,
     ) -> None:
         # ---- persistent inputs ----
-        # NOTE: the ``mesh_h`` and ``k`` constructor arguments are accepted
-        # for signature compatibility with callers but are unused by this
-        # solver (verified Phase 1a).
         self.mesh_m = mesh_m
         self.params = physical_params
         self.settings = solver_settings
@@ -452,11 +445,8 @@ class MicroPhaseNeutralSolver:
                 % (self._spos_form,)
             )
         self.ht_cb = ht
-        self.export_vtk = export_vtk
-        self.output_dir = output_dir
 
         # ---- setup ----
-        self._setup_export()
         self._setup_coordinates()
         self._setup_time_controls()
         self._nondimensionalise()
@@ -488,7 +478,6 @@ class MicroPhaseNeutralSolver:
 
         if auto_solve:
             self.run_steady()
-            self.post_process()
 
     def _apply_warm_start(self, state: "dict") -> None:
         """Seed (w, lambda_nd, mu_nd) from a previous solver's final state.
@@ -633,13 +622,11 @@ class MicroPhaseNeutralSolver:
         self._t_newton_solve = 0.0
         self._t_spring_coupling = 0.0
         self._t_history_update = 0.0
-        self._t_xdmf_export = 0.0
         self._t_diagnostics = 0.0
         self._t_step_overhead = 0.0
         self._t_init = 0.0
         self._n_newton_calls = 0
         self._n_spring_iters_total = 0
-        self._n_xdmf_writes = 0
         self._t_asm_total = 0.0
         self._t_lin_total = 0.0
         self._t_upd_total = 0.0
@@ -671,7 +658,6 @@ class MicroPhaseNeutralSolver:
             + self._t_newton_solve
             + self._t_spring_coupling
             + self._t_history_update
-            + self._t_xdmf_export
             + self._t_diagnostics
             + self._t_step_overhead
         )
@@ -716,13 +702,7 @@ class MicroPhaseNeutralSolver:
 
         lines += [
             _row("History update (project)", self._t_history_update, n_time_steps),
-            _row("XDMF export", self._t_xdmf_export),
         ]
-        if self._n_xdmf_writes > 0:
-            lines.append(
-                f"    \u2514\u2500 XDMF writes              : {self._n_xdmf_writes}  "
-                f"(avg {self._t_xdmf_export / self._n_xdmf_writes:.4f}s/write)"
-            )
 
         lines += [
             _row("Diagnostics", self._t_diagnostics),
@@ -740,17 +720,6 @@ class MicroPhaseNeutralSolver:
     # -------------------------
     # Setup helpers
     # -------------------------
-    def _setup_export(self) -> None:
-        if self.export_vtk:
-            os.makedirs(self.output_dir, exist_ok=True)
-            self._file_times: list[tuple[str, float]] = []
-
-        self._xdmf_P: Optional[XDMFFile] = None
-        self._xdmf_H: Optional[XDMFFile] = None
-        self._xdmf_Pmasked: Optional[XDMFFile] = None
-        self._xdmf_M: Optional[XDMFFile] = None
-        self._export_xdmf_series: bool = False
-
     def _setup_coordinates(self) -> None:
         self.x, self.y = SpatialCoordinate(self.mesh_m)
 
@@ -1355,81 +1324,6 @@ class MicroPhaseNeutralSolver:
             mask_fluid,
             conditional(gt((-delta) - phi, 0.0), mask_core, mask_transition),
         )
-
-    # -------------------------
-    # XDMF export helpers (unchanged from template)
-    # -------------------------
-    def _open_xdmf_series(self) -> None:
-        if not self.export_vtk:
-            return
-        if self._xdmf_P is not None or self._xdmf_H is not None:
-            return
-
-        p_path = os.path.join(self.output_dir, "pressure_series.xdmf")
-        pm_path = os.path.join(self.output_dir, "pressure_masked_series.xdmf")
-        m_path = os.path.join(self.output_dir, "mask_series.xdmf")
-        h_path = os.path.join(self.output_dir, "film_thickness_series.xdmf")
-
-        self._xdmf_P = XDMFFile(MPI.comm_world, p_path)
-        self._xdmf_Pmasked = XDMFFile(MPI.comm_world, pm_path)
-        self._xdmf_H = XDMFFile(MPI.comm_world, h_path)
-        self._xdmf_M = XDMFFile(MPI.comm_world, m_path)
-
-        for f in (self._xdmf_P, self._xdmf_Pmasked, self._xdmf_H, self._xdmf_M):
-            f.parameters["flush_output"] = True
-            f.parameters["functions_share_mesh"] = True
-            f.parameters["rewrite_function_mesh"] = False
-
-        self._export_xdmf_series = True
-
-    def _write_xdmf_step(self, t_dim: float) -> None:
-        if (
-            not self._export_xdmf_series
-            or self._xdmf_P is None
-            or self._xdmf_H is None
-            or self._xdmf_Pmasked is None
-            or self._xdmf_M is None
-        ):
-            return
-
-        Pfull = project(self.P_dim, self.Vfull)
-        Hfull = project(Constant(self.params.H0) * self.h_nd, self.Vfull)
-        Mfull = project(self.mask, self.Vfull)
-        Chifull = project(self.chi_fluid, self.Vfull)
-
-        Pmasked = Function(self.Vfull)
-        Pmasked.vector()[:] = Pfull.vector()
-        p_arr = Pmasked.vector().get_local()
-        chi_arr = Chifull.vector().get_local()
-        p_arr[chi_arr < 0.5] = np.nan
-        Pmasked.vector().set_local(p_arr)
-        Pmasked.vector().apply("insert")
-
-        Pfull.rename("P", "pressure")
-        Hfull.rename("H", "film_thickness")
-        Mfull.rename("mask", "mask")
-        Pmasked.rename("P_masked", "pressure_masked")
-
-        t_val = float(t_dim)
-        self._xdmf_P.write(Pfull, t_val)
-        self._xdmf_Pmasked.write(Pmasked, t_val)
-        self._xdmf_H.write(Hfull, t_val)
-        self._xdmf_M.write(Mfull, t_val)
-
-    def _close_xdmf_series(self) -> None:
-        if self._xdmf_P is not None:
-            self._xdmf_P.close()
-            self._xdmf_P = None
-        if self._xdmf_Pmasked is not None:
-            self._xdmf_Pmasked.close()
-            self._xdmf_Pmasked = None
-        if self._xdmf_H is not None:
-            self._xdmf_H.close()
-            self._xdmf_H = None
-        if self._xdmf_M is not None:
-            self._xdmf_M.close()
-            self._xdmf_M = None
-        self._export_xdmf_series = False
 
     # -------------------------
     # Spring-film coupling helpers
@@ -2760,8 +2654,7 @@ class MicroPhaseNeutralSolver:
         passes solve the end level only (:meth:`_run_end_level_once`, plan
         ripple_fast_loop_plan_2026-10-19 section 4.4) unless a ``step_callback``
         is given (every step must be visited: the mixed solver's ``record_homog``,
-        any caller's hook) or ``export_vtk`` is set (the series must show the
-        accepted pass): then every pass is a whole run and the callback fires in
+        any caller's hook): then every pass is a whole run and the callback fires in
         every pass (``self._ripple_pass`` says which).
         """
         warm, self._pair_warm = self._pair_warm, None      # [phase-table WP7a] armed for this run only
@@ -2776,8 +2669,7 @@ class MicroPhaseNeutralSolver:
                 self._pair_ripple_run(lambda: self._run_once(Tf, n_steps, cfl_target, dt_override,
                                                              step_callback), warm=warm)
                 return
-            later = (self._run_end_level_once
-                     if (step_callback is None and not self.export_vtk) else None)
+            later = self._run_end_level_once if step_callback is None else None
             self._ripple_run(lambda: self._run_once(Tf, n_steps, cfl_target, dt_override,
                                                     step_callback), later)
             return
@@ -2885,8 +2777,8 @@ class MicroPhaseNeutralSolver:
 
         Cost: two history levels (2 contact solves, 4 projections), one solve, and
         the final history shift that leaves the solver as a full run leaves it
-        (nm1 = h(T_end), nm2 = h(T_end - dt)).  No XDMF: ``run`` offers this pass
-        only without ``export_vtk`` and without a ``step_callback``."""
+        (nm1 = h(T_end), nm2 = h(T_end - dt)).  ``run`` offers this pass only
+        without a ``step_callback``."""
         self._reset_timers()
         _t0 = time.perf_counter()
         T_start, dt_dim, n = float(self.T_start), float(self.dt_dim_run), int(self.n_steps_run)
@@ -2963,8 +2855,6 @@ class MicroPhaseNeutralSolver:
             self._pair_warm_check(n_steps)      # [phase-table WP7a] before the history build's first refresh
         self.cfl_actual = Umax * dt_dim / h_elem if h_elem > 0 else 0.0
 
-        export_stride = 1 if n_steps <= 2000 else int(np.ceil(n_steps / 20.0))
-
         # --- Initialise at T_start (rolling-steady fast-forward seed) -----
         # We synthesise one dt of prior surface history analytically from the
         # time-dependent ht expression, then run a single BDF1 transient
@@ -3030,14 +2920,7 @@ class MicroPhaseNeutralSolver:
         if self._ripple_on:
             self._ripple_level_end("seed")
 
-        # 4. Open the XDMF series and export frame 1 NOW -- after the seed
-        #    solve -- so the first frame represents the fast-forwarded
-        #    rolling-steady state, not the initial guess.
-        if self.export_vtk and n_steps > 1:
-            self._open_xdmf_series()
-            self._write_xdmf_step(t_dim=T_start)
-
-        # 5. Shift history forward by one step so that when the main loop
+        # 4. Shift history forward by one step so that when the main loop
         #    runs step 1 (t = T_start + dt, BDF1, a1 = -1), it sees
         #      h_hist_nm1 = h(T_start)     <- correct "previous" snapshot
         #      h_hist_nm2 = h(T_start - dt)
@@ -3097,21 +2980,11 @@ class MicroPhaseNeutralSolver:
             # prints — pure cost, no output.
 
             _t0 = time.perf_counter()
-            if self._export_xdmf_series:
-                if (step % export_stride) == 0 or step == n_steps:
-                    self._write_xdmf_step(t_dim=t_dim)
-                    self._n_xdmf_writes += 1
-            self._t_xdmf_export += time.perf_counter() - _t0
-
-            _t0 = time.perf_counter()
             # Cached L^2 projector replaces project() (which would
             # re-factorise the mass matrix on every step).  See
             # _project_to_Vper and the seed-history block for rationale.
             self._advance_history()          # [WP2] nm2 <- nm1, nm1 <- h(t_dim), mask alike
             self._t_history_update += time.perf_counter() - _t0
-
-        if self._export_xdmf_series:
-            self._close_xdmf_series()
 
         if self.settings.print_timing:
             _t_run_total = time.perf_counter() - _t_run_start
@@ -3249,41 +3122,3 @@ class MicroPhaseNeutralSolver:
             Qx, Qy, Pst, Fst, taust_x, taust_y,
             p_max, p_min, h_max, h_min, qymax, qymin, fmax, fmin,
         )
-
-    def post_process(self) -> None:
-        """Post-processing (export + diagnostics), same as template."""
-        Pfull = project(self.P_dim, self.Vfull)
-        Hfull = project(Constant(self.params.H0) * self.h_nd, self.Vfull)
-
-        chi_dg0 = project(self.chi_fluid, self.Vdg0)
-        chi_nodal = interpolate(chi_dg0, self.Vfull)
-
-        p_arr = Pfull.vector().get_local()
-        chi_arr = chi_nodal.vector().get_local()
-
-        Pmasked = Function(self.Vfull)
-        arr_nan = p_arr.copy()
-        arr_nan[chi_arr <= 0.5] = np.nan
-        Pmasked.vector().set_local(arr_nan)
-        Pmasked.vector().apply("insert")
-
-        area_total = 1.0
-        fluid_area = assemble(chi_dg0 * dx(domain=self.mesh_m))
-
-        if self._export_xdmf_series:
-            self._close_xdmf_series()
-
-        if self.export_vtk:
-            Pfull.rename("P", "pressure_unmasked")
-            File(os.path.join(self.output_dir, "pressure_unmasked_phase_neutral.pvd")) << Pfull
-            Hfull.rename("H", "film thickness")
-            File(os.path.join(self.output_dir, "h_phase_neutral.pvd")) << Hfull
-            Pmasked.rename("P", "pressure")
-            File(os.path.join(self.output_dir, "pressure_phase_neutral.pvd")) << Pmasked
-
-            maskfull = project(self.mask, self.Vdg0)
-            maskfull.rename("mask", "immersed mask")
-            File(os.path.join(self.output_dir, "mask_phase_neutral.pvd")) << maskfull
-
-            chi_dg0.rename("chi_fluid", "fluid indicator")
-            File(os.path.join(self.output_dir, "chi_fluid_phase_neutral.pvd")) << chi_dg0

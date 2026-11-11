@@ -478,8 +478,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
 
     out_dir = Path(output_dir) if output_dir is not None else Path(os.getcwd()) / "microcell_output"
     solver = SolverCls(
-        mesh_m=mesh, mesh_h=mesh, physical_params=phys, solver_settings=solver_settings, k=1,
-        ht=ht_cb, export_vtk=False, output_dir=os.path.join(os.getcwd(), "output"), auto_solve=False,
+        mesh_m=mesh, physical_params=phys, solver_settings=solver_settings, ht=ht_cb, auto_solve=False,
     )
     ci_seen = int(getattr(solver, "_contact_iterations", 0))
 
