@@ -24,7 +24,7 @@ clips:
    on the two sides, because ``P(x + L) = P(x) + G L``);
 5. ``u_r = H[r]``.
 
-The operator is :class:`ehl.elastic_contact.PeriodicHalfSpace`, the one
+The operator is :class:`microcell.contact.PeriodicHalfSpace`, the one
 implementation shared with ``fft_elastic_v1``'s contact solve (FFT contact plan
 D6 / WP8).  Grid convention as there: arrays ``[i, j]``, ``i`` along x, node
 ``(i, j)`` at ``(i/nx, j/ny)`` of the unit cell, periodic images dropped.

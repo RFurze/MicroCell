@@ -11,7 +11,7 @@ Fourier evaluator (decision D4).
 
 :class:`SurfaceContactHeight` is the rigid film ``fft_elastic_v1`` reads
 (``ht.contact_cosine.height`` in the contact solver): the interface of
-``ideal_ht.CosineContactDescriptor`` (``height`` plus four phase attributes,
+``microcell.film.CosineContactDescriptor`` (``height`` plus four phase attributes,
 constant zero here), evaluated from the same field.
 
 Moving surfaces (R5a): the translating member is displaced by

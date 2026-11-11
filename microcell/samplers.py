@@ -12,7 +12,7 @@ Diagnostics of a solved micro cell, shared by every phase-neutral solver class.
 
 [extrema M1, 23 Oct 2026] The fluid pressure extrema (decision D1 of
 docs/notes/extrema_shear_exports_review_and_launch_2026-10-23.md, section 2.3; the
-definition and its status vocabulary are in ``ehl/pressure.py``).  The base, mixed and
+definition and its status vocabulary are in ``microcell/pressure.py``).  The base, mixed and
 contact ``spatial_homogenisation()`` all call :func:`sample_fluid_pressure_extrema`; none
 builds a mask of its own for the pressure extrema any more.
 
@@ -37,7 +37,7 @@ Cost: index arithmetic on arrays the solver already holds (plus one CG1 projecti
 the film when the caller does not pass one).  The vertex maps are cached on the solver.
 
 [extrema M2b, 23 Oct 2026] The fluid traction (the contract and its definition are in
-``ehl/fluid_shear.py``; the reduction is M2a's ``ehl/shear_reduce.py``).  The base, mixed and
+``microcell/shear.py``, with M2a's reduction).  The base, mixed and
 contact ``spatial_homogenisation()`` all call :func:`sample_fluid_traction`.
 
 Sampler ``fluid_quadrature_sharp_v1`` (Rob's choice of 23 Oct 2026 over the M1 vertices):
@@ -73,12 +73,12 @@ loads ``generated_ht_cell.py``).  Plan ``docs/plans/masked_pressure_extrema_and_
 Source (D7)
 -----------
 The nodal solution the contact class stores, ``MicroPhaseNeutralContactSolver._contact_solution``:
-an ``ehl.elastic_contact.ContactSolution`` written by ``_refresh_contact`` and re-checked against the
-state key by ``_fft_asperity_load`` (``micro_phase_neutral_class_contact.py`` 210-300).  Its arrays are
+an ``microcell.contact.ContactSolution`` written by ``_refresh_contact`` and re-checked against the
+state key by ``_fft_asperity_load`` (``solver_contact.py``).  Its arrays are
 indexed ``[i, j]``, ``i`` along x and ``j`` along y; node ``(i, j)`` sits at ``(i/nx, j/ny)`` of the
-unit cell; the periodic images at x = 1 and y = 1 are not stored (``ehl/elastic_contact.py`` 21-25).
+unit cell; the periodic images at x = 1 and y = 1 are not stored (``contact.py``, the module docstring).
 The class writes the grid onto the Vper dofs as ``field[i, j]``, through the map of ``_periodic_grid``
-(``micro_phase_neutral_class.py`` 1731-1753; ``_contact.py`` 237-239 and 273-275).  This module never
+(``solver_base.py``; ``solver_contact.py``).  This module never
 goes through dof or CG indices and never reads ``p_asp_field``.  For ``hertz_summit_v1`` that name is
 a DG0 force-conserving display over the obstruction mask (``_contact.py`` 351-388), not a pressure
 distribution.
@@ -101,7 +101,7 @@ The periodic P1 interpolant on the 'right'-diagonal triangulation of the grid.  
 with ``(s, t)`` the point's offset inside its square, in grid units.  These are the cells of dolfin's
 ``UnitSquareMesh(n, n)`` (default diagonal), so the interpolant is what the mesh's CG1 / Vper space
 makes of the same nodal values.  ``phic_nd_func``, ``uc_nd_func`` and the fft ``p_asp_field``
-(``_contact.py`` 237-239, 273-275) all use that space, and ``ehl.elastic_contact.p1_area`` integrates
+(``solver_contact.py``) all use that space, and ``microcell.contact.p1_area`` integrates
 the same triangulation.  Properties used by the gates:
 
 * at a grid node it returns the nodal value exactly.  A coordinate within ``SNAP_TOL`` grid units of a
@@ -323,7 +323,7 @@ def _quadrature_degree() -> int:
     q = parameters["form_compiler"]["quadrature_degree"]
     if q is None or int(q) < 0:
         raise RuntimeError("the fluid traction sampler needs the form-compiler quadrature degree pinned "
-                           "(utils/form_compiler.py): it samples at the points of that rule")
+                           "(microcell/form_compiler.py): it samples at the points of that rule")
     return int(q)
 
 
@@ -347,7 +347,7 @@ def _cell_geometry(solver):
 def _cg1_film_parts(solver):
     """The CG1 Functions (on Vper, nondimensional) in the film sum ``h_nd`` besides the callback's
     rigid film: the option-H ripple, the fft contact deformation
-    (``micro_phase_neutral_class.py`` _setup_film_and_mask; ``_contact.py``)."""
+    (``solver_base.py`` _setup_film_and_mask; ``solver_contact.py``)."""
     parts = []
     if getattr(solver, "_ripple_on", False) and getattr(solver, "ur_nd_func", None) is not None:
         parts.append(solver.ur_nd_func)
@@ -433,7 +433,7 @@ def fluid_traction_samples(solver, film_dofs_m=None, existing_mask=None) -> Flui
 
 def sample_fluid_traction(solver, film_dofs_m=None, existing_mask=None):
     """The fluid traction statistics of the solver's current state (one phase), in the micro's
-    local frame; see the module docstring and ``fluid_shear.py``."""
+    local frame; see the module docstring and ``shear.py``."""
     from microcell.shear import SHEAR_SAMPLER, FluidTractionPhase
     from microcell.shear import GLOBAL_X, reduce_traction
     smp = fluid_traction_samples(solver, film_dofs_m, existing_mask)
@@ -456,7 +456,7 @@ def sample_fluid_traction(solver, film_dofs_m=None, existing_mask=None):
 
 # ======================================================================================
 # [extrema M3b, 23 Oct 2026] the asperity and total traction on the fluid sampler's points
-# (definition and statuses: ehl/contact_shear.py; sampler and algebra: M3a's contact_sample.py)
+# (definition and statuses: microcell/shear.py; sampler and algebra: M3a's, in this file)
 # ======================================================================================
 def _local_sliding_direction(solver):
     """``U / (|U| + 1e-30)`` of the micro's own sliding velocity at the end of its run, local frame
@@ -482,7 +482,7 @@ def sample_contact_traction(solver):
 
     * ``fft_elastic_v1``: ``p_a`` of the stored solution if its state key is current (no refresh here:
       it would change the mask the fluid was solved with), checked against the grid and the solution's
-      own ``Pasp_hom`` (``contact_shear.MEAN_CHECK_BUDGET``), then M3a's ``reduce_contact_and_total``
+      own ``Pasp_hom`` (``shear.MEAN_CHECK_BUDGET``), then M3a's ``reduce_contact_and_total``
       in the local frame (the means).
     """
     from microcell import shear as cs
@@ -658,7 +658,7 @@ def sample_contact(solution: Optional[object], xy, *, contact_model: str = FFT_M
     """``p_a`` [Pa] and the supports at the samples ``xy``, from the stored contact solution.
 
     ``solution`` is the class's ``_contact_solution`` (anything with ``p`` and ``phi_c`` grids, as
-    ``ehl.elastic_contact.ContactSolution``), or None.  ``contact_model`` is the task's identity:
+    ``microcell.contact.ContactSolution``), or None.  ``contact_model`` is the task's identity:
     ``fft_elastic_v1``, the only one in this repo (any other raises)."""
     xy = np.asarray(xy, dtype=float)
     if xy.ndim != 2 or xy.shape[1] != 2:
@@ -787,7 +787,7 @@ def support_report(fluid_support, contact: ContactSamples, weights) -> dict:
 @dataclass(frozen=True)
 class ContactTotalReduction:
     """Fluid, asperity and total traction of one micro state, reduced on one common sample set."""
-    fluid: object                  # ehl.shear_reduce.ShearReduction
+    fluid: object                  # microcell.shear.ShearReduction
     asperity: object
     total: object
     support: dict = field(default_factory=dict)
@@ -797,7 +797,7 @@ class ContactTotalReduction:
 def reduce_contact_and_total(t_fluid, fluid_support, fluid_valid, contact: ContactSamples, mu_material: float,
                              u_hat, weights, *, direction=GLOBAL_X,
                              fluid_state_valid: bool = True) -> ContactTotalReduction:
-    """The three contributions on the same samples, each reduced by ``ehl.shear_reduce.reduce_traction``
+    """The three contributions on the same samples, each reduced by ``microcell.shear.reduce_traction``
     (every sample projected on ``direction``, in the local basis, before anything is reduced).  The total is formed sample by sample first and reduced afterwards; extrema
     of the components are never added.
 

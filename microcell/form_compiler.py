@@ -9,7 +9,7 @@ modules a process had imported last:
 
 * the macro module set 4 (``macro_HMM_penalty_transient_EHL.py``);
 * the micro package set 4 (``micro_mixed_transient_class.py``) and then 2
-  (``micro_phase_neutral_class.py``, imported after it by the package ``__init__``);
+  (``solver_base.py``, imported after it by the package ``__init__``);
 * the multiscale launcher imports the macro module, then the micro package.
 
 The D0 check (``scripts/baselines/check_quadrature_degree.py``, run 2026-10-12

@@ -38,7 +38,6 @@ Diagnostics/sweeps: run ``microscale/tests/pn_diagnostics.py`` with
 
 from __future__ import annotations
 
-import time
 import warnings
 
 import numpy as np
@@ -522,9 +521,8 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
 
         Opt-in via ``self.record_homog``; called from run()/run_steady()
         after each accepted solve.  Cost is several projections per call
-        (see spatial_homogenisation), booked under the diagnostics timer.
+        (see spatial_homogenisation).
         """
-        _t0 = time.perf_counter()
         (
             Qx, Qy, Pst, Fst, taust_x, taust_y,
             p_max, p_min, h_max, h_min, qymax, qymin, fmax, fmin,
@@ -545,8 +543,6 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
             "Qy_poiseuille": self.Qy_poiseuille,
             "lambda_dim": self.dP,
         })
-        if hasattr(self, "_t_diagnostics"):
-            self._t_diagnostics += time.perf_counter() - _t0
 
     def spatial_homogenisation(self):
         """Return homogenised quantities (same 14-tuple as MicroMixedSolver).
@@ -590,8 +586,8 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
         fluid_nodes = chi_arr > 0.5
 
         # [extrema M1, 23 Oct 2026] Pressure extrema over the FLUID region only,
-        # from the shared sampler (micro_diagnostics.py; definition in
-        # ehl/pressure.py): signed P_dim at the vertices the sharp nodal level-set
+        # from the shared sampler (samplers.py; definition in
+        # pressure.py): signed P_dim at the vertices the sharp nodal level-set
         # test classes as fluid (phic_nd_func for fft_elastic_v1, else the projected
         # h_nd - h_min above) -- no projected or interpolated chi, no 0.5 threshold.
         # NaN (phase status no_fluid) if the whole cell is in contact.  Every vertex
@@ -681,7 +677,7 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
 
         # [extrema M2b, 23 Oct 2026] The fluid traction t_f = chi_f tau_f at the points of the
         # quadrature rule of the integrals above, fluid by the sharp level-set test there
-        # (micro_diagnostics.py; definition in fluid_shear.py): the sampled mean.  taust above is
+        # (samplers.py; definition in shear.py): the sampled mean.  taust above is
         # unchanged (micro_raw/mean_existing_integration); the samples weighted by chi_dg0
         # reproduce it, which is the sampler's check.
         self.fluid_traction = sample_fluid_traction(self, film_dofs_m=h_arr, existing_mask=chi_dg0)

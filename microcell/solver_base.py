@@ -45,7 +45,6 @@ from the template but is not tested here (Stage 2).
 from __future__ import annotations
 
 import logging
-import time
 from typing import Callable
 
 import numpy as np
@@ -169,7 +168,7 @@ PATCH_PIN = None
 PATCH_PIN_KAPPA = 1.0
 
 
-#: [fluid-mean WP2] the level-constraint formulations (the tag; ehl.pressure.LEVEL_CONSTRAINTS)
+#: [fluid-mean WP2] the level-constraint formulations (the tag; pressure.LEVEL_CONSTRAINTS)
 LEVEL_CONSTRAINT_WHOLE_CELL = "whole_cell"
 LEVEL_CONSTRAINT_FLUID_MEAN = "fluid_mean_v1"
 
@@ -177,10 +176,8 @@ LEVEL_CONSTRAINT_FLUID_MEAN = "fluid_mean_v1"
 #: [option H] the per-run counters ``_reset_timers`` zeroes; the pass loop sums
 #: them over the passes of one task so callers read task totals, as before.
 _PASS_COUNTERS = (
-    "_t_newton_solve", "_t_history_update",
-    "_t_diagnostics", "_t_step_overhead", "_t_init", "_n_newton_calls",
-    "_t_asm_total", "_t_lin_total",
-    "_t_upd_total", "_n_newton_iters_total", "_n_newton_backtracks_total",
+    "_n_newton_calls",
+    "_n_newton_iters_total", "_n_newton_backtracks_total",
     # [fluid-mean WP2 (S6)] Newton solves per constraint path
     "_n_lc_whole_cell", "_n_lc_fluid_mean", "_n_lc_no_fluid",
 )
@@ -476,18 +473,10 @@ class MicroPhaseNeutralSolver:
         return None
 
     # -------------------------
-    # Timing infrastructure
+    # Per-run counters
     # -------------------------
     def _reset_timers(self) -> None:
-        self._t_newton_solve = 0.0
-        self._t_history_update = 0.0
-        self._t_diagnostics = 0.0
-        self._t_step_overhead = 0.0
-        self._t_init = 0.0
         self._n_newton_calls = 0
-        self._t_asm_total = 0.0
-        self._t_lin_total = 0.0
-        self._t_upd_total = 0.0
         self._n_newton_iters_total = 0
         # Number of backtracking reverts triggered by adaptive damping
         # (see _newton_solve).  Reported by the diagnostic harness so we
@@ -1090,7 +1079,7 @@ class MicroPhaseNeutralSolver:
         other intended consumer (a nodal refill per time level).
 
         [R5a, 16 Oct 2026] A film callback that carries ``refresh_geometry``
-        (generated surfaces, ``microscale/src/functions/surface_ht.py``) is
+        (generated surfaces, ``microcell/film.py``) is
         refilled here for the current ``T_dim_const``.  The idealised cosine
         callback has no such attribute: nothing changes for it.
         """
@@ -1366,7 +1355,7 @@ class MicroPhaseNeutralSolver:
         secant-relaxed in [0.1, 1] x omega_0, signed and without clips.
 
         Acceptance (plan ``docs/notes/ripple_fast_loop_plan_2026-10-19.md`` section
-        4.6, :func:`ehl.ripple.residual_acceptance`; Rob's decision of 19 October):
+        4.6, :func:`microcell.ripple.residual_acceptance`; Rob's decision of 19 October):
         pass k is accepted when its own deformation residual max|H[s_k] - u_k| is
         within ``ripple_tol`` x H0, from pass 2 the residual shrank by at least half
         since pass k-1 (``CONTRACTION_MAX``), and the end level's nodal contact set
@@ -1382,7 +1371,7 @@ class MicroPhaseNeutralSolver:
         the contact solve sees the film only), so rebuilding the two levels before
         the end reproduces the BDF history a full run gives the end level, and the
         end solve is warm-started from the previous pass's end level as every level
-        of a full pass is.  The cap raises :class:`ehl.ripple.RippleNotConvergedError`
+        of a full pass is.  The cap raises :class:`microcell.ripple.RippleNotConvergedError`
         (a recorded micro failure)."""
         self._ripple_check_task()
         s = self.settings
@@ -1712,9 +1701,7 @@ class MicroPhaseNeutralSolver:
         The Jacobian is now assembled separately in the Schur step, just
         before factorisation — so the final (converged) iteration and
         every backtrack re-check skip the matrix work entirely.
-        Returns elapsed seconds (caller accumulates into _t_asm).
         """
-        _ta = time.perf_counter()
         self._sys_asm.assemble(self._b_vec)
         # Add Lagrange multiplier contribution to residual vector
         # [fluid-mean WP1, plan micro_fluid_mean_constraint_plan_2026-10-30.md rev 3 (m6)] the
@@ -1722,7 +1709,6 @@ class MicroPhaseNeutralSolver:
         self._b_vec.axpy(self.mu_nd, self._constraint_vector())
         # Negate: b = -F_w  (FEniCS convention: solve J dw = -R)
         self._b_vec *= -1.0
-        return time.perf_counter() - _ta
 
     def _schur_step(self, z1, z2, z3, m, beta, gamma, area, G, H, nit):
         """[Phase 6.4] One Schur-complement Newton direction (verbatim math).
@@ -1748,14 +1734,12 @@ class MicroPhaseNeutralSolver:
         d_scalar = self._closure_d_scalar(beta, gamma, area)
 
         # --- MUMPS factorisation + 3 back-substitutions ---
-        _tl = time.perf_counter()
         # z1 = J^{-1} . b  (standard Newton step for w)
         self._lu_solver.solve(z1.vector(), self._b_vec)
         # z2 = J^{-1} . c  (Schur augmentation for lambda)
         self._lu_solver.solve(z2.vector(), c_vec)
         # z3 = J^{-1} . m  (Schur augmentation for mu)
         self._lu_solver.solve(z3.vector(), m)
-        _t_lin = time.perf_counter() - _tl
 
         # --- 2x2 Schur complement ---
         # S = [[d - g^T z2/area,  -g^T z3/area ],
@@ -1793,15 +1777,13 @@ class MicroPhaseNeutralSolver:
         d_mu = float(dl_dmu[1])
 
         # --- Recover full field update: dw = z1 - dlambda.z2 - dmu.z3 ---
-        _tu = time.perf_counter()
         self._du.vector().zero()
         self._du.vector().axpy(1.0, z1.vector())
         self._du.vector().axpy(-d_lambda, z2.vector())
         self._du.vector().axpy(-d_mu, z3.vector())
         self._du.vector().apply("insert")
-        _t_upd = time.perf_counter() - _tu
 
-        return d_lambda, d_mu, _t_lin, _t_upd
+        return d_lambda, d_mu
 
     def _newton_solve(self) -> None:
         """Schur complement Newton solver for the augmented (N+2)-dimensional system.
@@ -1859,12 +1841,9 @@ class MicroPhaseNeutralSolver:
         z1, z2, z3 = self._z1, self._z2, self._z3
 
         # Timing sub-accumulators
-        _t_asm = 0.0
-        _t_lin = 0.0
-        _t_upd = 0.0
 
         # --- Initial assembly: b = -(R + mu.m)  [b-only, U7.1] ---
-        _t_asm += self._assemble_newton_rhs()
+        self._assemble_newton_rhs()
 
         # Initial residual norms (for relative tolerance)
         res0_field: float | None = None
@@ -1932,7 +1911,7 @@ class MicroPhaseNeutralSolver:
 
                 # Reassemble so the next convergence check sees the new
                 # state  [b-only, U7.1].
-                _t_asm += self._assemble_newton_rhs()
+                self._assemble_newton_rhs()
 
                 # Re-enter the loop top to re-evaluate the damped state
                 continue
@@ -1957,23 +1936,18 @@ class MicroPhaseNeutralSolver:
             # so J is value-identical — but the final iteration and
             # backtrack re-checks no longer pay for it.  The Tikhonov
             # shift must follow every J assembly (see helper docstring).
-            _ta = time.perf_counter()
             self._sys_asm.assemble(self._A_mat)
             self._apply_jacobian_reg_shift()
-            _t_asm += time.perf_counter() - _ta
 
             # --- Schur direction (factor + back-subs + 2x2 + recover) ---
-            d_lambda, d_mu, _dt_lin, _dt_upd = self._schur_step(
+            d_lambda, d_mu = self._schur_step(
                 z1, z2, z3, m, beta, gamma, area, G, H, nit,
             )
-            _t_lin += _dt_lin
-            _t_upd += _dt_upd
 
             # --- Snapshot state BEFORE the damped update, so that a
             # subsequent backtrack can cleanly revert and reapply the
             # same step direction at a smaller omega.  Also cache the
             # step direction itself (_du is reused next iteration).
-            _tu = time.perf_counter()
             w_snap = self.w.vector().get_local().copy()
             lam_snap = float(self.lambda_nd)
             mu_snap = self.mu_nd
@@ -1992,10 +1966,9 @@ class MicroPhaseNeutralSolver:
             self.w.vector().apply("insert")
             self.lambda_nd.assign(float(self.lambda_nd) + pol.omega_current * d_lambda)
             self.mu_nd += pol.omega_current * d_mu
-            _t_upd += time.perf_counter() - _tu
 
             # --- Reassemble residual for next iteration [b-only, U7.1] ---
-            _t_asm += self._assemble_newton_rhs()
+            self._assemble_newton_rhs()
 
 
         # Validate the actual returned state, including a final update or
@@ -2009,7 +1982,7 @@ class MicroPhaseNeutralSolver:
         # that just passed.  The block stays for the states the loop did not
         # check: a final update or backtrack at the iteration limit.
         if not converged_at_check:
-            _t_asm += self._assemble_newton_rhs()
+            self._assemble_newton_rhs()
             final_res = self._b_vec.norm("l2")
             G = self._closure_G(beta, gamma, area)
             H = self._constraint_residual(m, area)
@@ -2020,7 +1993,7 @@ class MicroPhaseNeutralSolver:
                 final_scalar < atol or final_scalar / max(res0_scalar or 0.0, 1e-30) < rtol)
             if not (field_ok and scalar_ok):
                 # count the iterations of the failed solve too, so a failed result reports them
-                if hasattr(self, "_t_asm_total"):
+                if hasattr(self, "_n_newton_iters_total"):
                     self._n_newton_iters_total += max(0, (nit + 1) - pol.n_bt)
                     self._n_newton_backtracks_total += pol.n_bt
                 raise RuntimeError(
@@ -2029,14 +2002,11 @@ class MicroPhaseNeutralSolver:
                     f"G = {G:.4e}  H = {H:.4e}  λ = {float(self.lambda_nd):.4e}"
                 )
 
-        # Accumulate timing into run-level accumulators.
+        # Count the iterations into the run-level counters.
         # Backtrack passes through the loop are counted separately so that
         # _n_newton_iters_total stays comparable to pre-adaptive-damping
         # numbers (it counts accepted steps, not reverts).
-        if hasattr(self, "_t_asm_total"):
-            self._t_asm_total += _t_asm
-            self._t_lin_total += _t_lin
-            self._t_upd_total += _t_upd
+        if hasattr(self, "_n_newton_iters_total"):
             self._n_newton_iters_total += max(0, (nit + 1) - pol.n_bt)
             self._n_newton_backtracks_total += pol.n_bt
         # Advance the per-call trace index regardless of whether timers
@@ -2050,7 +2020,6 @@ class MicroPhaseNeutralSolver:
         if getattr(self, "_solver_needs_rebuild", True):
             self._build_nonlinear_solver()
 
-        _t0 = time.perf_counter()
         # [fluid-mean WP2] the level-constraint path of this solve (base: always the whole cell)
         _path = self._level_constraint_prepare()
         _cnt = "_n_lc_" + _path
@@ -2060,9 +2029,7 @@ class MicroPhaseNeutralSolver:
             self._no_fluid_bypass()
         else:
             self._newton_solve()
-        _dt = time.perf_counter() - _t0
-        if hasattr(self, "_t_newton_solve"):
-            self._t_newton_solve += _dt
+        if hasattr(self, "_n_newton_calls"):
             self._n_newton_calls += 1
 
     def run_steady(self) -> None:
@@ -2216,7 +2183,7 @@ class MicroPhaseNeutralSolver:
         ``T_start + step * dt`` (the same expressions in the same order: the seed's
         former ``zeta.Ux + T_start * zeta.Uxdot`` is the loop's ``zeta.Ux + t_dim * zeta.Uxdot``).
 
-        ``_Ux_dim_const`` feeds ideal_ht, where it is multiplied by T to give the
+        ``_Ux_dim_const`` feeds the film callback (film.py), where it is multiplied by T to give the
         *surface pattern displacement*  s(T) = T * _Ux_dim_const.
         With a time-varying surface velocity  u_full(t) = 2*(Ux + UxT*t),
         the true displacement from 0 to T is
@@ -2239,7 +2206,7 @@ class MicroPhaseNeutralSolver:
         # Instantaneous (half-)velocity, nondim, for advection in Reynolds.
         self.Ux_nd_const.assign(2.0 * Ux_t / self.Uref)
         self.Uy_nd_const.assign(2.0 * Uy_t / self.Uref)
-        # Time-AVERAGED full velocity for ideal_ht's "T * Ux" surface-pattern
+        # Time-AVERAGED full velocity for the film callback's "T * Ux" surface-pattern
         # displacement term (derivation in the docstring).
         _alpha = float(self.velocity_ratio)
         self._Ux_dim_const.assign(_alpha * (2.0 * zeta.Ux + zeta.Uxdot * t_dim))
@@ -2303,7 +2270,6 @@ the film does not depend on the pressure, and the contact solve sees
         (nm1 = h(T_end), nm2 = h(T_end - dt)).  ``run`` offers this pass only
         without a ``step_callback``."""
         self._reset_timers()
-        _t0 = time.perf_counter()
         T_start, dt_dim, n = float(self.T_start), float(self.dt_dim_run), int(self.n_steps_run)
         for j in (n - 2, n - 1):                  # oldest first, so nm1 ends at level n - 1
             self._set_time_level(T_start + max(j, 0) * dt_dim)
@@ -2318,14 +2284,11 @@ the film does not depend on the pressure, and the contact solve sees
         self._set_bdf(n)
         self._refresh_geometry()
         self._update_squeeze_mean()
-        self._t_init = time.perf_counter() - _t0
         self._phase = f"step {n}/{n} (end level)"
         self._ripple_level_begin(n)
         self._solve_level()
         self._ripple_level_end(n)
-        _t0 = time.perf_counter()
         self._advance_history()                   # leave the state a full run leaves: nm1 = h(T_end)
-        self._t_history_update += time.perf_counter() - _t0
 
     def _run_once(self, Tf: float, n_steps: int, cfl_target: float,
                   dt_override: "float | None",
@@ -2381,7 +2344,6 @@ the film does not depend on the pressure, and the contact solve sees
         # solve at T_start.  The resulting pressure is in balance with the
         # moving-surface dh/dt term, so no step-1 transient spike occurs
         # when the main loop begins.
-        _t0 = time.perf_counter()
 
         # 1. Set all time-dependent forcings at T_start.  [WP2 of the ripple fast
         #    loop plan] The block that stood here is _set_time_level, shared
@@ -2390,7 +2352,7 @@ the film does not depend on the pressure, and the contact solve sees
         self._set_time_level(T_start)
 
         # 2. Pre-populate BDF history by evaluating h_nd at past times.
-        #    Only T_dim_const enters the surface expression in ideal_ht, so
+        #    Only T_dim_const enters the surface expression in film.py, so
         #    temporarily reassigning it is sufficient.  We populate two
         #    slots (T_start - dt, T_start - 2*dt) for robustness even though
         #    the BDF1 seed only consumes one.
@@ -2451,7 +2413,6 @@ the film does not depend on the pressure, and the contact solve sees
         #                                          nm2 <- h(T_start - dt), nm1 <- h(T_start)
         self._have_two_hist = True               # two valid snapshots now exist
 
-        self._t_init = time.perf_counter() - _t0
 
         # Optional per-step hook: emit the rolling-steady seed state at
         # T_start (step 0).  At this point all time-dependent forcings
@@ -2466,7 +2427,6 @@ the film does not depend on the pressure, and the contact solve sees
         # --- Time-stepping loop ---
         for step in range(1, n_steps + 1):
             self._phase = f"step {step}/{n_steps}"
-            _t0 = time.perf_counter()
             t_dim = T_start + step * dt_dim
             self._set_time_level(t_dim)      # [WP2] time Constants, velocities, gradients, P_re
             self._set_bdf(step)              # [WP2] BDF1 at step 1, BDF2 from step 2
@@ -2474,7 +2434,6 @@ the film does not depend on the pressure, and the contact solve sees
             self._refresh_geometry()     # [fft_elastic_v1 seam] base: no-op
             self._update_squeeze_mean()
 
-            self._t_step_overhead += time.perf_counter() - _t0
 
             # --- Solve (the pair branch of the ripple iterates u_r) ---
             if self._ripple_on:
@@ -2494,12 +2453,10 @@ the film does not depend on the pressure, and the contact solve sees
             # phi/mask every step but its only consumers were commented-out
             # prints — pure cost, no output.
 
-            _t0 = time.perf_counter()
             # Cached L^2 projector replaces project() (which would
             # re-factorise the mass matrix on every step).  See
             # _project_to_Vper and the seed-history block for rationale.
             self._advance_history()          # [WP2] nm2 <- nm1, nm1 <- h(t_dim), mask alike
-            self._t_history_update += time.perf_counter() - _t0
 
     # -------------------------
     # Homogenisation
@@ -2547,7 +2504,7 @@ the film does not depend on the pressure, and the contact solve sees
         h_arr = Hfull.vector().get_local()
 
         # [extrema M1, 23 Oct 2026] p_max / p_min: the fluid pressure extrema of the
-        # shared sampler (micro_diagnostics.py; definition in ehl/pressure.py) -- signed
+        # shared sampler (samplers.py; definition in pressure.py) -- signed
         # P_dim at the vertices that the sharp nodal level-set test classes as fluid; NaN
         # (phase status no_fluid) when there is none, never the unmasked values.  The
         # projected film above is the sampler's h_nd - h_min level set.  h_max / h_min
@@ -2616,7 +2573,7 @@ the film does not depend on the pressure, and the contact solve sees
         taust_y = float(assemble(tau_y_field * dx(domain=self.mesh_m)) / area_total)
 
         # [extrema M2b, 23 Oct 2026] The fluid traction at the points of the quadrature rule of the
-        # integrals above (micro_diagnostics.py; definition in ehl/fluid_shear.py): zero where the
+        # integrals above (samplers.py; definition in shear.py): zero where the
         # sharp level-set test says solid (every point is fluid when h_min = 0).  taust above stays
         # the unmasked integral; the samples unweighted by any mask reproduce it (the sampler's check).
         self.fluid_traction = sample_fluid_traction(self, film_dofs_m=h_arr, existing_mask=None)

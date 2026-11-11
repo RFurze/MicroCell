@@ -13,7 +13,7 @@ the smoke test) get from it what they always got.
 The D0 check (2026-10-12) measured the form-compiler flags below equal to
 DOLFIN's defaults in every route, so setting them is a no-op today; they are
 kept so the statement stays explicit.  The quadrature degree is not here: it is
-pinned per process (``utils/form_compiler.py``).
+pinned per process (``microcell/form_compiler.py``).
 """
 
 from __future__ import annotations

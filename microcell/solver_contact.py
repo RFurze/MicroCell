@@ -11,7 +11,7 @@ The parent's ``legacy_patch_v1`` and ``hertz_summit_v1`` laws are not in this re
 
 ``fft_elastic_v1`` (16 Oct 2026, plan docs/notes/fft_elastic_contact_plan_
 2026-10-16.md) solves one periodic elastic contact problem per cell on the
-nodal grid (``ehl.elastic_contact``), refreshed at every time level through
+nodal grid (``microcell.contact``), refreshed at every time level through
 the base class's ``_refresh_geometry`` seam.  The fluid sees the deformed film
 ``h_rigid + u_c`` (``uc_nd_func``, zero-mean ripple; the macro keeps the cell
 mean, D3) and its obstruction mask is the contact set of the same solution,
@@ -36,10 +36,10 @@ from microcell.solver_mixed import MicroPhaseNeutralMixedSolver as _MixedSolver
 # ripple uses the same one); ``sigma_yield`` the elastic-validity
 # FLAG threshold [Pa] (never clamps); ``k_asp_mode`` [WP-1 2026-09-03] the tangent of the closure,
 # k_asp = -dP_asp/dH [Pa/m], for a Newton-like macro coupling ("off" emits 0.0, "closure" the
-# tangent of the nodal contact solution, ``elastic_contact.contact_tangent``); ``tol`` and ``maxit``
+# tangent of the nodal contact solution, ``contact.contact_tangent``); ``tol`` and ``maxit``
 # the Polonsky-Keer stopping rule sum|dp|/sum p and iteration budget (plan 3.2; the tangent's CG
 # uses the same tolerance); ``mu`` [extrema M3b, 23 Oct 2026] the dry asperity friction coefficient
-# of the diagnostic asperity / total traction only (``micro_diagnostics.sample_contact_traction``;
+# of the diagnostic asperity / total traction only (``samplers.sample_contact_traction``;
 # no solver channel reads it).  ``self.pair`` [phase-table WP3, 4 Nov 2026; MicroCell WP2] is True for
 # a stationary + translating surface pair: it lifts the two-member refusal of the ripple (R-e, the
 # converged per-step branch) and turns on the warm-start contact rescue.
@@ -57,7 +57,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
     _contact_iterations = 0
     _contact_restarts = 0                   # [phase-table D-B2] the warm-start rescues of the task (field on only)
     _contact_restart_kinds = None
-    # [extrema M3b] this phase's asperity / total traction statistics (ehl/contact_shear.py)
+    # [extrema M3b] this phase's asperity / total traction statistics (shear.py)
     contact_traction = None
 
     # ------------------------------------------------------------------
@@ -66,7 +66,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
     def spatial_homogenisation(self):
         """The mixed class's homogenisation (every output unchanged), then the asperity and total
         traction of this phase on the sample set its fluid traction sampler kept
-        (``micro_diagnostics.sample_contact_traction``: the stored ``fft_elastic_v1`` solution of this
+        (``samplers.sample_contact_traction``: the stored ``fft_elastic_v1`` solution of this
         state, its key checked, never refreshed here; ``unsupported_model`` for the other identities,
         whose means :meth:`compute_asperity_load` completes)."""
         out = super().spatial_homogenisation()
@@ -319,7 +319,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         ``A_mech_frac``, ``k_asp_hom`` and the ``contact_indicators``.
 
         [extrema M3b] Afterwards the phase's asperity / total traction statistics are rechecked
-        against the extraction (``micro_diagnostics.finish_contact_traction``: a refreshed solution
+        against the extraction (``samplers.finish_contact_traction``: a refreshed solution
         makes them ``state_mismatch``).
         """
         from microcell.samplers import finish_contact_traction

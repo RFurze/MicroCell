@@ -2,7 +2,7 @@
 
 The production micro solver's legacy single-pattern convention is
 ``s(t) = ratio * (2*U*t + UT*t**2)`` with ``U`` the solver's half-velocity
-(``micro_phase_neutral_class``: ``_Ux_dim_const = ratio*(2*Ux + UxT*T)``,
+(``solver_base.py``: ``_Ux_dim_const = ratio*(2*Ux + UxT*T)``,
 displacement ``T*_Ux_dim_const``).  :func:`pattern_displacement` evaluates it
 *at the requested time*: the history seeding at ``T - dt`` must use
 ``s(T - dt)``, not ``(T - dt) * _Ux_dim_const(T)``, which differs whenever

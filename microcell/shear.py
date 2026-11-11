@@ -56,8 +56,8 @@ checkpoint and FEniCS-free tests share it).  Plan
 3.2 (fluid) and 5 C-E; decisions D5 (global x only) and D6 (dedup members invalid) of
 ``docs/notes/extrema_shear_exports_review_and_launch_2026-10-23.md`` section 2.3; the convention
 (surface, sign, basis, rotation, torque) as M2a found it, ``docs/notes/extrema_m2a_implementation_log_
-2026-10-23.md`` section 1, unchanged.  The reduction is M2a's ``ehl/shear_reduce.py``; the sampler is
-``microscale/src/functions/micro_diagnostics.py`` (``sample_fluid_traction``).
+2026-10-23.md`` section 1, unchanged.  The reduction is M2a's, above in this file; the sampler is
+``microcell/samplers.py`` (``sample_fluid_traction``).
 
 Definition ``fluid_quadrature_sharp_v1/global_x/phase_union`` (Rob's choice of 23 Oct 2026: the
 ledger's quadrature points, not the M1 vertices -- on the vertices the sampled mean differs from
@@ -95,18 +95,18 @@ Nothing rescales either.
 Asperity and total shear traction of a micro task (extrema M3b, 23 Oct 2026).
 
 Pure numpy, no FEniCS (the worker, ``run_micro``, the pressure guard, the macro driver, the checkpoint and
-FEniCS-free tests share it, as ``ehl/fluid_shear.py``).  Plan
+FEniCS-free tests share it, as the fluid part of this file).  Plan
 ``docs/plans/masked_pressure_extrema_and_shear_exports_2026-10-23.md`` sections 2.2 (contact / total,
 paragraphs 4-5), 2.3, 2.4, 3.2, 4, 5 C-E and 6.3; decisions D5 (global x only), D6 (dedup members invalid),
 D7 (the contact pressure from the stored FFT solution, never ``p_asp_field``) of
 ``docs/notes/extrema_shear_exports_review_and_launch_2026-10-23.md`` section 2.3.  Reused, not re-invented:
-the fluid sample set, its status and transport pattern (extrema M2b, ``ehl/fluid_shear.py``), the reduction
-(M2a, ``ehl/shear_reduce.py``) and the contact sampler and traction algebra (M3a,
-``microscale/src/functions/contact_sample.py``).
+the fluid sample set, its status and transport pattern (extrema M2b, above in this file), the reduction
+(M2a, above in this file) and the contact sampler and traction algebra (M3a,
+``microcell/samplers.py``).
 
 Definition ``fft_nodal_p1_periodic_v1@fluid_quadrature_sharp_v1/global_x/phase_union``
 ------------------------------------------------------------------------------------
-per phase (``microscale/src/functions/micro_diagnostics.py`` ``sample_contact_traction``)
+per phase (``microcell/samplers.py`` ``sample_contact_traction``)
     samples   the fluid sampler's points and weights (M2b: the ``default`` rule of the form compiler's
               quadrature degree on every cell of the micro mesh, unit-cell area, sum 1) -- one common set;
     contact   ``p_a`` = the periodic P1 interpolant of ``sol.p`` of the stored ``fft_elastic_v1`` solution
@@ -119,7 +119,7 @@ per phase (``microscale/src/functions/micro_diagnostics.py`` ``sample_contact_tr
               term of the fluid traction; the macro's law ``calc_asp_friction``, unchanged); zero outside
               its mechanical support ``p_a > 0``; ``t_t = t_f + t_a`` at each sample, each contribution its
               physical zero outside its own support, both kept where they overlap;
-    reduced   by ``shear_reduce.reduce_traction``: the local-frame mean over the whole set (per total
+    reduced   by ``reduce_traction``: the local-frame mean over the whole set (per total
               cell area; the total formed per sample before it is reduced).  The parent's global-x
               envelope (with the macro frame ``R_inv``) is not produced: a standalone cell has no
               macro frame (WP4);
@@ -132,15 +132,13 @@ per phase (``microscale/src/functions/micro_diagnostics.py`` ``sample_contact_tr
 per task      means by phase weight (equal); a phase whose state is invalid invalidates the task
               (``phase_invalid``).
 
-Contact model: ``fft_elastic_v1``, the only one in this repo (``micro_diagnostics.sample_contact_traction``
+Contact model: ``fft_elastic_v1``, the only one in this repo (``samplers.sample_contact_traction``
 raises for any other).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 import numpy as np
-
-SHEAR_REDUCE_VERSION = "shear_reduce_v1"
 
 STATUS_OK = "ok"
 STATUS_NO_SUPPORT = "no_support"
@@ -364,9 +362,9 @@ from typing import Sequence
 import numpy as np
 
 
-#: M3a's sampler (``contact_sample.CONTACT_SAMPLER``; equal by test) on M2b's sample set
+#: M3a's sampler (``samplers.CONTACT_SAMPLER``; equal by test) on M2b's sample set
 CONTACT_SAMPLER = "fft_nodal_p1_periodic_v1"
-FLUID_SAMPLER = "fluid_quadrature_sharp_v1"            # ehl.fluid_shear.SHEAR_SAMPLER (equal by test)
+FLUID_SAMPLER = "fluid_quadrature_sharp_v1"            # SHEAR_SAMPLER above (equal by test)
 CONTACT_SHEAR_DEFINITION = f"{CONTACT_SAMPLER}@{FLUID_SAMPLER}/global_x/phase_union"
 #: M3a's gate-1 budget, stated before its comparison (M3a log 1.1): the sampled mean of p_a against the
 #: solution's own Pasp_hom, relative; exactly 0 when Pasp_hom is 0

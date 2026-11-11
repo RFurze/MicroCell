@@ -1,7 +1,7 @@
 """``microcell.roughness`` -- the surfaces of a micro cell (from the parent's ``ehl.roughness``).
 
 Pure data and NumPy: no FEniCS and no SciPy are imported anywhere in this package; the FE
-adapter is ``microcell/surface_ht.py``.
+adapter is ``microcell/film.py``.
 
 Modules
 -------

@@ -57,7 +57,7 @@ STATUSES = (OK, FAILED_NEWTON, FAILED_RIPPLE, FAILED_CONTACT, FAILED_NONFINITE)
 #: ``FAILED_NONFINITE`` otherwise.  On a failed result every NaN is explained by ``status`` itself.
 #:   ``no_fluid``       no fluid sample (pressure extrema), no fluid area (``Pst_fluid``)
 #:   ``phase_invalid``  a sample that had to be evaluated is not finite, or the contact state at the
-#:                      samples is not the solved one (``contact_shear``: stale, refreshed, check failed)
+#:                      samples is not the solved one (``microcell/shear.py``: stale, refreshed, check failed)
 #:   ``unavailable``    not computed: no contact law (a full-film cell), or no friction coefficient
 _EXTREMA, _FLUID, _ASPERITY, _TOTAL = ("pressure_extrema_status", "shear_extrema_status",
                                        "shear_asperity_status", "shear_total_status")

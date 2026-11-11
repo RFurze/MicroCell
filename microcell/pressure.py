@@ -12,7 +12,7 @@ PRESSURE_FIELDS = ("Pst", "P_f", "Pst_fluid", "P_patch", "P_fluid_pos", "P_fluid
 # [extrema M1, 23 Oct 2026] The fluid pressure extrema of a micro task (pmin / pmax).
 # Plan docs/plans/masked_pressure_extrema_and_shear_exports_2026-10-23.md sections 2.1 and
 # 3.1, decisions D1-D4 of docs/notes/extrema_shear_exports_review_and_launch_2026-10-23.md
-# section 2.3.  The sampler is microscale/src/functions/micro_diagnostics.py; this is the
+# section 2.3.  The sampler is microcell/samplers.py; this is the
 # numpy-only part that the worker, run_micro, the pressure guard, the macro driver and the
 # checkpoint share.
 #

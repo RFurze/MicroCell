@@ -65,7 +65,7 @@ for the next phase.
 ``surface_ht.py`` (the parent's ``microscale/src/functions/surface_ht.py``)
 ------------------------------------------------------------------------------------------
 Film callback for generated surfaces (R4, R5a): the FE adapter of
-:mod:`ehl.roughness.runtime`.
+:mod:`microcell.roughness.runtime`.
 
 ``make_surface_ht(field)`` returns a callback with the signature of
 ``make_ideal_ht``'s (``ht(x, y, xmax, ymax, H0, HT, T, Ux, Uy)``, the last four
@@ -82,14 +82,14 @@ Moving surfaces (R5a): ``ht.refresh_geometry(solver)`` -- called by the base
 solver's ``_refresh_geometry`` seam at every time the solver evaluates the
 film, BDF history times included -- sets the task's kinematics from
 ``solver.zeta`` and refills ``solver.mesh_m``'s ``z_h`` at the displacement
-``s(T)`` of ``solver.T_dim_const`` (``ehl.roughness.pair.pattern_displacement``;
+``s(T)`` of ``solver.T_dim_const`` (``microcell.roughness.pair.pattern_displacement``;
 not ``T * _Ux_dim``, which is wrong at history times when UT != 0).  The BDF
 history keeps projected copies, so refilling ``z_h`` never alters a stored
 history film.  A stationary arrangement never refills.
 
-``ht.contact_cosine`` is the :class:`~ehl.roughness.runtime.SurfaceContactHeight`
+``ht.contact_cosine`` is the :class:`~microcell.roughness.runtime.SurfaceContactHeight`
 of the same field and motion -- the attribute ``fft_elastic_v1`` reads its rigid
-film from (``micro_phase_neutral_class_contact``; the name is the contact
+film from (``solver_contact.py``; the name is the contact
 solver's).  ``ht.surface_field`` and ``ht.surface_motion`` are exposed.
 """
 from __future__ import annotations

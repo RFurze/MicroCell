@@ -22,7 +22,7 @@ on the cell's periodic n x n nodal grid (plan
     find p >= 0 with  g = h_rigid - h_min + u[p] >= 0  and  p * g = 0,
     u[p]^(q) = 2 p^(q) / (E* |q|)   (q != 0),   u[p]^(0) = 0.
 
-* ``E*`` is the combined two-body modulus (``ehl.contact.effective_modulus``).
+* ``E*`` is the combined two-body modulus (``effective_modulus``).
 * The q = 0 mode is removed: the macro already applies the cell-mean contact
   deformation through ``K . P_asp`` (decision D3), so the micro carries only the
   zero-mean ripple.  For a square summit lattice this is the beta correction
@@ -39,7 +39,7 @@ vertices of dolfin's ``UnitSquareMesh(n, n)`` (default 'right' diagonal: cells
 ``(i,j)-(i+1,j)-(i+1,j+1)`` and ``(i,j)-(i,j+1)-(i+1,j+1)``), with the periodic
 images at ``x = 1`` / ``y = 1`` dropped.
 
-Every error raised here subclasses :class:`ehl.contact.ContactResolutionError`
+Every error raised here subclasses :class:`ContactResolutionError`
 (itself a ``RuntimeError``), so the micro worker's failure path records the
 task and the kNN fill applies unchanged.
 
@@ -373,7 +373,7 @@ def band_limited_sample(z: np.ndarray, nx: int, ny: int, shift_x: float = 0.0,
     ``(i/nx - shift_x, j/ny - shift_y)`` (shifts in cell fractions).
 
     [16 Oct 2026, Rob's decision] A thin wrapper of the canonical evaluator,
-    ``ehl.roughness.evaluator.FourierSurface`` (decision D4), so there is one
+    ``microcell.roughness.evaluator.FourierSurface`` (decision D4), so there is one
     reconstruction: this module keeps its x-first ``[i, j]`` layout and
     cell-fraction shifts, and the source mean is kept.  An even axis's
     Nyquist modes are split symmetrically, the (N/2, M/2) corner mode
