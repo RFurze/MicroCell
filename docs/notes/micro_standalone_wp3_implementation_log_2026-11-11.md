@@ -37,12 +37,12 @@ group 2 are still read (§1, group 2).
 
 **Changed test expectations.** None (§9).
 
-**Decisions for Rob.**
-1. Departures 6.3 and 6.4: accept, or restore `SurfacePair`, `stats.py` and the non-Gaussian
-   generator code (recommended: accept; the code is in the parent and in git history).
-2. Departure 6.5: accept the three caller-visible changes (recommended: accept).
-3. Push `main` (five WP3 commits and the commit of this log).
-4. WP4 go-ahead, as its own session.
+**Rob's answer (11 Nov 2026): "Accept"**, to departures 6.3, 6.4 and 6.5 as built. Nothing is
+restored: `SurfacePair`, `stats.py` and the non-Gaussian generator code stay out (they are in
+the parent and in git history), and the three caller-visible changes stand.
+
+**Still for Rob.** Push `main` (the WP3 commits and the commits of this log); the WP4
+go-ahead, as its own session.
 
 **Open items** §8; candidates for further pruning §7, left in place.
 
@@ -294,7 +294,7 @@ layout (F); WP2's list (G); a second surface test for WP5 (H).
 
 ## 8. Open items
 
-1. Rob's decisions 1 to 4 of §0.
+1. Rob's push and his WP4 go-ahead (§0); departures 6.3 to 6.5 are accepted.
 2. Push: `main` is ahead of `origin/main` by the WP3 commits, the commit of this log, and
    c89915a.
 3. `docs/notes/provenance.tsv` is unchanged: it records what WP1 copied, including the eight
