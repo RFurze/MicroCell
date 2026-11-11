@@ -3482,20 +3482,3 @@ class MicroPhaseNeutralSolver:
 
             chi_dg0.rename("chi_fluid", "fluid indicator")
             File(os.path.join(self.output_dir, "chi_fluid_phase_neutral.pvd")) << chi_dg0
-
-
-# ---------------------------------------------------------------------------
-# [Phase 2.1] The standalone test/diagnostic harness (_main_params,
-# _test_* sweeps, main()) moved to microscale/tests/pn_diagnostics.py —
-# one copy for all solver variants.  This shim preserves the old
-# ``python3 micro_phase_neutral_class.py`` entry point.
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    import sys as _sys
-    from pathlib import Path as _Path
-    _root = str(_Path(__file__).resolve().parents[3])
-    if _root not in _sys.path:
-        _sys.path.insert(0, _root)
-    from microscale.tests.pn_diagnostics import main as _pn_main
-    _pn_main()

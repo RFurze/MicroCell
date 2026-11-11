@@ -1,0 +1,22 @@
+cell	k_spring_reference	k_spring_run	n_comparisons	n_outside_1e-12	max_rel	worst	status
+c5_cosine_fullfilm	1e+20	0.0	130	9	9.997431286345388e-06	delta_Q	FAIL
+#	c5_cosine_fullfilm	scalar	delta_Q	9.997431286345388e-06	[-1.1527975228035452e-10, -2.945181887407006e-11] vs [-1.1527867982509881e-10, -2.9451524431534607e-11]
+#	c5_cosine_fullfilm	diagnostic	info.film_min_nm	7.728674539404281e-07	[75.66132737973221] vs [75.66138585595486]
+#	c5_cosine_fullfilm	scalar	h_min	7.728674539314941e-07	[7.566132737973222e-08] vs [7.566138585595486e-08]
+#	c5_cosine_fullfilm	scalar	tau_res	5.721300982302042e-07	[3972.3834818011933, 898.7244550116824] vs [3972.3815835942823, 898.7239408243717]
+#	c5_cosine_fullfilm	scalar	shear_fluid_mean_local_Pa	5.721300944352034e-07	[3972.3834818016358, 898.7244550117783] vs [3972.3815835947007, 898.723940824471]
+#	c5_cosine_fullfilm	scalar	Q	4.923974899189274e-07	[2.335062542386312e-09, 5.979770337925966e-10] vs [2.3350636148415677e-09, 5.97977328235132e-10]
+#	c5_cosine_fullfilm	field	film	3.646957597572762e-07	max|diff| 5.848e-14, max|ref| 1.603e-07
+#	c5_cosine_fullfilm	scalar	h_max	3.646957576112003e-07	[1.6034242283857468e-07] vs [1.6034248131479738e-07]
+c6_cosine_fft_sqrt	1e+20	0.0	152	0	0.0		PASS
+c8_cosine_fullfilm_steady	1e+20	0.0	130	0	0.0		PASS
+.
+1 passed in 4.23s
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 5 unused database options. They are:
+Option left: name:-ksp_error_if_not_converged value: true source: code
+Option left: name:-ksp_gmres_restart value: 100 source: code
+Option left: name:-ksp_initial_guess_nonzero value: true source: code
+Option left: name:-ksp_max_it value: 80 source: code
+Option left: name:-ksp_rtol value: 1e-5 source: code
