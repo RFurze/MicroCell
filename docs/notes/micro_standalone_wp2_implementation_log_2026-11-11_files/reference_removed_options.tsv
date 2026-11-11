@@ -3,10 +3,10 @@ group	option	cell	reference_value	frozen_value	agree	note
 2	micro_case.k_spring	c2_gensa40_h130_ripple	0.0	0.0	same	
 2	micro_case.k_spring	c3_gensa40_h130_noripple	0.0	0.0	same	
 2	micro_case.k_spring	c4_wangpair10_h25_offset	0.0	0.0	same	
-2	micro_case.k_spring	c5_cosine_fullfilm	1e+20	0.0	DIFFERENT	KEPT: the cell-average spring is not removed (log section 2)
-2	micro_case.k_spring	c6_cosine_fft_sqrt	1e+20	0.0	DIFFERENT	KEPT: the cell-average spring is not removed (log section 2)
+2	micro_case.k_spring	c5_cosine_fullfilm	0.0	0.0	same	
+2	micro_case.k_spring	c6_cosine_fft_sqrt	1e+20	0.0	unused	the parent's contact class never ran the spring
 2	micro_case.k_spring	c7_gensa40_h130_ripple_steady	0.0	0.0	same	
-2	micro_case.k_spring	c8_cosine_fullfilm_steady	1e+20	0.0	DIFFERENT	KEPT: the cell-average spring is not removed (log section 2)
+2	micro_case.k_spring	c8_cosine_fullfilm_steady	1e+20	0.0	unused	the parent's steady full-film solve was raw (no spring)
 2	settings.spring_pointwise	c1_gensa40_h200_ripple	False	False	same	
 2	settings.spring_pointwise	c2_gensa40_h130_ripple	False	False	same	
 2	settings.spring_pointwise	c3_gensa40_h130_noripple	False	False	same	

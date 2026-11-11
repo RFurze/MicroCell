@@ -9,3 +9,5 @@ feb3e1d	1 file changed, 2 insertions(+), 146 deletions(-)	MicroCell WP2: group 7
 c7f799e	5 files changed, 38 insertions(+), 59 deletions(-)	MicroCell WP2: group 8, remove contact_only_load and the contact-table tag; the pair branch is selected by the plain flag pair_branch
 b482975	1 file changed, 15 insertions(+), 71 deletions(-)	MicroCell WP2: group 9, remove the solver's environment reads (MICRO_DEBUG_LOG, MICRO_NONDIM_DIAG, MICRO_UREF_FLOOR_OMEGA, MICRO_EPSP_ND_CAP, MICRO_SPOS_FORM), each frozen at its unset value
 68028f5	1 file changed, 22 insertions(+), 12 deletions(-)	MicroCell WP2: README provenance note for the pruned files; final parity report and example run
+a1395f4	1 file changed, 0 insertions(+), 0 deletions(-)	MicroCell WP2: group 2, c5 reference re-made from the parent at 2aaccad with k_spring = 0 (Rob, 11 Nov)
+b18879b	7 files changed, 83 insertions(+), 195 deletions(-)	MicroCell WP2: group 2, remove the cell-average spring (k_spring, hd_nd_const, the spring fixed-point loop and its timers); the parity test checks that the parent's spring did not act on a reference cell

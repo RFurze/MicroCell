@@ -2,6 +2,9 @@
 spring?  Each is solved through the API with k_spring forced to 0.0 and compared with its reference.
 Writes diag_spring_k0.tsv beside this file.  Run from MicroCell/:
     ../_claude/wsltest ../_to_delete/micro_standalone_2026-11-11/wp2_logs/diag_spring_k0.py -q -p no:cacheprovider -s
+
+Runs only on a tree before b18879b: that commit removed the spring and the ``k_spring`` key
+this script sets (the c5 reference was re-made with k_spring = 0 at a1395f4).
 """
 import sys
 from pathlib import Path

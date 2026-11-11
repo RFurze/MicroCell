@@ -7,44 +7,41 @@ Base: `MicroCell` `main` at c96ad39 (WP1). Parent `MultiscaleMixedBallinSocket` 
 
 ## 0. Summary
 
-**State.** WP2 is built except for one part of group 2, which waits on Rob. Eight of the nine
-removal groups are done in full and group 2 in part, one commit per group, on `main` of
-`MicroCell`, not pushed (Table 1, §8). WP3 is not started.
+**State.** WP2 is built: all nine removal groups are done, at least one commit per group, on
+`main` of `MicroCell` (Table 1). The commits up to 7d64e1e are on `origin/main`; the ones after
+it are not pushed (Table 7). WP3 is not started.
+
+**Rob's decision (11 Nov 2026): "Yes, re-make c5".** The first pass left the cell-average
+spring in place, because reference c5 used it (§2). On Rob's answer the c5 reference was
+re-made from the parent at 2aaccad with `k_spring = 0`, and the spring was then removed. The
+other seven references are unchanged.
 
 **Gate (measured).** After every group all eight reference cells PASS at relative 1e-12 and
-every comparison is exact: the largest relative difference is zero in every group, including
-group 4, which changed a UFL form (Table 4). No reference was regenerated and no tolerance
-changed. The final script run and the example agree with WP1 (§4).
+every comparison is exact: the largest relative difference is zero at every gate, including
+the two that changed a UFL form (groups 4 and 2; Table 4). No tolerance changed. The prediction
+written before the c5 re-make held (§2). The final script run and the example agree with WP1 (§4).
 
-**Size (measured).** Table 3: the five pruned solver files fall from 5699 to 4518 lines.
+**Size (measured).** Table 3: the five pruned solver files fall from 5699 to 4367 lines.
 
-**Not removed: the cell-average spring (group 2).** The brief's rule is "if a reference uses
-it, stop and ask". Reference c5 uses it: three cosine cells store `k_spring = 1e20`, the
-parent's "spring off" convention, but in the full-film class that value still runs the
-cell-average spring loop on transient steps. Forcing `k_spring = 0` moves c5 by up to 1e-5
-relative (Table 2). The pointwise mode, which no cell uses, is removed. The rest of the spring
-(`k_spring`, `_solve_with_spring`, the loop and its constants) is still in the code.
-
-**Departures.** Nine, numbered in §6. The three that change something a caller can see:
+**Departures.** Eleven, numbered in §6. The ones a caller or a reader of the gate can see:
+- 6.1 one reference (c5) was regenerated, on Rob's decision; the brief said never;
 - 6.2 a full-film result's `contact_model` tag is `off` (was the parent's default `legacy_patch_v1`);
 - 6.5 the pair branch is selected by a plain flag `pair_branch` on the contact settings, in
-  place of the `phase_average = "contact_table_v1"` tag (the brief allowed this if results are
+  place of the `phase_average = "contact_table_v1"` tag (allowed by the brief if results are
   unchanged; they are);
 - 6.7 with `MICRO_DEBUG_LOG` gone, the import still disables logging for the process, as the
-  parent did with the variable unset.
+  parent did with the variable unset;
+- 6.10 `k_spring` is no longer an input: the `legacy` key is refused as unknown.
 
-**Changed test expectations.** Table 6: removed settings are checked against the reference, not
-skipped; one test added (Table 4 shows the count). **Open items** §8; candidates for further
-pruning §7, left in place.
+**Changed test expectations.** §9 (Table 6): removed settings and the removed spring are checked
+against the reference, not skipped; two tests added (Table 4 shows the counts). **Open items**
+§8; candidates for further pruning §7, left in place.
 
 **Decisions for Rob.**
-1. The spring and c5 (§2). Recommended: A, re-make the c5 reference from the parent at 2aaccad
-   with `k_spring = 0`, then remove the spring. B: keep the cell-average spring until WP4.
-   C: remove it and accept an attributed 1e-5 difference on c5 (not recommended: it loosens the gate).
-2. `ContactSettings.nu` and `ContactSettings.k_asp_exponent` are now unread API inputs (§6.3).
+1. `ContactSettings.nu` and `ContactSettings.k_asp_exponent` are now unread API inputs (§6.3).
    Recommended: remove them at WP4 with the settings collapse. Alternative: remove them now.
-3. Accept or reject departures 6.2, 6.5 and 6.7.
-4. Push `main` of `MicroCell`, and the go-ahead for WP3 as its own session.
+2. Accept or reject departures 6.2, 6.5 and 6.7.
+3. Push the commits after 7d64e1e, and the go-ahead for WP3 as its own session.
 
 ## 1. What was removed
 
@@ -53,7 +50,8 @@ Table 1. One row per group. Commit sizes are in `F/commits.tsv`.
 | # | Group | Status | Commit | What went |
 |---|---|---|---|---|
 | 1 | Dead imports, `__main__` blocks | done | 921c077 | The `__main__` shim of the base class; the mixed file's harness (`_main_params`, `_main_settings` with its `from config import micro_solver`, `__main__`). |
-| 2 | Spring deformation | part | 763a074 | The pointwise mode: `spring_pointwise`, `hd_nd_func`, `_target_hd_nd_field`, `_spring_solve_pointwise`, `spring_relax`, its branch in `_solve_with_spring_once`, its refusal in `_ripple_setup`, its part of `_cg1_film_parts` (diagnostics). Kept: everything of the cell-average spring (§2). |
+| 2 | Spring deformation, pointwise mode | done | 763a074 | `spring_pointwise`, `hd_nd_func`, `_target_hd_nd_field`, `_spring_solve_pointwise`, `spring_relax`, its branch in `_solve_with_spring_once`, its refusal in `_ripple_setup`, its part of `_cg1_film_parts` (diagnostics). |
+| 2 | Spring deformation, cell-average spring | done | a1395f4 (reference), b18879b (code) | `MicroPhysicalParameters.k_spring` and the `legacy` key; `hd_nd_const` (the film is `h_nd = h_base_nd`); `_spring_enabled`, `_cell_avg_positive_pressure_dim` (base and mixed), `_target_hd_nd_from_Pst`, `_spring_solve_cell_avg`, `_solve_with_spring_once`; `spring_max_iter`, `spring_rtol`, `_area_total`; the spring timer and counter; the two `k_spring` refusals (§6.10). `_solve_with_spring` is `_solve_level` and `_pair_solve_with_spring` is `_pair_solve` (§6.11). |
 | 3 | `legacy_patch_v1`, `hertz_summit_v1` | done | 90413fd | Contact class: `_summit_geometry`, `_summit_pressure`, `_find_contact_patches`, `_asperity_pressure`, every non-fft branch, settings `contact_E`, `contact_nu`, `use_reduced_modulus`, `overclosure_measure`, `k_asp_exponent`. `contact.py`: `LEGACY`, `HERTZ`, `hertz_response`, `CosineSummits`, `cosine_summits`. Diagnostics: the unsupported-model branches. API: `legacy` keys `contact_E`, `contact_model`, `use_reduced_modulus`, `overclosure_measure`. |
 | 4 | Roelands, compressibility stubs | done | 7cedddb | `roelands_eta_dim` (base; its callers in base, mixed, diagnostics now read `params.eta0`), `rho_nd` and `eta_nd` (base, mixed), both `Constant(1.0)`. |
 | 5 | `gauge_lift`, `c2` form | done | 16baf1e | The `gauge_lift` setting and its warning; `smooth_pos_c2`, `smooth_pos_deriv_c2` and the `c2` value of `spos_form`; the then-unused `import warnings`. |
@@ -64,69 +62,88 @@ Table 1. One row per group. Commit sizes are in `F/commits.tsv`.
 | - | README, final report | - | 68028f5 | The provenance note marks the five pruned files; `F/parity_report.tsv` and the example log. |
 
 Files not touched: `microcell/roughness/`, the shear modules, `ripple.py`, `elastic_contact.py`,
-`fields.py`, `tests/references/`, `tools/`, `examples/`.
+`fields.py`, `examples/`, and seven of the eight references. `tools/make_references.py` gained
+the c5 change (§2).
 
 For groups 4, 6 and 7 there is no stored setting to check. Group 4's stubs were constants. For
 groups 6 and 7 the evidence is the API at c96ad39 (`git show c96ad39:microcell/api.py`): it
-passed `export_vtk=False`, passed `mesh_h` and `k` that the solver ignored, passed no
-`warm_start_state` and never called `set_pair_warm`, and with those calls it already matched
-the references exactly at WP1.
+passed `export_vtk=False`, `mesh_h` and `k` that the solver ignored, no `warm_start_state`, and
+never called `set_pair_warm`, and it matched the references exactly at WP1.
 
-## 2. Group 2: the spring that a reference uses
+## 2. Group 2: the spring that a reference used
 
-The base class enables the spring when `k_spring > 0`. The cosine parent case carries
-`k_spring = 1e20` as its "off" value. The contact class never runs the spring (and refuses a
-stiffness between 0 and 1e19); in the base class, used for full film, the cell-average loop
-runs on every transient step. So of the three cells that store 1e20, only the transient
-full-film one feels it.
+**Finding (first pass).** The base class enabled the spring when `k_spring > 0`. The cosine
+parent case carries `k_spring = 1e20` as its "off" value. The contact class never ran the spring
+(and refused a stiffness between 0 and 1e19); in the base class, used for full film, the
+cell-average loop ran on every transient step, and the steady solve was raw. So of the three
+cells that stored 1e20, only the transient full-film one, c5, felt it.
 
-Table 2. The standalone at commit 763a074 with `k_spring` forced to 0, against the unchanged
-references (measured; `F/diag_spring_k0.tsv`, script `F/diag_spring_k0.py`, log `F/diag_spring_k0.log`).
+Table 2. The standalone at commit 763a074 with `k_spring` forced to 0, against the references
+as they then were (measured; `F/diag_spring_k0.tsv`, script `F/diag_spring_k0.py`, log
+`F/diag_spring_k0.log`).
 
-| Cell | `k_spring` stored | Comparisons | Outside 1e-12 | Largest relative difference | Where |
+| Cell | `k_spring` stored then | Comparisons | Outside 1e-12 | Largest relative difference | Where |
 |---|---|---|---|---|---|
 | c5_cosine_fullfilm | 1e20 | 130 | 9 | 9.997e-06 | `delta_Q` |
 | c6_cosine_fft_sqrt | 1e20 | 152 | 0 | 0 | - |
 | c8_cosine_fullfilm_steady | 1e20 | 130 | 0 | 0 | - |
 
-All the c5 comparisons outside the tolerance are listed by name, with their values, in
-`F/diag_spring_k0_names.tsv` (script `F/diag_spring_k0_names.py`, run on the tree of b482975;
-its numbers are the same as the 763a074 run's). They are `delta_Q`, the film minimum and
-maximum, the film field, `tau_res`, the fluid shear mean, `Q`, and the Newton iteration count,
-an integer that differs without a relative difference. The other five cells store
-`k_spring = 0` (`F/reference_removed_options.tsv`).
+The nine c5 comparisons are listed by name in `F/diag_spring_k0_names.tsv` (script
+`F/diag_spring_k0_names.py`, run on the tree of b482975): `delta_Q`, the film minimum and
+maximum, the film field, `tau_res`, the fluid shear mean, `Q`, `info.film_min_nm`, and the
+Newton iteration count.
 
-Cause (inferred from the code, consistent with the table): `_spring_enabled()` in the base
-class is `k_spring > 0`, and `_steady_solve` of the base class is a raw solve, which is why the
-steady cell c8 does not move.
+**Decision.** Three options were put to Rob: A re-make c5 with the spring off and remove the
+spring (recommended), B keep the spring until WP4, C remove it and accept the 1e-5 difference.
+Rob chose A on 11 Nov 2026 ("Yes, re-make c5"). The prediction written before the re-make: the
+standalone with the spring removed reproduces the new reference on all c5 comparisons at 1e-12.
 
-Options for Rob:
+**What was done.**
 
-- **A (recommended).** Re-make the c5 reference from the parent at 2aaccad with `k_spring = 0`
-  (one `changes={"k_spring": 0.0}` entry in `tools/make_references.py`), then remove the spring.
-  Prediction to check, written here before any such run: the standalone with the spring removed
-  reproduces the new reference on all c5 comparisons at 1e-12. This needs Rob's go-ahead because
-  the brief says the references are never regenerated.
-- **B.** Keep the cell-average spring in the base class until WP4. Group 2 stays "part".
-- **C.** Remove it and record the Table 2 difference as attributed. Not recommended: the gate
-  rule is 1e-12 and this is 1e-5.
+1. `tools/make_references.py`: c5 gained `changes={"k_spring": 0.0}`, applied in memory to the
+   case's `MicroCase` as the tool does for c3 and c6. The parent was at 2aaccad with a clean
+   tree before and after; nothing was written in it.
+2. c5 alone was re-made (command in §10; exit 0, status OK). The old file is in git at 7d64e1e
+   and in `MicroCell/_to_delete/wp2_c5_spring_2026-11-11/reference_before/`.
+3. Gate g2b_ref: the code with the spring still in it, given `k_spring = 0`, against the new c5.
+4. The spring was removed (commit b18879b). Gate g2b.
+
+Table 2b. The old c5 reference against the new one (measured; `F/c5_reference_old_vs_new.tsv`,
+script `F/c5_reference_old_vs_new.py`, stdlib only).
+
+| Entries of the file | Number | What |
+|---|---|---|
+| Members compared | 19 | every member of the npz |
+| Entries that differ | 16 | |
+| of which results | 9 | the same nine quantities as Table 2 (film field, `h_min`, `h_max`, `info.film_min_nm`, `Q`, `delta_Q`, `tau_res`, `shear_fluid_mean_local_Pa`, `newton_iters` 8 to 5) |
+| of which the input | 2 | `k_spring` 1e20 to 0 in `micro_case` and `phys` |
+| of which bookkeeping | 5 | `changes`, `made`, `wall_s`, `wall_time`, `pid` |
+
+**Outcome of the prediction (measured, Table 4).** Held. At g2b_ref and at g2b every c5
+comparison is exact, not only within 1e-12, and so is every comparison of the other seven cells.
+
+**c6 and c8 were not re-made.** They still store `k_spring = 1e20`. The parent's spring did not
+act on them (Table 2), and the parity test now checks that for every cell instead of passing
+the value on (`case.k_spring`, Table 6).
 
 ## 3. Lines per file
 
-Table 3. `wc -l` at c96ad39 (`F/lines_before_c96ad39.tsv`) and at 68028f5
-(`F/lines_after_68028f5.tsv`; the solver files and the test are unchanged since b482975).
+Table 3. `wc -l` at c96ad39 (`F/lines_before_c96ad39.tsv`) and at b18879b
+(`F/lines_after_b18879b.tsv`). `F/lines_after_68028f5.tsv` holds the counts before the spring
+was removed.
 
 | File | Before | After | Change |
 |---|---|---|---|
-| `microcell/micro_phase_neutral_class.py` | 3501 | 2924 | -577 |
-| `microcell/micro_phase_neutral_class_mixed.py` | 859 | 741 | -118 |
-| `microcell/micro_phase_neutral_class_contact.py` | 770 | 368 | -402 |
+| `microcell/micro_phase_neutral_class.py` | 3501 | 2804 | -697 |
+| `microcell/micro_phase_neutral_class_mixed.py` | 859 | 718 | -141 |
+| `microcell/micro_phase_neutral_class_contact.py` | 770 | 360 | -410 |
 | `microcell/micro_diagnostics.py` | 476 | 459 | -17 |
 | `microcell/contact.py` | 93 | 26 | -67 |
-| Five pruned solver files | 5699 | 4518 | -1181 |
+| Five pruned solver files | 5699 | 4367 | -1332 |
 | `microcell/api.py` | 649 | 638 | -11 |
-| `tests/test_parity.py` | 357 | 435 | +78 |
+| `tests/test_parity.py` | 357 | 474 | +117 |
 | `README.md` | 110 | 120 | +10 |
+| `tools/make_references.py` | 521 | 525 | +4 |
 
 ## 4. Parity per group
 
@@ -135,34 +152,38 @@ The gate after each group: `_claude/wsltest tests/ -q -p no:cacheprovider -rfE -
 gate prints no differences when it passes, so `F/parity_summary.py` (a pytest file run the same
 way) runs `tests/test_parity.run_cell` on every cell and writes `F/parity_<tag>.tsv`.
 
-Table 4. Measured. "Exact" counts comparisons with relative difference zero.
+Table 4. Measured, in the order run. "Exact" counts comparisons with relative difference zero.
 
-| Tag | After group | Commit | pytest | Cells PASS | Comparisons exact / total | Largest relative difference | Source |
+| Tag | After | Commit | pytest | Cells PASS | Comparisons exact / total | Largest relative difference | Source |
 |---|---|---|---|---|---|---|---|
 | g0 | base | c96ad39 | 11 passed, 8.73 s | 8 of 8 | not tabulated | not tabulated | `F/logs/gate_g0_base_c96ad39.log` |
-| g1 | 1 | 921c077 | 11 passed, 8.66 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g1.tsv` |
-| g2a | 2 (part) | 763a074 | 12 passed, 8.76 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g2a.tsv` |
-| g3 | 3 | 90413fd | 12 passed, 8.85 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g3.tsv` |
-| g4 | 4 | 7cedddb | 12 passed, 23.06 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g4.tsv` |
-| g5 | 5 | 16baf1e | 12 passed, 8.95 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g5.tsv` |
-| g6 | 6 | 3eb8ae2 | 12 passed, 9.68 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g6.tsv` |
-| g7 | 7 | feb3e1d | 12 passed, 9.00 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g7.tsv` |
-| g8 | 8 | c7f799e | 12 passed, 9.02 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g8.tsv` |
-| g9 | 9 | b482975 | 12 passed, 8.90 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g9.tsv` |
+| g1 | group 1 | 921c077 | 11 passed, 8.66 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g1.tsv` |
+| g2a | group 2, pointwise mode | 763a074 | 12 passed, 8.76 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g2a.tsv` |
+| g3 | group 3 | 90413fd | 12 passed, 8.85 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g3.tsv` |
+| g4 | group 4 | 7cedddb | 12 passed, 23.06 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g4.tsv` |
+| g5 | group 5 | 16baf1e | 12 passed, 8.95 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g5.tsv` |
+| g6 | group 6 | 3eb8ae2 | 12 passed, 9.68 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g6.tsv` |
+| g7 | group 7 | feb3e1d | 12 passed, 9.00 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g7.tsv` |
+| g8 | group 8 | c7f799e | 12 passed, 9.02 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g8.tsv` |
+| g9 | group 9 | b482975 | 12 passed, 8.90 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g9.tsv` |
+| g2b_ref | the new c5 reference, spring still in the code | a1395f4 | 12 passed, 9.16 s | 8 of 8 | 1180 / 1180 | 0 | `F/parity_g2b_ref.tsv` |
+| g2b | group 2, cell-average spring | b18879b | 13 passed, 32.84 s | 8 of 8 | 1188 / 1188 | 0 | `F/parity_g2b.tsv` |
 
 Notes on Table 4:
 
-- The per-cell comparison counts are in each `parity_<tag>.tsv`; they did not change between
-  groups, because a removed setting still yields one record (Table 6).
+- The per-cell comparison counts are in each `parity_<tag>.tsv`. They did not change from g1 to
+  g2b_ref, because a removed setting still yields one record. At g2b each cell has one more,
+  `case.k_spring` (Table 6), which is the step from 1180 to 1188.
 - g0 was run before the summary script existed; the WP1 log's table 3 holds the base values.
-- Group 4 changed two UFL forms (`K_nd` and `F_adv_nd` lost their factors of `Constant(1.0)`),
-  so the forms recompiled, which is the longer g4 time. The results did not move, so there is
-  no round-off to attribute.
+- Two groups changed UFL forms, so the forms recompiled, which is the longer g4 and g2b time.
+  Group 4: `K_nd` and `F_adv_nd` lost their factors of `Constant(1.0)`. Group 2: the film lost
+  its `+ hd_nd_const` term, a `Constant(0.0)` in every cell. The results did not move in either,
+  so there is no round-off to attribute.
 - The first g8 run failed with a `TypeError` because the edit script had stopped half-way
   (my error: a wrong end marker). The edits were completed and the gate rerun; `gate_g8.log`
   is the rerun. No result was compared in the failed run.
 
-End-of-work runs, on the tree of b482975 (the solver files are the same at 68028f5):
+End-of-work runs, on the tree of b18879b:
 
 - `_claude/wslrun python tests/test_parity.py --out F/parity_report.tsv`: exit 0, eight cells
   PASS, every category's largest relative difference zero (`F/parity_report.tsv`, per-record
@@ -180,12 +201,12 @@ Both runs end with PETSc's "5 unused database options" warning. It is in the bas
 `F/reference_removed_options.tsv`: one row per option and cell, with the stored value and the
 value the pruned code hard-wires. It exits 0: no removed option is used by a reference.
 
-Table 5. Stored values, from `F/reference_removed_options.tsv`.
+Table 5. Stored values, from `F/reference_removed_options.tsv` (c5 as re-made).
 
 | Group | Option | Stored in the references | Hard-wired now |
 |---|---|---|---|
 | 2 | `spring_pointwise` | False in all eight | False (removed) |
-| 2 | `k_spring` | 0 in five, 1e20 in c5, c6, c8 | kept as an input (§2) |
+| 2 | `k_spring` | 0 in six; 1e20 in c6 and c8, where the parent's spring did not act (marked "unused") | no spring (removed) |
 | 3 | `contact_model`, mixed cells | `fft_elastic_v1` in all six | `fft_elastic_v1` |
 | 3 | `use_reduced_modulus`, mixed cells | False in all six | False (removed) |
 | 3 | `overclosure_measure`, mixed cells | `patch_max` in all six | `patch_max` (removed) |
@@ -200,7 +221,9 @@ for them is that the reference's own law is `fft_elastic_v1` (Table 6).
 
 ## 6. Departures from the brief, and clarifications
 
-1. **Group 2 is part done.** The cell-average spring stays because reference c5 uses it (§2).
+1. **One reference was regenerated.** The brief says the references are never regenerated. c5
+   was re-made with `k_spring = 0` on Rob's decision of 11 Nov 2026 (§2). The other seven are
+   the WP1 files.
 2. **Full-film `contact_model` tag (group 3).** The parent's result carried its settings
    default `legacy_patch_v1` on a cell with no contact. That law is gone, so the API reports
    `off` (`CONTACT_OFF` in `api.py`). The parity test maps the reference's tag
@@ -209,66 +232,63 @@ for them is that the reference's own law is `fft_elastic_v1` (Table 6).
    inputs that only the removed law read. The brief's rule names the `legacy` keys, which are
    removed; these two are named fields of the plan's `ContactSettings`, so they are left, marked
    "not read since WP2", for Rob to decide.
-4. **`_pair_level` and `_apply_warm_start` removed (group 7).** Neither is named in the table.
-   `_apply_warm_start` was called only for `warm_start_state`; `_pair_level` was read only by
-   the warm branch and the warm record, so both are dead after the group.
+4. **`_pair_level` and `_apply_warm_start` removed (group 7).** Neither is named in the table;
+   each was read only by the removed warm-start code.
 5. **`pair_branch` replaces the tag (group 8).** `PhaseNeutralContactSettings.phase_average`
    (a string) is now `pair_branch` (a bool); `_phase_table_on()` is `_pair_branch_on()`. The API
    sets it from `roughness.is_pair`, as it set the tag. No input was added to `microsolver` or
    `MicroSettings`. The flag stays a setting, not a test on the geometry, so that a pair on the
-   full-film class is still refused with the ripple on, as before. Evidence that results are
-   unchanged: c4, the pair cell with the ripple on, is exact after the group (Table 4, g8).
-6. **`auto_solve` kept (group 6).** It is not in the table. With `post_process` gone,
-   `auto_solve=True` now only calls `run_steady()`. The API passes False.
+   full-film class is still refused with the ripple on. c4, the pair cell, is exact at g8.
+6. **`auto_solve` kept (group 6).** Not in the table. It now only calls `run_steady()`, and the
+   API passes False.
 7. **Logging stays disabled at import (group 9).** With `MICRO_DEBUG_LOG` unset the parent
    called `logging.disable(logging.CRITICAL)` when the module was imported. That is the frozen
    behaviour, so the call stays. It is a process-wide side effect of importing the solver.
-8. **Flags removed with their only reader (group 9).** `_uref_floored` went with the Uref floor
-   and `_gamma_nd_capped` with the nondimensionalisation print that read it; the
-   `sys.stdout.flush()` after that print went too. `_epsP_nd_capped` was unread before WP2 and
-   is left (§7).
+8. **Flags removed with their only reader (group 9).** `_uref_floored`, `_gamma_nd_capped` and
+   the `sys.stdout.flush()` after the removed print. `_epsP_nd_capped` is left (§7).
 9. **Occurrence counts.** The brief's table gives one group-4 occurrence in the contact class.
-   At c96ad39 there is none (`git show c96ad39:microcell/micro_phase_neutral_class_contact.py`
-   has no `roelands`, `rho_nd` or `eta_nd`); nothing was changed there for group 4.
+   At c96ad39 there is none, so nothing was changed there for group 4.
+10. **`k_spring` is no longer an input (group 2).** `MicroSettings.legacy` refuses the key as
+    unknown. Two refusals that read it went with it: the ripple's "needs `k_spring = 0`" and the
+    contact class's "0 < `k_spring` < 1e19". The contact class's `_spring_enabled` also called
+    `_fft_validate`; that validation still runs in `_refresh_contact`, before every solve, and
+    in `_fft_asperity_load`.
+11. **Two methods renamed (group 2).** `_solve_with_spring` is `_solve_level` and
+    `_pair_solve_with_spring` is `_pair_solve`: with no spring left the old names were wrong.
+    The mixed class keeps its `_steady_solve` and `_seed_solve` overrides, which now call
+    `_solve_level`, so the pair branch is entered where it was.
 
 ## 7. Candidates for further pruning (left in place)
 
-Not in the brief's table, or out of WP2's scope. None was removed.
-
-| Candidate | Where | Why it looks dead |
-|---|---|---|
-| The cell-average spring and `k_spring` | base, mixed, contact, `api.py` (`legacy` key) | pending decision 1 |
-| `ContactSettings.nu`, `.k_asp_exponent` | `api.py` | unread since group 3 |
-| `contact_model` settings field | contact settings | single-valued; the shear modules read it |
-| `UNSUPPORTED_MODELS` and its branches | `contact_shear.py`, `contact_sample.py` | name the two removed laws (WP3 scope) |
-| Hertz descriptor entries | `ideal_ht.py` | fed the removed summit law (WP3 scope; not checked in detail) |
-| `effective_modulus`, `CONTACT_MODELS` | `contact.py` | no reader in the package |
-| `MicroPhaseNeutralSolver = MicroPhaseNeutralMixedSolver` | end of the mixed file | back-compat alias; the API imports the classes by their own names |
-| `auto_solve` | base constructor | the API always passes False |
-| `logging.disable` at import, `logger` | base | §6.7; one `logger.warning` call remains and can never print |
-| `_epsP_nd_capped` | base | written, never read |
-| `_contact_restarts`, `_contact_restart_kinds` | contact class | counted by the rescue; the worker that printed them is not in this repo |
-| `print_timing` and the timing summary | base | a settings field; WP4 |
+12 items that look dead but are not in the brief's table, or are out of WP2's scope, are
+listed with where they are and why in `F/pruning_candidates.md`. None was removed. The ones
+that bear on a decision: `ContactSettings.nu` and `.k_asp_exponent` (decision 1), `auto_solve`
+(§6.6), the logging switch (§6.7), and `h_base_nd`, the same object as `h_nd` since the
+spring went.
 
 ## 8. Open items and commits
 
 Open:
 
-1. Group 2 remainder (decision 1).
-2. The three solver class files read no environment variable now (open item 6.1 of the WP1
+1. The three solver class files read no environment variable now (open item 6.1 of the WP1
    log). The one read left in `microcell/` is `EHL_SURFACE_STORE` in `roughness/case.py`, which
    the brief gives to WP3.
-3. `docs/notes/provenance.tsv` still lists the parent's line counts for the pruned files; it
+2. `docs/notes/provenance.tsv` still lists the parent's line counts for the pruned files; it
    records where they came from and was left as it is. The README says which files are pruned.
-4. The gate was run on this machine only (WSL). Nothing was run on Calder.
+3. The gate was run on this machine only (WSL). Nothing was run on Calder.
+4. `F/diag_spring_k0.py` and `F/diag_spring_k0_names.py` set the `k_spring` key, so they run
+   only on a tree before b18879b. Their docstrings say so. They are the record of Table 2.
+5. `tests/references/logs/c5_cosine_fullfilm.log` is byte-identical after the re-make (git
+   shows no change): the tool's log line prints `dP`, which the spring did not move.
 
-Table 7. Commits on `main` of `MicroCell`, not pushed. Author `RFurze <py07rf@leeds.ac.uk>`.
-Sizes: `F/commits.tsv`.
+Table 7. Commits on `main` of `MicroCell`. Author `RFurze <py07rf@leeds.ac.uk>`. Sizes:
+`F/commits.tsv`. `origin/main` is at 7d64e1e (`git reflog show origin/main`: "update by push",
+11 Nov 2026 11:39; not pushed by this session), so the last three rows are not on the remote.
 
 | Commit | Content |
 |---|---|
 | 921c077 | group 1; the session prompt filed; `F/` started |
-| 763a074 | group 2, part; removed-settings check and its negative control in the test |
+| 763a074 | group 2, pointwise mode; removed-settings check and its negative control in the test |
 | 90413fd | group 3 |
 | 7cedddb | group 4 |
 | 16baf1e | group 5 |
@@ -277,25 +297,29 @@ Sizes: `F/commits.tsv`.
 | c7f799e | group 8 |
 | b482975 | group 9 |
 | 68028f5 | README provenance note; final parity report and example log |
-| (next) | this log and the files it cites |
+| 7d64e1e | this log as it stood before Rob's decision, and the files it cited |
+| a1395f4 | the c5 reference re-made; `tools/make_references.py`; `F/c5_reference_old_vs_new.*`; gate g2b_ref |
+| b18879b | group 2, cell-average spring; `case.k_spring` check and its negative control; gate g2b |
+| (next) | this log revised, the final report and example log rerun, the evidence files updated |
 
 ## 9. Changed test expectations
 
-Table 6. All in `tests/test_parity.py`. The comparison of results is unchanged: same fields,
-same tolerance, same references.
+Table 6 is `F/changed_test_expectations.md`: 9 rows, each with the commit group and the
+reason. The comparison of results is unchanged: same fields, same tolerance. In short:
 
-| Change | Since | Why |
-|---|---|---|
-| `REMOVED_SETTINGS` (`spring_pointwise`, `use_reduced_modulus`, `overclosure_measure`, `gauge_lift`): the built settings must not carry the key, and the reference's stored value must equal the frozen value exactly | groups 2, 3, 5 | the brief: a removed setting is checked, not skipped |
-| `REMOVED_UNREAD_SETTINGS` (`contact_E`, `contact_nu`, `k_asp_exponent`): the built settings must not carry the key, and the reference's `contact_model` must be `fft_elastic_v1` | group 3 | only the removed law read them, so there is no value to freeze |
-| `FULL_FILM_CONTACT_TAG`: a full-film reference's result tag `legacy_patch_v1` is compared as `off` | group 3 | §6.2 |
-| `REPLACED_SETTINGS` (`phase_average` -> `pair_branch`, `off` -> False, `contact_table_v1` -> True): the built settings must carry the new key with the mapped value and type, and not the old key | group 8 | §6.5 |
-| `settings_from_reference` no longer passes the `legacy` keys `contact_E`, `contact_model`, `use_reduced_modulus`, `overclosure_measure` | group 3 | the API no longer has them |
-| New test `test_removed_setting_is_checked`: with the frozen value of `spring_pointwise` set wrong, cell c8 must fail on exactly `settings.spring_pointwise` | group 2 | a negative control for the new check |
+- a setting WP2 removed is checked against the reference's stored value, not skipped
+  (`REMOVED_SETTINGS`, `REMOVED_UNREAD_SETTINGS`, `REPLACED_SETTINGS`, `FULL_FILM_CONTACT_TAG`);
+- the removed spring is checked per cell by a new record `case.k_spring` (`spring_acted`): it
+  fails for a transient full-film cell with `k_spring > 0`, or a mixed cell with `k_spring`
+  between 0 and 1e19;
+- two negative controls were added, `test_removed_setting_is_checked` (763a074) and
+  `test_removed_spring_is_checked` (b18879b);
+- `settings_from_reference` no longer passes the removed `legacy` keys;
+- the c5 reference was re-made (a1395f4, Table 2b).
 
 ## 10. Commands
 
-The gate, from WSL (about 10 s; about 25 s the first time after a form change):
+The gate, from WSL (about 10 s; about 30 s the first time after a form change):
 
 ```
 cd /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MicroCell
@@ -306,8 +330,11 @@ python tests/test_parity.py --out docs/notes/micro_standalone_wp2_implementation
 python examples/run_cell.py; echo "exit $?"
 ```
 
-Expected: `12 passed`; the script prints `parity: PASS -- 8 of 8 cells PASS` and exits 0 (about
+Expected: `13 passed`; the script prints `parity: PASS -- 8 of 8 cells PASS` and exits 0 (about
 10 s); the example prints two `OK` rows and exits 0 (about 10 s).
+
+The c5 re-make, as it was run through `_claude/wslrun` from the parent's root (about 5 s; it
+needs no rerun): `python ../MicroCell/tools/make_references.py --all --cell c5_cosine_fullfilm --procs 1`.
 
 The reference check of §5, from Git Bash in `MicroCell/` (under a second, no FEniCS):
 
@@ -315,41 +342,62 @@ The reference check of §5, from Git Bash in `MicroCell/` (under a second, no FE
 python -I docs/notes/micro_standalone_wp2_implementation_log_2026-11-11_files/reference_removed_options.py
 ```
 
+Table 2b was made the same way with `F/c5_reference_old_vs_new.py <old npz> <new npz> <out tsv>`,
+the old file being the copy in `_to_delete/` (§11).
+
 ## 11. File list
 
 Changed: `microcell/micro_phase_neutral_class.py`, `microcell/micro_phase_neutral_class_mixed.py`,
 `microcell/micro_phase_neutral_class_contact.py`, `microcell/micro_diagnostics.py`,
-`microcell/contact.py`, `microcell/api.py`, `tests/test_parity.py`, `README.md`.
+`microcell/contact.py`, `microcell/api.py`, `tests/test_parity.py`, `README.md`,
+`tools/make_references.py`, `tests/references/c5_cosine_fullfilm.npz`.
 
 Added: `docs/notes/micro_standalone_wp2_session_prompt_2026-11-11.md`, this log, and in `F/`:
 
-- `lines_before_c96ad39.tsv`, `lines_after_68028f5.tsv`, `commits.tsv`, `gate_counts.tsv`;
-- `parity_summary.py`, `parity_g1.tsv` ... `parity_g9.tsv` (g2 is `parity_g2a.tsv`);
+- `lines_before_c96ad39.tsv`, `lines_after_68028f5.tsv`, `lines_after_b18879b.tsv`, `commits.tsv`,
+  `gate_counts.tsv`, `pruning_candidates.md`, `changed_test_expectations.md`;
+- `parity_summary.py`, `parity_g1.tsv` ... `parity_g9.tsv` (g2 is `parity_g2a.tsv`),
+  `parity_g2b_ref.tsv`, `parity_g2b.tsv`;
 - `parity_report.tsv`, `parity_report_detail.tsv`;
 - `reference_removed_options.py`, `reference_removed_options.tsv`;
+- `c5_reference_old_vs_new.py`, `c5_reference_old_vs_new.tsv`;
 - `diag_spring_k0.py`, `diag_spring_k0.tsv`, `diag_spring_k0.log`, `diag_spring_k0_names.py`,
   `diag_spring_k0_names.tsv`;
 - `logs/gate_<tag>.log`, `logs/summary_<tag>.log`, `logs/parity_report_run.log`, `logs/example_run_cell.log`.
 
-Nothing was deleted outside git. Copies of the spring diagnostic are also in
+Nothing was deleted outside git. `MicroCell/_to_delete/wp2_c5_spring_2026-11-11/` (not in git)
+holds the old c5 reference and its log, and the pre-edit copies of `tools/make_references.py`
+and of this log. Copies of the spring diagnostic are also in
 `RefactorRefactor/_to_delete/micro_standalone_2026-11-11/wp2_logs/`.
 
 ## 12. Second-reader corrections
 
-The `second-reader` agent (a fresh context) recomputed the tables and checked the code claims
-against the files and git: about 135 items checked, 1 disagreement, 1 not checkable.
+**First check (the log at 7d64e1e).** The `second-reader` agent (a fresh context) recomputed the
+tables and checked the code claims against the files and git: about 135 items checked,
+1 disagreement, 1 not checkable.
 
-1. **Disagreement, corrected.** §2 said "the other eight c5 rows ... are listed with their
-   values in `F/diag_spring_k0.tsv`". That file counts nine comparisons outside the tolerance
-   but lists eight by name: its script printed only records with a non-zero relative
-   difference. The ninth was not named anywhere. `F/diag_spring_k0_names.py` was added and run;
-   it lists all nine, and the ninth is the Newton iteration count. §2 now cites that file. The
-   count in Table 2 was right.
-2. **Not checkable from the WP2 files.** The base gate g0 has no per-comparison table (Table 4
-   says "not tabulated"). The statement that every comparison is exact is made for the nine
-   gates after a group, g1 to g9, each with its `parity_<tag>.tsv`. The base values are in the
-   WP1 log's table 3.
+1. **Disagreement, corrected.** §2 cited `F/diag_spring_k0.tsv` for the c5 rows outside the
+   tolerance, but that file names eight of the nine it counts. `F/diag_spring_k0_names.py` was
+   added; it names all nine. The count in Table 2 was right.
+2. **Not checkable.** The base gate g0 has no per-comparison table; "every comparison exact" is
+   stated for the gates after a group. The base values are in the WP1 log's table 3.
 
-The reader also noted what it did not check: the author field of the commits (they were made
-with `--author="RFurze <py07rf@leeds.ac.uk>"`; `git log --format='%h %an <%ae>' c96ad39..HEAD`
-shows it), and that `_epsP_nd_capped` is never read (grep: two assignments, no read).
+Not checked by the reader: the commits' author field (`git log --format='%h %an <%ae>'
+c96ad39..HEAD` shows it) and that `_epsP_nd_capped` is never read (grep: two assignments).
+The full text of this section as first written is in git at 7d64e1e.
+
+**Second check (this revision, after the c5 re-make and the spring removal).**
+
+A fresh `second-reader` checked this revision against the files and git: about 150 items,
+2 disagreements, about 10 not checkable.
+
+1. **Disagreement, corrected.** The log said the commits were "not pushed". `git status -sb`
+   shows `main...origin/main [ahead 2]` with `origin/main` at 7d64e1e. §0, decision 3 and
+   Table 7 now say which commits are on the remote.
+2. **Placeholder.** This section was still empty when the reader saw it; it is now filled.
+
+Not checkable from the files it read: the failed first g8 run (no log of it was kept); the
+parent's behaviour behind §6.7 and §6.8 (the parent source was not read); the brief's wording
+behind §6.1, §6.5 and §6.9 (the session prompt was not opened). Table 1's lists of removed
+names were spot-checked by grep on the current tree, not diffed commit by commit, and Table 2b
+was read from the kept tsv, not rerun.

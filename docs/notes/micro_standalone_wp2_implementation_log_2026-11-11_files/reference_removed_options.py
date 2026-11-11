@@ -4,8 +4,12 @@
 
 Reads tests/references/*.npz (the JSON members) and writes reference_removed_options.tsv beside
 this file: one row per (option, cell) with the stored value, the value the pruned code hard-wires,
-and whether they agree.  exit 0 = every row agrees except the ones marked KEPT (an option a
-reference uses, which was therefore not removed), 1 = a removed option is used by a reference.
+and whether they agree.  exit 0 = no removed option is used by a reference, 1 = one is.
+
+``micro_case.k_spring`` (the cell-average spring, removed after the c5 reference was re-made with
+``k_spring = 0``): a cell that stores a non-zero value is marked "unused" when the parent's spring
+did not act on it (the contact class never ran the spring; the steady full-film solve was raw),
+and DIFFERENT when it did (a transient full-film cell with ``k_spring > 0``).
 """
 import ast
 import json
@@ -43,15 +47,23 @@ def rows_for(cell, d):
     pair = bool(d["meta"].get("offset")) or str(st.get("phase_average")) == "contact_table_v1"
     out = []
 
-    def row(group, option, stored, frozen, ok=None, note=""):
+    def row(group, option, stored, frozen, ok=None, note="", label=None):
         if ok is None:
             ok = (stored == frozen)
-        out.append((group, option, cell, repr(stored), repr(frozen), "same" if ok else "DIFFERENT", note))
+        out.append((group, option, cell, repr(stored), repr(frozen),
+                    label or ("same" if ok else "DIFFERENT"), note))
 
     row("2", "settings.spring_pointwise", st["spring_pointwise"], False)
     k = float(mc["k_spring"])
-    row("2", "micro_case.k_spring", k, 0.0,
-        note="" if k == 0.0 else "KEPT: the cell-average spring is not removed (log section 2)")
+    acted = (0.0 < k < 1e19) if mixed else (k > 0.0 and bool(d["meta"]["transient"]))
+    if k == 0.0:
+        row("2", "micro_case.k_spring", k, 0.0)
+    elif acted:
+        row("2", "micro_case.k_spring", k, 0.0, ok=False, note="the parent's cell-average spring acted on this cell")
+    else:
+        row("2", "micro_case.k_spring", k, 0.0, label="unused",
+            note="the parent's contact class never ran the spring" if mixed
+            else "the parent's steady full-film solve was raw (no spring)")
     if mixed:
         row("3", "settings.contact_model", st["contact_model"], "fft_elastic_v1")
         row("3", "settings.use_reduced_modulus", st["use_reduced_modulus"], False)
@@ -81,10 +93,10 @@ def main():
         fh.write("\t".join(head) + "\n")
         for r in rows:
             fh.write("\t".join(r) + "\n")
-    bad = [r for r in rows if r[5] != "same" and not r[6].startswith("KEPT")]
-    kept = [r for r in rows if r[6].startswith("KEPT")]
-    print(f"{len(rows)} rows; {len(kept)} kept (used by a reference, not removed); {len(bad)} removed-but-used")
-    for r in kept + bad:
+    bad = [r for r in rows if r[5] not in ("same", "unused")]
+    unused = [r for r in rows if r[5] == "unused"]
+    print(f"{len(rows)} rows; {len(unused)} stored but unused by the parent; {len(bad)} removed-but-used")
+    for r in unused + bad:
         print("  ", *r[:5], r[6])
     return 1 if bad else 0
 

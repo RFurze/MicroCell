@@ -7,6 +7,9 @@ them.  Run as a pytest file from MicroCell/ (the wsltest wrapper):
     _claude/wsltest docs/notes/micro_standalone_wp2_implementation_log_2026-11-11_files/diag_spring_k0_names.py -q -p no:cacheprovider
 
 Writes diag_spring_k0_names.tsv beside this file.  The test passes when the file is written.
+
+Runs only on a tree before b18879b: that commit removed the spring and the ``k_spring`` key
+this script sets (the c5 reference was re-made with k_spring = 0 at a1395f4).
 """
 import sys
 from pathlib import Path

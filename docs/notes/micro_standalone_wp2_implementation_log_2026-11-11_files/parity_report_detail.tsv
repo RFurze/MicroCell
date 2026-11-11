@@ -42,6 +42,7 @@ c1_gensa40_h200_ripple	setting	settings.sigma_yield	0.0	True
 c1_gensa40_h200_ripple	setting	settings.spos_form	0.0	True	
 c1_gensa40_h200_ripple	setting	settings.spring_pointwise	0.0	True	
 c1_gensa40_h200_ripple	setting	settings.use_reduced_modulus	0.0	True	
+c1_gensa40_h200_ripple	setting	case.k_spring	0.0	True	
 c1_gensa40_h200_ripple	setting	surface.envelope_m	0.0	True	
 c1_gensa40_h200_ripple	scalar	status	0.0	True	
 c1_gensa40_h200_ripple	scalar	A_mech_frac	0.0	True	
@@ -196,6 +197,7 @@ c2_gensa40_h130_ripple	setting	settings.sigma_yield	0.0	True
 c2_gensa40_h130_ripple	setting	settings.spos_form	0.0	True	
 c2_gensa40_h130_ripple	setting	settings.spring_pointwise	0.0	True	
 c2_gensa40_h130_ripple	setting	settings.use_reduced_modulus	0.0	True	
+c2_gensa40_h130_ripple	setting	case.k_spring	0.0	True	
 c2_gensa40_h130_ripple	setting	surface.envelope_m	0.0	True	
 c2_gensa40_h130_ripple	scalar	status	0.0	True	
 c2_gensa40_h130_ripple	scalar	A_mech_frac	0.0	True	
@@ -350,6 +352,7 @@ c3_gensa40_h130_noripple	setting	settings.sigma_yield	0.0	True
 c3_gensa40_h130_noripple	setting	settings.spos_form	0.0	True	
 c3_gensa40_h130_noripple	setting	settings.spring_pointwise	0.0	True	
 c3_gensa40_h130_noripple	setting	settings.use_reduced_modulus	0.0	True	
+c3_gensa40_h130_noripple	setting	case.k_spring	0.0	True	
 c3_gensa40_h130_noripple	setting	surface.envelope_m	0.0	True	
 c3_gensa40_h130_noripple	scalar	status	0.0	True	
 c3_gensa40_h130_noripple	scalar	A_mech_frac	0.0	True	
@@ -503,6 +506,7 @@ c4_wangpair10_h25_offset	setting	settings.sigma_yield	0.0	True
 c4_wangpair10_h25_offset	setting	settings.spos_form	0.0	True	
 c4_wangpair10_h25_offset	setting	settings.spring_pointwise	0.0	True	
 c4_wangpair10_h25_offset	setting	settings.use_reduced_modulus	0.0	True	
+c4_wangpair10_h25_offset	setting	case.k_spring	0.0	True	
 c4_wangpair10_h25_offset	setting	surface.envelope_m	0.0	True	
 c4_wangpair10_h25_offset	scalar	status	0.0	True	
 c4_wangpair10_h25_offset	scalar	A_mech_frac	0.0	True	
@@ -642,6 +646,7 @@ c5_cosine_fullfilm	setting	settings.ripple_omega	0.0	True
 c5_cosine_fullfilm	setting	settings.ripple_tol	0.0	True	
 c5_cosine_fullfilm	setting	settings.spos_form	0.0	True	
 c5_cosine_fullfilm	setting	settings.spring_pointwise	0.0	True	
+c5_cosine_fullfilm	setting	case.k_spring	0.0	True	
 c5_cosine_fullfilm	scalar	status	0.0	True	
 c5_cosine_fullfilm	scalar	A_mech_frac	0.0	True	
 c5_cosine_fullfilm	scalar	A_patch_frac	0.0	True	
@@ -786,6 +791,7 @@ c6_cosine_fft_sqrt	setting	settings.sigma_yield	0.0	True
 c6_cosine_fft_sqrt	setting	settings.spos_form	0.0	True	
 c6_cosine_fft_sqrt	setting	settings.spring_pointwise	0.0	True	
 c6_cosine_fft_sqrt	setting	settings.use_reduced_modulus	0.0	True	
+c6_cosine_fft_sqrt	setting	case.k_spring	0.0	True	
 c6_cosine_fft_sqrt	scalar	status	0.0	True	
 c6_cosine_fft_sqrt	scalar	A_mech_frac	0.0	True	
 c6_cosine_fft_sqrt	scalar	A_patch_frac	0.0	True	
@@ -938,6 +944,7 @@ c7_gensa40_h130_ripple_steady	setting	settings.sigma_yield	0.0	True
 c7_gensa40_h130_ripple_steady	setting	settings.spos_form	0.0	True	
 c7_gensa40_h130_ripple_steady	setting	settings.spring_pointwise	0.0	True	
 c7_gensa40_h130_ripple_steady	setting	settings.use_reduced_modulus	0.0	True	
+c7_gensa40_h130_ripple_steady	setting	case.k_spring	0.0	True	
 c7_gensa40_h130_ripple_steady	setting	surface.envelope_m	0.0	True	
 c7_gensa40_h130_ripple_steady	scalar	status	0.0	True	
 c7_gensa40_h130_ripple_steady	scalar	A_mech_frac	0.0	True	
@@ -1078,6 +1085,7 @@ c8_cosine_fullfilm_steady	setting	settings.ripple_omega	0.0	True
 c8_cosine_fullfilm_steady	setting	settings.ripple_tol	0.0	True	
 c8_cosine_fullfilm_steady	setting	settings.spos_form	0.0	True	
 c8_cosine_fullfilm_steady	setting	settings.spring_pointwise	0.0	True	
+c8_cosine_fullfilm_steady	setting	case.k_spring	0.0	True	
 c8_cosine_fullfilm_steady	scalar	status	0.0	True	
 c8_cosine_fullfilm_steady	scalar	A_mech_frac	0.0	True	
 c8_cosine_fullfilm_steady	scalar	A_patch_frac	0.0	True	
