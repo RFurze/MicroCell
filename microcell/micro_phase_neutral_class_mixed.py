@@ -86,7 +86,6 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
     def _setup_pressure_expressions(self) -> None:
         super()._setup_pressure_expressions()
         p = self.params
-        rho_nd = Constant(1.0)
         # --- Contact model (June 2026): pattern-frame flux blend + pinned
         # patch pressure.  See PhaseNeutralSettings.pattern_flux_contact
         # docstring and tests/diagnose_contact_blowup.py for the validation
@@ -164,7 +163,7 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
             # re-solve at the final transient state, ball mode).
             if not hasattr(self, "transient_on"):
                 self.transient_on = Constant(0.0)
-            self.F_adv_nd = rho_nd * (
+            self.F_adv_nd = (
                 self.mask * self.U_nd
                 + self.transient_on
                 * (Constant(1.0) - self.mask) * self._V_p_nd
@@ -688,7 +687,7 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
         Uy_surf = float(self.Uy_nd_const) * self.Uref
 
         gradP_dim = gradP_nd * Constant(self.p_scale * self.invLx)
-        eta_dim_expr = self.roelands_eta_dim(self.P_dim)
+        eta_dim_expr = Constant(float(self.params.eta0))      # constant lubricant viscosity [Pa s]
         H_dim_expr = Constant(self.params.H0) * self.h_nd
         H_floor_expr = H_dim_expr + Constant(1e-30)
 

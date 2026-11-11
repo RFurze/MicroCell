@@ -309,11 +309,7 @@ def fluid_traction_samples(solver, film_dofs_m=None, existing_mask=None) -> Flui
     f1, f2 = w[cells[:, 1]] - w[cells[:, 0]], w[cells[:, 2]] - w[cells[:, 0]]
     gx = (f1 * d2[:, 1] - f2 * d1[:, 1]) / det + float(solver.dpx_nd_const)
     gy = (d1[:, 0] * f2 - d2[:, 0] * f1) / det + float(solver.dpy_nd_const)
-    try:
-        eta = float(solver.roelands_eta_dim(solver.P_dim))
-    except (TypeError, ValueError) as exc:
-        raise TypeError("the fluid traction sampler evaluates a constant viscosity only "
-                        "(roelands_eta_dim returned an expression)") from exc
+    eta = float(solver.params.eta0)                            # constant lubricant viscosity [Pa s]
     scale = float(solver.p_scale) * float(solver.invLx)        # gradP_dim = gradP_nd * p_scale / Lx (x and y)
     us_x = float(solver.Ux_nd_const) * float(solver.Uref)
     us_y = float(solver.Uy_nd_const) * float(solver.Uref)

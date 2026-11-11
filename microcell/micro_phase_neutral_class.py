@@ -1035,15 +1035,12 @@ class MicroPhaseNeutralSolver:
         self.p_scale_const = Constant(self.p_scale)
         self.P_dim = self.p_scale_const * self.P_nd
 
-        # Constant Case lubricant: eta/eta0 is one. Its dimensional value
-        # enters omega and the dimensional shear; reset_task updates omega.
-        eta_nd = Constant(1.0)
-        rho_nd = Constant(1.0)
-
+        # Isoviscous, incompressible lubricant: eta/eta0 and rho/rho0 are one.  The dimensional
+        # viscosity enters omega and the dimensional shear; reset_task updates omega.
         # Masked transport coefficients
         self.omega_const = Constant(self.omega)
-        self.K_nd = rho_nd * self.omega_const * (self.h_nd**3 / eta_nd) * self.mask
-        self.F_adv_nd = rho_nd * (self.U_nd * self.h_nd) * self.mask
+        self.K_nd = self.omega_const * self.h_nd**3 * self.mask
+        self.F_adv_nd = (self.U_nd * self.h_nd) * self.mask
 
         # spos(-P_nd) for cavitation penalty
         # [WP-B 2026-09-15] form-dispatched: one-sided spline by default,
@@ -1420,10 +1417,6 @@ class MicroPhaseNeutralSolver:
             mask_fluid,
             conditional(gt((-delta) - phi, 0.0), mask_core, mask_transition),
         )
-
-    def roelands_eta_dim(self, p_dim):
-        """Configured constant lubricant viscosity [Pa s]."""
-        return Constant(float(self.params.eta0))
 
     # -------------------------
     # XDMF export helpers (unchanged from template)
@@ -3284,7 +3277,7 @@ class MicroPhaseNeutralSolver:
         Uy_surf = float(self.Uy_nd_const) * self.Uref
 
         gradP_dim = gradP_nd * Constant(self.p_scale * self.invLx)
-        eta_dim_expr = self.roelands_eta_dim(self.P_dim)
+        eta_dim_expr = Constant(float(self.params.eta0))      # constant lubricant viscosity [Pa s]
         H_dim_expr = Constant(self.params.H0) * self.h_nd
         H_floor_expr = H_dim_expr + Constant(1e-30)
 
