@@ -63,6 +63,7 @@ REMOVED_SETTINGS = {
     "spring_pointwise": False,          # group 2: the pointwise spring mode
     "use_reduced_modulus": False,       # group 3: fft_elastic_v1 refused True
     "overclosure_measure": "patch_max",  # group 3: fft_elastic_v1 refused anything else
+    "gauge_lift": False,                # group 5: ignored by the solver (True only warned)
 }
 
 #: WP2 group 3: settings that only the removed ``legacy_patch_v1`` law read, so there is no value

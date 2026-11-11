@@ -48,7 +48,6 @@ import logging
 import os
 import sys
 import time
-import warnings
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -147,15 +146,10 @@ class MicroSolverSettings:
     eps_smooth: float     # smoothing for smooth_pos
     print_newton: bool = False
     print_timing: bool = False
-    gauge_lift: bool = False  # default False: gauge_lift is not used by this solver.
-                               # If True, a DeprecationWarning is emitted.
     # [WP-B 2026-09-15] Which smoothed positive part the cavitation
     # penalty (and its derivative) uses.
     #   "spline" -- one-sided C1 quadratic spline, spos(z) == 0 for z <= 0.
     #               NO closure bias at positive pressure.  Default.
-    #   "c2"     -- same one-sided form joined C2 instead of C1 (WP-B5):
-    #               spos'' vanishes at both knots, so the Newton Jacobian
-    #               stays continuous as a node crosses a knot.
     #   "sqrt"   -- legacy symmetric 0.5*(z + sqrt(z^2+eps^2)).  Retained
     #               for A/B only: its eps^2/(4P) residue at P > 0 biases
     #               the phase-neutral closure, which with eps_smooth = 1e5
@@ -430,15 +424,6 @@ class MicroPhaseNeutralSolver:
         auto_solve: bool = True,
         warm_start_state: "dict | None" = None,
     ) -> None:
-        # Warn if gauge_lift is set (it is ignored in the phase-neutral formulation)
-        if getattr(solver_settings, "gauge_lift", False):
-            warnings.warn(
-                "MicroPhaseNeutralSolver: 'gauge_lift' in solver settings is ignored. "
-                "The phase-neutral formulation does not use a pinned BC.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
         # ---- persistent inputs ----
         # NOTE: the ``mesh_h`` and ``k`` constructor arguments are accepted
         # for signature compatibility with callers but are unused by this
@@ -461,9 +446,9 @@ class MicroPhaseNeutralSolver:
                 getattr(solver_settings, "spos_form", "spline"),
             )
         ).strip().lower()
-        if self._spos_form not in ("spline", "sqrt", "c2"):
+        if self._spos_form not in ("spline", "sqrt"):
             raise ValueError(
-                "spos_form must be 'spline', 'c2' or 'sqrt', got %r"
+                "spos_form must be 'spline' or 'sqrt', got %r"
                 % (self._spos_form,)
             )
         self.ht_cb = ht
@@ -1340,49 +1325,6 @@ class MicroPhaseNeutralSolver:
             0.0,
         )
 
-    @staticmethod
-    def smooth_pos_c2(z, eps):
-        """One-sided C2 positive part [WP-B5 2026-09-16].
-
-            spos(z) = 0                         z <= 0
-                    = eps*(t^3 - t^4/2), t=z/eps  0 < z < eps
-                    = z - eps/2                 z >= eps
-
-        Same one-sidedness (and so the same zero bias) as
-        :meth:`smooth_pos_spline`, same eps/2 offset, but C2 at BOTH knots
-        instead of C1: ``spos'' = (6/eps)*t*(1-t)`` vanishes at t = 0 and
-        t = 1.  The quadratic spline's second derivative jumps there, which
-        makes the Newton JACOBIAN discontinuous as a node crosses a knot --
-        the suspected cause of the gate-B4 chatter on 2026-09-16 (16/32 and
-        19/32 converged, against 32/32 for the legacy sqrt form, with 44-147
-        backtracks per failing solve).
-        """
-        eps_s = conditional(gt(eps, 0.0), eps, 1.0)
-        t = z / eps_s
-        return conditional(
-            gt(z, 0.0),
-            conditional(lt(z, eps),
-                        eps_s * (t * t * t - 0.5 * t * t * t * t),
-                        z - 0.5 * eps),
-            0.0,
-        )
-
-    @staticmethod
-    def smooth_pos_deriv_c2(z, eps):
-        """d/dz of :meth:`smooth_pos_c2`: ``0 | t^2*(3 - 2t) | 1``.
-
-        The smoothstep: monotone on [0, 1], C1 at both knots (its own
-        derivative ``6t(1-t)/eps`` vanishes there), so the assembled
-        Jacobian is continuous across a knot crossing.
-        """
-        eps_s = conditional(gt(eps, 0.0), eps, 1.0)
-        t = z / eps_s
-        return conditional(
-            gt(z, 0.0),
-            conditional(lt(z, eps), t * t * (3.0 - 2.0 * t), 1.0),
-            0.0,
-        )
-
     # ------------------------------------------------------------------
     # spos form dispatch (instance level -- honours settings.spos_form /
     # MICRO_SPOS_FORM, resolved once in __init__ as self._spos_form).
@@ -1392,8 +1334,6 @@ class MicroPhaseNeutralSolver:
         form = getattr(self, "_spos_form", "spline")
         if form == "sqrt":
             return self.smooth_pos(z, eps)
-        if form == "c2":
-            return self.smooth_pos_c2(z, eps)
         return self.smooth_pos_spline(z, eps)
 
     def _spos_deriv(self, z, eps):
@@ -1401,8 +1341,6 @@ class MicroPhaseNeutralSolver:
         form = getattr(self, "_spos_form", "spline")
         if form == "sqrt":
             return self.smooth_pos_deriv_sqrt(z, eps)
-        if form == "c2":
-            return self.smooth_pos_deriv_c2(z, eps)
         return self.smooth_pos_deriv_spline(z, eps)
 
     @staticmethod
