@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields as _dataclass_fields
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
@@ -44,7 +44,37 @@ CONTACT_OFF = "off"
 FAILED_NEWTON = "FAILED_NEWTON"
 FAILED_RIPPLE = "FAILED_RIPPLE"
 FAILED_CONTACT = "FAILED_CONTACT"
-STATUSES = (OK, FAILED_NEWTON, FAILED_RIPPLE, FAILED_CONTACT)
+#: the solve converged but an output is not finite and no status of ``NAN_STATUS`` explains it
+FAILED_NONFINITE = "FAILED_NONFINITE"
+STATUSES = (OK, FAILED_NEWTON, FAILED_RIPPLE, FAILED_CONTACT, FAILED_NONFINITE)
+
+#: The one table of the outputs that may be NaN on an OK result (WP4, Rob 11 Nov 2026):
+#:     output -> (the ``info`` entry that holds its status, the values of that status that explain a NaN).
+#: An output is a named output of ``MicroResult`` or an ``info`` entry.  Every other output, every
+#: array of ``fields`` and every entry of ``info["fields"]`` is finite on an OK result, and so is a
+#: listed output whose status is not one of the listed values (``ok``, ``no_support``).
+#: ``microsolver`` checks this before it returns (``unexplained_nonfinite``) and returns
+#: ``FAILED_NONFINITE`` otherwise.  On a failed result every NaN is explained by ``status`` itself.
+#:   ``no_fluid``       no fluid sample (pressure extrema), no fluid area (``Pst_fluid``)
+#:   ``phase_invalid``  a sample that had to be evaluated is not finite, or the contact state at the
+#:                      samples is not the solved one (``contact_shear``: stale, refreshed, check failed)
+#:   ``unavailable``    not computed: no contact law (a full-film cell), or no friction coefficient
+_EXTREMA, _FLUID, _ASPERITY, _TOTAL = ("pressure_extrema_status", "shear_extrema_status",
+                                       "shear_asperity_status", "shear_total_status")
+NAN_STATUS = {
+    "p_max": (_EXTREMA, ("no_fluid", "phase_invalid")),
+    "p_min": (_EXTREMA, ("no_fluid", "phase_invalid")),
+    "Pst_fluid": (_EXTREMA, ("no_fluid",)),
+    "shear_fluid_mean_local_Pa": (_FLUID, ("phase_invalid",)),
+    "shear_fluid_support_fraction": (_FLUID, ("phase_invalid",)),
+    "tau_asperity": (_ASPERITY, ("unavailable", "phase_invalid")),
+    "shear_asperity_support_fraction": (_ASPERITY, ("unavailable", "phase_invalid")),
+    "shear_contact_overlap_fraction": (_ASPERITY, ("unavailable", "phase_invalid")),
+    "shear_contact_force_on_fluid_fraction": (_ASPERITY, ("unavailable", "phase_invalid")),
+    "shear_contact_obstruction_without_pressure_fraction": (_ASPERITY, ("unavailable", "phase_invalid")),
+    "shear_contact_mean_check": (_ASPERITY, ("unavailable", "phase_invalid")),
+    "tau_total": (_TOTAL, ("unavailable", "phase_invalid")),
+}
 
 _NAN = float("nan")
 
@@ -171,8 +201,10 @@ class MicroSettings:
 @dataclass
 class MicroResult:
     """One cell's outputs (SI).  ``status`` is ``"OK"`` or a ``FAILED_*`` code with ``reason``;
-    every homogenised output of a failed cell is NaN and it has no fields.  The asperity and total
-    shear means of a full-film cell are NaN with ``info["shear_asperity_status"] == "unavailable"``.
+    every homogenised output of a failed cell is NaN and it has no fields.  On an OK result an
+    output is NaN only where ``NAN_STATUS`` ties it to a status in ``info`` that says why (the
+    asperity and total shear means of a full-film cell: ``info["shear_asperity_status"] ==
+    "unavailable"``); the fields are finite.
 
     Each output is in one place: the homogenised outputs below, the arrays in ``fields``, and
     everything else in ``info`` under the parent's ``MicroTaskResult`` name -- the statuses and
@@ -300,6 +332,33 @@ def _failed_result(status: str, reason: str, info: dict, mixed: bool, ripple_on:
         tau_fluid=nan2.copy(), tau_asperity=tau_asperity, tau_total=tau_total,
         P_asp=_NAN, contact_frac=_NAN, A_mech_frac=_NAN, k_asp=_NAN, p_max=_NAN, p_min=_NAN,
         h_max=_NAN, h_min=_NAN, yield_flag=0, fields={}, info=info)
+
+
+def _not_finite(value) -> bool:
+    """True when ``value`` is a float, or an array or sequence of numbers, holding a NaN or an infinity."""
+    if value is None or isinstance(value, (str, bytes, bool, dict)):
+        return False
+    try:
+        a = np.asarray(value, dtype=float)
+    except (TypeError, ValueError):
+        return False
+    return not bool(np.all(np.isfinite(a)))
+
+
+def unexplained_nonfinite(out: MicroResult) -> list:
+    """The outputs of ``out`` that are not finite and that ``NAN_STATUS`` does not explain: named
+    outputs and ``info`` entries by name, ``fields.<name>`` and ``info.fields.<name>``."""
+    named = [f.name for f in _dataclass_fields(MicroResult) if f.name not in ("status", "reason", "fields", "info")]
+    values = [(n, getattr(out, n)) for n in named] + [(k, v) for k, v in out.info.items() if k != "fields"]
+    bad = []
+    for name, value in values:
+        if _not_finite(value):
+            key, explains = NAN_STATUS.get(name, (None, ()))
+            if out.info.get(key) not in explains:
+                bad.append(name)
+    bad += [f"info.fields.{k}" for k, v in out.info.get("fields", {}).items() if _not_finite(v)]
+    bad += [f"fields.{k}" for k, v in out.fields.items() if _not_finite(v)]
+    return bad
 
 
 # ----------------------------------------------------------------------------------------
@@ -556,10 +615,14 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     info.update(contact_shear)
     if paraview is not None:
         info["paraview"] = paraview
-    return MicroResult(
+    out = MicroResult(
         status=OK, reason="", dQ=_vec2(Q - Q_re), dP=float(ledger["P_f"] - P_re), Q=_vec2(Q), Pst=float(Pst),
         P_f=float(ledger["P_f"]), Fst=float(Fst), tau_fluid=_vec2((taust_x, taust_y)),
         tau_asperity=tau_asperity, tau_total=tau_total,
         P_asp=float(Pasp), contact_frac=float(contact_frac), A_mech_frac=float(A_mech), k_asp=float(k_asp),
         p_max=float(extrema["p_max"]), p_min=float(extrema["p_min"]), h_max=float(h_max), h_min=float(h_min),
         yield_flag=int(yield_flag), fields=fields, info=info)
+    bad = unexplained_nonfinite(out)
+    if bad:
+        return failed(FAILED_NONFINITE, "not finite, with no status that explains it: " + ", ".join(bad))
+    return out
