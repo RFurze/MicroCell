@@ -1,5 +1,4 @@
-"""Asperity and total shear traction of a micro task, raw micro products vs applied macro products: the
-exchange contract (extrema M3b, 23 Oct 2026).
+"""Asperity and total shear traction of a micro task (extrema M3b, 23 Oct 2026).
 
 Pure numpy, no FEniCS (the worker, ``run_micro``, the pressure guard, the macro driver, the checkpoint and
 FEniCS-free tests share it, as ``ehl/fluid_shear.py``).  Plan
@@ -43,35 +42,15 @@ resolved pressure distribution (their ``p_asp_field`` is a display): their envel
 ``unsupported_model`` (NaN, never approximated); their asperity mean is the patch law's cell mean,
 ``mu_material Pasp_hom U_hat`` -- the quantity the macro consumes -- and the total mean is the sampled fluid
 mean plus it.
-
-Raw micro products vs applied macro products (plan section 4), kept apart, never blended
------------------------------------------------------------------------------------
-``micro_raw/*``      the statistics of one micro batch (its ``micro_batch_id``, the batch stamp): the fluid
-                     (M2b), asperity and total means and envelopes of the correction set the accepted solve
-                     applied (or a carried set at a head solve) -- committed-step series
-                     ``shear_fluid_*`` (M2b), ``shear_asperity_*``, ``shear_total_*``;
-``macro_applied/*``  what the macro integrated into the reported torque: the fluid mean after correction
-                     handling, ``taust_rot`` (M2a), and the asperity pressure the friction consumed,
-                     ``_pasp_consumer()`` (``Pasp`` after the guard and the relaxation, or the Newton-like
-                     predictor ``Pasp_eff``), exported as ``applied_Pasp`` (nondimensional, like ``Pasp``) with
-                     its traction ``applied_asperity_mean = mu_material Pc p0 U / (|U| + 1e-30)`` at the nodes
-                     (a nodal display: the torque integrates the law at the macro's quadrature points from
-                     ``applied_Pasp``).  ``Ty_Nm`` integrates ``taust_rot``, ``Tasp_y_Nm`` the law of
-                     ``applied_Pasp``; their sum is the reported total.
-The raw / applied difference is visible node by node (``shear_asperity_mean`` against
-``applied_asperity_mean``; ``shear_fluid_mean_sampled`` against ``taust_rot``) and integrated per committed
-step in ``shear_extrema_steps.jsonl`` (``contact.Fx_N``).  A raw envelope describes its batch's state; the
-applied means are not presented as lying inside it.
 """
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field, replace
 from typing import Optional, Sequence
 
 import numpy as np
 
-from microcell.shear_reduce import (GLOBAL_X, SHEAR_REDUCE_VERSION, STATUS_NO_SUPPORT, STATUS_OK,
+from microcell.shear_reduce import (STATUS_NO_SUPPORT, STATUS_OK,
                               VALID_STATUSES, ShearReduction, union_phases)
 
 #: M3a's sampler (``contact_sample.CONTACT_SAMPLER``; equal by test) on M2b's sample set
@@ -81,8 +60,6 @@ CONTACT_SHEAR_DEFINITION = f"{CONTACT_SAMPLER}@{FLUID_SAMPLER}/global_x/phase_un
 #: M3a's gate-1 budget, stated before its comparison (M3a log 1.1): the sampled mean of p_a against the
 #: solution's own Pasp_hom, relative; exactly 0 when Pasp_hom is 0
 MEAN_CHECK_BUDGET = 1e-12
-#: the regularisation of the macro's asperity direction (friction.py 188), in the units of the velocity
-ZERO_SPEED_EPS = 1e-30
 
 FFT_MODEL = "fft_elastic_v1"
 UNSUPPORTED_MODELS = ("legacy_patch_v1", "hertz_summit_v1")
@@ -102,63 +79,10 @@ STATE_MISMATCH = "state_mismatch"    # the extraction refreshed the contact solu
 CHECK_FAILED = "check_failed"        # the common-support checks failed (grid, sampled mean vs Pasp_hom): NaN
 PHASE_INVALID = "phase_invalid"      # task: a phase was invalid (any of the three above)
 FAILED = "failed"                    # the micro solve failed (or, under dedup, its representative's)
-DEDUP_MEMBER = "dedup_member"        # (MICRO_DEDUP_TOL > 0) global-x statistics NaN; means the representative's
 NO_FRAME = "no_frame"                # the batch came without the macro frames: global-x NaN, local means kept
-LEGACY = "legacy"                    # restored from a checkpoint written before this definition
 UNAVAILABLE = "unavailable"          # a result or a correction set without the fields (full film, older code)
-STATUS_DTYPE = "<U24"
-STATUSES = (OK, NO_SUPPORT, UNSUPPORTED, STATE_INVALID, STATE_MISMATCH, CHECK_FAILED, PHASE_INVALID, FAILED,
-            DEDUP_MEMBER, NO_FRAME, LEGACY, UNAVAILABLE)
-#: statuses under which the means are physical numbers (the local / macro mean vectors)
-MEAN_VALID = (OK, NO_SUPPORT, UNSUPPORTED, NO_FRAME, DEDUP_MEMBER)
-#: statuses under which the global-x envelope is physical
-ENVELOPE_VALID = (OK, NO_SUPPORT)
 #: the phase statuses that invalidate a task
 _PHASE_BAD = (STATE_INVALID, STATE_MISMATCH, CHECK_FAILED)
-
-#: the committed-step XDMF status code
-XDMF_STATUS_CODE = {s: float(k) for k, s in enumerate(STATUSES)}
-
-# ------------------------------------------------------------------------------- run_micro arrays
-ASP_MEAN = "shear_asp_mean_local_results"                     # (N, 2) local frame [Pa]
-ASP_GX_MIN = "shear_asp_gx_min_results"
-ASP_GX_MAX = "shear_asp_gx_max_results"
-ASP_GX_MEAN = "shear_asp_gx_mean_results"
-ASP_SUPPORT = "shear_asp_support_fraction_results"            # mechanical support p_a > 0, by weight
-TOT_MEAN = "shear_tot_mean_local_results"                     # (N, 2)
-TOT_GX_MIN = "shear_tot_gx_min_results"
-TOT_GX_MAX = "shear_tot_gx_max_results"
-TOT_GX_MEAN = "shear_tot_gx_mean_results"
-OVERLAP = "shear_contact_overlap_results"                     # fluid samples with p_a > 0, by weight
-FORCE_ON_FLUID = "shear_contact_force_on_fluid_results"       # share of the contact force on fluid samples
-OBSTRUCTION_NO_P = "shear_contact_obstruction_without_pressure_results"   # obstructed samples with p_a = 0
-MEAN_CHECK = "shear_contact_mean_check_results"               # |sampled mean p_a - Pasp_hom| / Pasp_hom
-ASP_STATUS = "shear_asperity_status"
-TOT_STATUS = "shear_total_status"
-DEFINITION_KEY = "shear_contact_definition"
-LABELS = (ASP_STATUS, TOT_STATUS, DEFINITION_KEY)
-GX_ARRAYS = (ASP_GX_MIN, ASP_GX_MAX, ASP_GX_MEAN, TOT_GX_MIN, TOT_GX_MAX, TOT_GX_MEAN)
-
-_MEAN_NAN = (STATE_INVALID, STATE_MISMATCH, CHECK_FAILED, PHASE_INVALID, FAILED, UNAVAILABLE, LEGACY)
-_GX_NAN = _MEAN_NAN + (UNSUPPORTED, DEDUP_MEMBER, NO_FRAME)
-_SUPPORT_NAN = _MEAN_NAN + (UNSUPPORTED,)
-#: run_micro array -> (the status array that governs it, the statuses under which its NaN is legitimate:
-#: the M1 rule -- not a failure of the task, accepted by the batch stamp; a NaN under any other status is a
-#: failure as before).  ``failed`` is among them: a failed task is failed by its solver channels anyway,
-#: and its diagnostics are kNN estimates where neighbours have a value, else NaN (never a refused batch).
-NAN_IS_VALID = {
-    ASP_MEAN: (ASP_STATUS, _MEAN_NAN), TOT_MEAN: (TOT_STATUS, _MEAN_NAN),
-    ASP_GX_MIN: (ASP_STATUS, _GX_NAN), ASP_GX_MAX: (ASP_STATUS, _GX_NAN), ASP_GX_MEAN: (ASP_STATUS, _GX_NAN),
-    TOT_GX_MIN: (TOT_STATUS, _GX_NAN), TOT_GX_MAX: (TOT_STATUS, _GX_NAN), TOT_GX_MEAN: (TOT_STATUS, _GX_NAN),
-    ASP_SUPPORT: (ASP_STATUS, _SUPPORT_NAN), OVERLAP: (ASP_STATUS, _SUPPORT_NAN),
-    FORCE_ON_FLUID: (ASP_STATUS, _SUPPORT_NAN), OBSTRUCTION_NO_P: (ASP_STATUS, _SUPPORT_NAN),
-    MEAN_CHECK: (ASP_STATUS, _SUPPORT_NAN),
-}
-#: what a dedup member gets instead of its representative's value (D6): its global-x statistics are NaN;
-#: means and fractions are scattered as every other channel
-DEDUP_MEMBER_NAN = GX_ARRAYS
-#: a dedup member of a representative with one of these statuses keeps the representative's status
-DEDUP_KEEP_REP_STATUS = tuple(s for s in STATUSES if s not in (OK, NO_SUPPORT, NO_FRAME))
 
 
 def _nan2():
@@ -384,219 +308,3 @@ def failed_contact_shear_fields() -> dict:
                shear_asperity_status=FAILED, shear_total_status=FAILED,
                shear_contact_definition=CONTACT_SHEAR_DEFINITION, shear_contact_n_samples=0)
     return out
-
-
-#: MicroTaskResult field -> run_micro array (the per-node table); the definition and the sample count are
-#: not kept per node
-RESULT_ARRAYS = (("shear_asperity_mean_local_Pa", ASP_MEAN), ("shear_asperity_gx_min_Pa", ASP_GX_MIN),
-                 ("shear_asperity_gx_max_Pa", ASP_GX_MAX), ("shear_asperity_gx_sample_mean_Pa", ASP_GX_MEAN),
-                 ("shear_asperity_support_fraction", ASP_SUPPORT), ("shear_asperity_status", ASP_STATUS),
-                 ("shear_total_mean_local_Pa", TOT_MEAN), ("shear_total_gx_min_Pa", TOT_GX_MIN),
-                 ("shear_total_gx_max_Pa", TOT_GX_MAX), ("shear_total_gx_sample_mean_Pa", TOT_GX_MEAN),
-                 ("shear_total_status", TOT_STATUS), ("shear_contact_overlap_fraction", OVERLAP),
-                 ("shear_contact_force_on_fluid_fraction", FORCE_ON_FLUID),
-                 ("shear_contact_obstruction_without_pressure_fraction", OBSTRUCTION_NO_P),
-                 ("shear_contact_mean_check", MEAN_CHECK))
-
-
-def allocate_arrays(n: int) -> dict:
-    """The run_micro arrays of a batch of n tasks: NaN, statuses ``unavailable``."""
-    out = {}
-    for _f, key in RESULT_ARRAYS:
-        if key in (ASP_STATUS, TOT_STATUS):
-            out[key] = np.full(int(n), UNAVAILABLE, dtype=STATUS_DTYPE)
-        elif key in (ASP_MEAN, TOT_MEAN):
-            out[key] = np.full((int(n), 2), np.nan)
-        else:
-            out[key] = np.full(int(n), np.nan)
-    return out
-
-
-def legitimate_nan_rows(results: dict, n: int) -> dict:
-    """Per run_micro array, the rows whose NaN is legitimate by the status beside it (``NAN_IS_VALID``).  A
-    result without the status gets no entry (every NaN is then a failure, as before)."""
-    out = {}
-    for name, (status_key, valid) in NAN_IS_VALID.items():
-        st = results.get(status_key)
-        if name in results and st is not None and np.shape(st) == (n,):
-            out[name] = np.isin(np.asarray(st), valid)
-    return out
-
-
-# --------------------------------------------------------------- run_micro -> predictions -> records
-_PRED_KEYS = ((ASP_GX_MIN, "shear_asp_gx_min"), (ASP_GX_MAX, "shear_asp_gx_max"), (ASP_GX_MEAN, "shear_asp_gx_mean"),
-              (ASP_SUPPORT, "shear_asp_support_frac"), (TOT_GX_MIN, "shear_tot_gx_min"),
-              (TOT_GX_MAX, "shear_tot_gx_max"), (TOT_GX_MEAN, "shear_tot_gx_mean"),
-              (OVERLAP, "shear_contact_overlap_frac"), (FORCE_ON_FLUID, "shear_contact_force_on_fluid_frac"),
-              (OBSTRUCTION_NO_P, "shear_contact_obstruction_frac"), (MEAN_CHECK, "shear_contact_mean_check"),
-              (ASP_STATUS, "shear_asp_status"), (TOT_STATUS, "shear_tot_status"),
-              (DEFINITION_KEY, "shear_contact_definition"))
-#: the keys a correction set carries for the asperity / total statistics (predictions, used_corrections,
-#: checkpoint); ``shear_contact_batch_id`` is the batch stamp's id (the raw products' state id)
-RECORD_KEYS = (("tau_asp_sampled_x", "tau_asp_sampled_y", "tau_tot_sampled_x", "tau_tot_sampled_y")
-               + tuple(k for _, k in _PRED_KEYS) + ("shear_contact_batch_id",))
-
-
-def contact_shear_predictions(micro_results: dict) -> dict:
-    """The predictions entries of a run_micro result's asperity / total statistics (empty for a result
-    without them: an older micro driver)."""
-    if micro_results.get(ASP_MEAN) is None:
-        return {}
-    a = np.asarray(micro_results[ASP_MEAN], dtype=float)
-    t = np.asarray(micro_results[TOT_MEAN], dtype=float)
-    out = {"tau_asp_sampled_x": a[:, 0], "tau_asp_sampled_y": a[:, 1],
-           "tau_tot_sampled_x": t[:, 0], "tau_tot_sampled_y": t[:, 1]}
-    for src, dst in _PRED_KEYS:
-        if src in micro_results:
-            out[dst] = micro_results[src]
-    if micro_results.get("micro_batch_id") is not None:
-        out["shear_contact_batch_id"] = micro_results["micro_batch_id"]
-    return out
-
-
-def contact_shear_record(predictions) -> dict:
-    """The asperity / total entries of a correction set about to be applied: the raw statistics of the
-    batch, never relaxed -- they describe one micro state (``micro_raw``)."""
-    if not predictions:
-        return {}
-    return {k: predictions[k] for k in RECORD_KEYS if k in predictions}
-
-
-# ------------------------------------------------------------------------ state ids (checkpoint)
-#: the batch ids a correction set can carry: the batch stamp's, and the copies each diagnostic family keeps
-BATCH_ID_KEYS = ("micro_batch_id", "shear_batch_id", "shear_contact_batch_id")
-
-
-def _id(v) -> str:
-    return str(np.asarray(v).reshape(-1)[0])
-
-
-def diagnostic_state_mismatch(record) -> Optional[str]:
-    """None when the batch ids a correction set carries agree; otherwise what disagrees (a set whose
-    diagnostics come from another batch than its solver channels: a mixed-state checkpoint)."""
-    if not record:
-        return None
-    ids = {k: _id(record[k]) for k in BATCH_ID_KEYS if record.get(k) is not None and np.size(record[k])}
-    if len(set(ids.values())) > 1:
-        return ", ".join(f"{k}={v}" for k, v in sorted(ids.items()))
-    return None
-
-
-# ------------------------------------------------------------------------------ the macro series
-#: the committed-step XDMF series of the raw asperity / total statistics (solver attributes;
-#: ``fe_problem.load_contact_shear_diagnostics``): the means in the global frame (vector, Pa), the global-x
-#: whole-cell min / max / sample mean (Pa), the status codes; and the support-mismatch map
-RAW_SERIES = ("shear_asperity_mean", "shear_asperity_gx_min", "shear_asperity_gx_max",
-              "shear_asperity_gx_sample_mean", "shear_asperity_status", "shear_total_mean", "shear_total_gx_min",
-              "shear_total_gx_max", "shear_total_gx_sample_mean", "shear_total_status",
-              "shear_contact_force_on_fluid")
-#: the applied products (``fe_problem.applied_asperity_diagnostics``): the consumer field and its traction
-APPLIED_SERIES = ("applied_Pasp", "applied_asperity_mean")
-SERIES = RAW_SERIES + APPLIED_SERIES
-_SCALAR_FROM = (("shear_asperity_gx_min", "shear_asp_gx_min"), ("shear_asperity_gx_max", "shear_asp_gx_max"),
-                ("shear_asperity_gx_sample_mean", "shear_asp_gx_mean"), ("shear_total_gx_min", "shear_tot_gx_min"),
-                ("shear_total_gx_max", "shear_tot_gx_max"), ("shear_total_gx_sample_mean", "shear_tot_gx_mean"),
-                ("shear_contact_force_on_fluid", "shear_contact_force_on_fluid_frac"))
-
-
-def _status(source, key, n):
-    st = None if source is None else source.get(key)
-    if st is not None and np.shape(st) == (n,):
-        return np.asarray(st).astype(STATUS_DTYPE)
-    return np.full(int(n), UNAVAILABLE, dtype=STATUS_DTYPE)
-
-
-def export_arrays(source, n: int) -> dict:
-    """The per-node values of the raw committed-step series from a correction set (predictions or
-    used_corrections): ``asperity_local`` / ``total_local`` (n, 3), the six global-x statistics and the
-    force share, both statuses and their codes.  A set without them gives NaN with status ``unavailable``
-    (``legacy`` where its status array says so): explicit, never zero-filled."""
-    n = int(n)
-    nan = np.full(n, np.nan)
-    have = source is not None and "tau_asp_sampled_x" in source and "tau_tot_sampled_x" in source
-    out = {"asperity_status": _status(source, "shear_asp_status", n),
-           "total_status": _status(source, "shear_tot_status", n)}
-    for name, keys in (("asperity_local", ("tau_asp_sampled_x", "tau_asp_sampled_y")),
-                       ("total_local", ("tau_tot_sampled_x", "tau_tot_sampled_y"))):
-        out[name] = (np.column_stack((np.asarray(source[keys[0]], dtype=float),
-                                      np.asarray(source[keys[1]], dtype=float), np.zeros(n)))
-                     if have else np.full((n, 3), np.nan))
-    for series, key in _SCALAR_FROM:
-        out[series] = (np.asarray(source[key], dtype=float).copy() if have and key in source else nan.copy())
-    for k in ("asperity", "total"):
-        out[f"{k}_status_code"] = np.array([XDMF_STATUS_CODE.get(str(s), XDMF_STATUS_CODE[UNAVAILABLE])
-                                            for s in out[f"{k}_status"]], dtype=float)
-    batch = None if source is None else source.get("shear_contact_batch_id")
-    out["batch_id"] = None if batch is None else _id(batch)
-    defin = None if source is None else source.get("shear_contact_definition")
-    out["definition"] = None if defin is None else _id(defin)
-    return out
-
-
-def applied_asperity_traction(pc_nd, p0: float, mu_material: float, u_nodal) -> np.ndarray:
-    """``mu_material Pc p0 U / (|U| + 1e-30)`` per node (n, 3) [Pa]: the integrand of ``calc_asp_friction``
-    (friction.py 186-191) at the nodes, from the consumer field ``Pc`` (nondimensional, per node) and the
-    macro's nodal velocity ``U`` (n, 3).  Zero at zero speed (no static friction)."""
-    u = np.asarray(u_nodal, dtype=float).reshape(-1, 3)
-    pc = np.asarray(pc_nd, dtype=float).reshape(-1)
-    mag = np.sqrt(np.sum(u * u, axis=1)) + ZERO_SPEED_EPS
-    return float(mu_material) * (pc * float(p0))[:, None] * u / mag[:, None]
-
-
-# --------------------------------------------------------------------------------- the metadata
-METADATA = {
-    "definition": CONTACT_SHEAR_DEFINITION,
-    "contact_sampler": CONTACT_SAMPLER,
-    "fluid_sampler": FLUID_SAMPLER,
-    "reduction": SHEAR_REDUCE_VERSION + " (ehl/shear_reduce.py)",
-    "units": "Pa (traction); applied_Pasp nondimensional (x p0 = Pa), like Pasp; status series are codes",
-    "quantities": {
-        "asperity": ("t_a = mu_material p_a U_hat at the fluid sampler's points; p_a the periodic P1 interpolant "
-                     "of sol.p of the stored fft_elastic_v1 solution (D7; never p_asp_field); U_hat = U / (|U| + "
-                     "1e-30) of the micro's sliding velocity at the end of its run, the macro's law "
-                     "(calc_asp_friction) unchanged; zero outside p_a > 0"),
-        "total": "t_t = t_f + t_a per sample, then reduced (extrema of components are never added)",
-    },
-    "contact_models": {"fft_elastic_v1": "supported",
-                       "hertz_summit_v1": ("unsupported_model: envelope NaN; asperity mean = mu Pasp_hom U_hat "
-                                           "(the patch law's cell mean), total mean = sampled fluid mean + it"),
-                       "legacy_patch_v1": "unsupported_model, as hertz_summit_v1"},
-    "checks": {"grid": "the contact grid is the micro mesh's n x n grid",
-               "mean": f"sampled mean of p_a vs the solution's Pasp_hom <= {MEAN_CHECK_BUDGET:g} relative "
-                       "(M3a gate-1 budget); else check_failed and nothing is published",
-               "state": ("the solution's state key is current when the samples are taken (state_invalid "
-                         "otherwise, no refresh); a refresh by the extraction afterwards: state_mismatch")},
-    "support_mismatch": {"shear_contact_overlap": "fluid samples with p_a > 0 (by weight)",
-                         "shear_contact_force_on_fluid": "share of the sampled contact force on fluid samples",
-                         "shear_contact_obstruction_without_pressure": "obstructed samples with p_a = 0 (by weight)",
-                         "policy": "reported, never suppressed"},
-    "direction": {"name": "global_x", "vector": list(GLOBAL_X), "note": "decision D5: fixed global x only"},
-    "mean_denominator": "total micro-cell area",
-    "phases": "equal weights: means by weight, extrema by union; an invalid phase invalidates the task",
-    "products": {
-        "micro_raw": {"fluid": ["shear_fluid_mean_sampled", "shear_fluid_gx_min", "shear_fluid_gx_max",
-                                "shear_fluid_gx_sample_mean", "shear_fluid_status"],
-                      "asperity": ["shear_asperity_mean", "shear_asperity_gx_min", "shear_asperity_gx_max",
-                                   "shear_asperity_gx_sample_mean", "shear_asperity_status"],
-                      "total": ["shear_total_mean", "shear_total_gx_min", "shear_total_gx_max",
-                                "shear_total_gx_sample_mean", "shear_total_status"],
-                      "state_id": "the batch's micro_batch_id (shear_extrema_steps.jsonl: contact.micro_batch_id)"},
-        "macro_applied": {"fluid": "taust_rot (the fluid mean after correction handling; Ty_Nm integrates it)",
-                          "asperity": ("applied_Pasp = _pasp_consumer() (Pasp after the guard and the relaxation, "
-                                       "or the Newton-like predictor Pasp_eff); Tasp_y_Nm integrates "
-                                       "mu_material applied_Pasp p0 U / (|U| + 1e-30) at the macro's quadrature "
-                                       "points; applied_asperity_mean is that traction at the nodes (a display)"),
-                          "total": "Ty_Nm + Tasp_y_Nm"},
-        "difference": ("raw minus applied, never blended: node by node (shear_asperity_mean vs "
-                       "applied_asperity_mean, shear_fluid_mean_sampled vs taust_rot) and as forces per committed "
-                       "step (shear_extrema_steps.jsonl contact.Fx_N); a raw envelope describes its batch, the "
-                       "applied means are not presented as lying inside it"),
-    },
-    "statuses": list(STATUSES),
-    "xdmf_status_codes": dict(XDMF_STATUS_CODE),
-    "series": list(SERIES),
-}
-
-
-def metadata_json() -> str:
-    return json.dumps(METADATA, indent=1, sort_keys=True)
