@@ -1507,20 +1507,20 @@ class MicroPhaseNeutralSolver:
         a = float(p.roughness_velocity_ratio)
         desc = getattr(self.ht_cb, "contact_cosine", None)
         # [phase-table WP3, 4 Nov 2026] R-e: a two-member generated field (stationary + translating) is
-        # accepted only under Asperity.phase_average = "contact_table_v1" (plan D5): it then runs the
+        # accepted only with the settings' ``pair_branch`` on (plan D5): it then runs the
         # converged per-step branch (_pair_ripple_run), which needs no single frame.  Every other
         # refusal stays: 0 < ratio < 1 and the split cosine descriptor (one pattern velocity per member).
         two = (0.0 < a < 1.0 or (isinstance(desc, tuple) and len(desc) >= 4 and bool(desc[3]))
-               or (self._ripple_pair() and not self._phase_table_on()))
+               or (self._ripple_pair() and not self._pair_branch_on()))
         if two:
             raise ValueError("fluid_deformation='ripple_halfspace' supports one rough surface only in "
                              "stage 1 (plan O1): a two-surface pattern has no single frame (O6)")
 
-    def _phase_table_on(self) -> bool:
-        """[phase-table WP3] ``Asperity.phase_average == "contact_table_v1"`` as the worker's settings carry
-        it (``PhaseNeutralContactSettings.phase_average``; absent on the full-film settings: off)."""
-        from microcell.contact import PHASE_AVERAGE_TABLE
-        return str(getattr(self.settings, "phase_average", "off")) == PHASE_AVERAGE_TABLE
+    def _pair_branch_on(self) -> bool:
+        """[phase-table WP3] ``PhaseNeutralContactSettings.pair_branch`` (absent on the full-film settings:
+        off).  The parent keyed this on ``Asperity.phase_average == "contact_table_v1"``; the contact
+        table itself is not in this repo (MicroCell WP2)."""
+        return bool(getattr(self.settings, "pair_branch", False))
 
     def _ripple_pair(self) -> bool:
         """[phase-table WP3] True for a two-member generated surface field (``ht.surface_field`` with both a

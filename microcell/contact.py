@@ -8,14 +8,6 @@ import math
 #: periodic elastic (FFT) contact solve per micro cell, ehl.elastic_contact (16 Oct 2026)
 FFT = "fft_elastic_v1"
 CONTACT_MODELS = (FFT,)
-#: [phase-table WP2, 4 Nov 2026] ``Asperity.phase_average``: the phase average of a surface PAIR's contact
-#: (route A, docs/plans/phase_average_route_a_production_plan_2026-11-04.md D1).  "off" = every run as today;
-#: "contact_table_v1" = P_asp and k_asp from the contact-only phase-mean table of the pair (ehl.contact_table)
-#: plus one coupled solve per contact cell (session B).  fft_elastic_v1 and a stationary + translating
-#: SurfaceRoughness only.
-PHASE_AVERAGE_OFF = "off"
-PHASE_AVERAGE_TABLE = "contact_table_v1"
-PHASE_AVERAGES = (PHASE_AVERAGE_OFF, PHASE_AVERAGE_TABLE)
 
 
 class ContactResolutionError(RuntimeError):

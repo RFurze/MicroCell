@@ -246,7 +246,6 @@ def reynolds_flux(steady: bool, zeta: Zeta, t_end: float, eta0: float) -> np.nda
 def _solver_settings(st: MicroSettings, mixed: bool, pair: bool):
     """The copied settings dataclass of this call (the worker's ``_build_phase_neutral_settings``
     without the environment overrides)."""
-    from microcell.contact import PHASE_AVERAGE_TABLE
     from microcell.micro_phase_neutral_class import PhaseNeutralSettings
     from microcell.micro_phase_neutral_class_contact import PhaseNeutralContactSettings
 
@@ -284,9 +283,8 @@ def _solver_settings(st: MicroSettings, mixed: bool, pair: bool):
         contact_maxit=int(c.maxit),
         mu_material=float(c.mu),
         # A stationary + translating pair runs the solver's pair branch (the converged per-step
-        # ripple, the warm-start contact rescue), which the copied class keys on this tag.  No
-        # table is read or composed here: P_asp is the coupled solve's.
-        phase_average=PHASE_AVERAGE_TABLE if pair else "off",
+        # ripple, the warm-start contact rescue).  P_asp is the coupled solve's.
+        pair_branch=bool(pair),
     )
 
 

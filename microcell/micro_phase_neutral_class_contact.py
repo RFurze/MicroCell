@@ -61,12 +61,11 @@ class PhaseNeutralContactSettings(_MixedPhaseNeutralSettings):
     # (mixed_lubrication.mu_material, calc_asp_friction): the diagnostic asperity / total traction only
     # (micro_diagnostics.sample_contact_traction); no solver channel reads it.  NaN = not given.
     mu_material: float = float("nan")
-    # [phase-table WP3/WP4, 4 Nov 2026] Asperity.phase_average as the worker fills it from
-    # MicroCase.phase_average ("off" | "contact_table_v1"; plumbing of the one Case field, Rob 4 Nov):
-    # "contact_table_v1" lifts the two-member refusal of the ripple (R-e, the converged per-step branch)
-    # and makes the worker compose P_asp from the contact table.  Default "off": the settings of every
-    # existing case compare equal to what they were (the solver cache key is unchanged).
-    phase_average: str = "off"
+    # [phase-table WP3, 4 Nov 2026; MicroCell WP2] True for a stationary + translating surface pair:
+    # lifts the two-member refusal of the ripple (R-e, the converged per-step branch) and turns on the
+    # warm-start contact rescue.  The parent carried this as the tag phase_average = "contact_table_v1",
+    # which also made its worker compose P_asp from the contact table; the table is not in this repo.
+    pair_branch: bool = False
 
 
 class MicroPhaseNeutralContactSolver(_MixedSolver):
@@ -194,7 +193,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
     def _solve_contact_rescued(self, h_r, h_min, op, p0):
         """[phase-table D-B2, Rob 4 Nov 2026: "port the rescue, field-on only"] ``solve_contact`` with the study's
         warm-start rescue (``tests/micro_averaging/cell.py`` ``install_contact_restart``, 48-91 of the study tree) under
-        ``Asperity.phase_average = "contact_table_v1"`` only: a WARM-started solve that collapses ("relative change
+        ``pair_branch`` only: a WARM-started solve that collapses ("relative change
         inf / nan": the first CG step clears every warm-start node when the pattern has moved) or stalls
         ("contact_complementarity": converged on the stale active set) is retried once from the solver's own cold
         start, which converges in a few iterations on the same problem; a solve that never fails is unchanged bit
@@ -202,7 +201,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         (``_contact_restarts``, by kind) and printed by the worker.  With the field off the call is exactly the one
         it always was (no try, no rescue: the off path is bitwise)."""
         tol, maxit = float(self.settings.contact_tol), int(self.settings.contact_maxit)
-        if not self._phase_table_on():
+        if not self._pair_branch_on():
             return _ec.solve_contact(h_r, h_min, op, p0=p0, tol=tol, maxit=maxit)
         try:
             return _ec.solve_contact(h_r, h_min, op, p0=p0, tol=tol, maxit=maxit)
@@ -266,37 +265,6 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         self._contact_solves += 1
         self._contact_iterations += int(sol.iterations)
         self._contact_solve_s += time.perf_counter() - _t0
-
-    def contact_only_load(self) -> dict:
-        """[phase-table WP4, 4 Nov 2026; plan D4] The ripple-off contact solve on the SAME final rigid
-        film as the stored coupled solution (``_rigid_film_grid()`` at the current time, without
-        ``u_r``), warm-started from the coupled solution's pressure: the contact-only load P_co of this
-        offset, from which the worker's additive correction c = P_cpl - P_co follows.  Pure: the stored
-        solution, the warm start, the nodal fields and the counters are left as they are (the extrema
-        and shear samplers and ``compute_asperity_load`` have read them already).  Returns
-        ``Pasp`` [Pa], ``A_mech`` (``p1_area(phi_c)``), ``active_frac``, ``iterations`` and the solve
-        time [s].  With the ripple off the stored solution IS the contact-only one and is returned
-        without a solve (so P_asp = P̄ + 0 exactly, D1's degenerate)."""
-        self._fft_validate()
-        sol = self._contact_solution
-        if sol is None or self._contact_key != self._contact_state_key():
-            raise RuntimeError("contact_only_load: no stored contact solution of the current state "
-                               "(call compute_asperity_load first)")
-        n, i, j, Xg, Yg, op = self._contact_grid()
-        if not self._ripple_on:
-            return {"Pasp": float(sol.P_asp), "A_mech": float(_ec.p1_area(sol.phi_c)),
-                    "active_frac": float(np.count_nonzero(sol.active)) / float(sol.active.size),
-                    "iterations": 0, "solve_s": 0.0, "resolved": False}
-        _t0 = time.perf_counter()
-        h_min = float(self.params.h_min)
-        h_r = self._rigid_film_grid()
-        if h_min <= 0.0:
-            return {"Pasp": 0.0, "A_mech": 0.0, "active_frac": 0.0, "iterations": 0, "solve_s": 0.0,
-                    "resolved": False}
-        co = self._solve_contact_rescued(h_r, h_min, op, sol.p)
-        return {"Pasp": float(co.P_asp), "A_mech": float(_ec.p1_area(co.phi_c)),
-                "active_frac": float(np.count_nonzero(co.active)) / float(co.active.size),
-                "iterations": int(co.iterations), "solve_s": time.perf_counter() - _t0, "resolved": True}
 
     def _fft_asperity_load(self) -> dict:
         """compute_asperity_load for fft_elastic_v1: every output from the

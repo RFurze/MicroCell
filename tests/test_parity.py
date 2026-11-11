@@ -18,7 +18,9 @@ The rule (plan D6; written before the first run, not fitted to it)
 * The copied settings dataclass the API builds must equal the reference's, field by field.
   A setting the pruned solver no longer has (``REMOVED_SETTINGS``, WP2) is not skipped: the
   reference's stored value must equal the value the code now hard-wires, and the built
-  settings must not carry it.
+  settings must not carry it.  A setting carried under another name and type
+  (``REPLACED_SETTINGS``: the parent's ``phase_average`` tag is the flag ``pair_branch``) is
+  checked value for value through its stated map.
 
 Not compared, by construction:
   ``wall_time``, ``contact_eval_s``, ``pid``, ``task_id``, ``task``     timings and bookkeeping
@@ -74,6 +76,14 @@ REMOVED_UNREAD_SETTINGS = {
     "k_asp_exponent": "legacy_patch_v1 only (its closure tangent; fft_elastic_v1 uses contact_tangent)",
 }
 KEPT_CONTACT_MODEL = "fft_elastic_v1"
+
+#: WP2 group 8: a reference setting the pruned code carries under another name and type.
+#: reference key -> (built key, {reference value: built value}).  The built settings must carry the
+#: new key and not the old one, and the built value must be the image of the reference's.
+REPLACED_SETTINGS = {
+    "phase_average": ("pair_branch", {"off": False, "contact_table_v1": True}),
+}
+_REPLACEMENT_KEYS = {new for new, _ in REPLACED_SETTINGS.values()}
 
 #: WP2 group 3: ``contact_model`` of a full-film cell's result.  The parent's result carried its
 #: default tag there; that law is gone and the API reports "off".
@@ -238,6 +248,17 @@ def run_cell(cell: str) -> dict:
                                 f"removed setting read by {REMOVED_UNREAD_SETTINGS[k]}; the reference's contact_model "
                                 f"is {used!r}")})
             continue
+        if k in REPLACED_SETTINGS:
+            new, image = REPLACED_SETTINGS[k]
+            ok = (k not in built and new in built and k in want and want[k] in image
+                  and type(built[new]) is type(image[want[k]]) and built[new] == image[want[k]])
+            records.append({"name": f"settings.{k}", "kind": "setting", "rel": 0.0 if ok else float("inf"), "ok": ok,
+                            "note": "" if ok else (f"replaced by {new!r}: the reference stores {want.get(k)!r}, "
+                                                   f"the built settings carry {new}={built.get(new)!r}"
+                                                   + (" and still the old key" if k in built else ""))})
+            continue
+        if k in _REPLACEMENT_KEYS and k not in want:
+            continue                                # checked with the reference key it replaces
         if k not in built or k not in want:
             records.append({"name": f"settings.{k}", "kind": "setting", "rel": float("inf"), "ok": False,
                             "note": "only on one side"})
