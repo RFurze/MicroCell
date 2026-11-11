@@ -46,6 +46,8 @@ from fenics import *  # noqa: F401,F403 — UFL/assembly symbols used below
 
 from microcell.micro_phase_neutral_class import (  # noqa: F401
     MicroPhaseNeutralSolver as _BaseSolver,
+    PATCH_PIN,
+    PATCH_PIN_KAPPA,
     PeriodicBoundary,               # re-export (back-compat)
 )
 # [extrema M1] the shared fluid pressure extrema sampler; [extrema M2b] the fluid traction sampler
@@ -275,8 +277,7 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
         self._lc_n_fluid_no_support = 0
 
     def _lc_pin_on(self) -> bool:
-        pin = self.settings.legacy_value("patch_pin")
-        return True if pin is None else bool(pin)
+        return True if PATCH_PIN is None else bool(PATCH_PIN)
 
     def _level_constraint_prepare(self) -> str:
         lc = super()._level_constraint_prepare()          # validates the setting
@@ -327,7 +328,7 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
                 wv[joined] = 0.0
                 self.w.vector().set_local(wv)
                 self.w.vector().apply("insert")
-            kappa = float(self.settings.legacy_value("patch_pin_kappa"))
+            kappa = float(PATCH_PIN_KAPPA)
             self._lc_pin_idx = idx
             self._lc_pin_w = kappa * self._mean_vec.get_local()[idx]
             self._lc_pin_prev = frozenset(idx.tolist())

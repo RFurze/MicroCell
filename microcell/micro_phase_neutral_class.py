@@ -134,7 +134,7 @@ _EPSP_ND_CAP = 1.0
 # docs/notes/ripple_fast_loop_plan_2026-10-19.md section 4.6: residual within
 # ``ripple.tol`` x H, contracted by half since the previous pass, end-level contact set
 # unchanged).  Pass 1 is a whole run; later passes solve the end level only where the caller
-# allows it (``_ripple_run``, section 4.7).  ``ripple.E_star`` is the resolved two-body modulus
+# allows it (``_ripple_run``, section 4.7).  ``MicroSettings.E_star`` is the resolved two-body modulus
 # [Pa]; ``ripple.tol`` the deformation budget relative to H; ``ripple.maxpass`` the pass cap (a
 # pass can be accepted from pass 1); ``ripple.omega`` the initial and largest relaxation (floor
 # 0.1x).
@@ -167,6 +167,11 @@ PRINT_TIMING = False
 #: the tolerance-audit trace of ``_newton_solve`` (the parent read it with ``getattr`` from a
 #: settings object that never carried it)
 TRACE_NEWTON = False
+#: the closure parameter of the Newton solve
+BETA = 1.0
+#: the fluid-mean level constraint's pin of the patch degrees of freedom (None: on) and its weight
+PATCH_PIN = None
+PATCH_PIN_KAPPA = 1.0
 
 
 #: [fluid-mean WP2] the level-constraint formulations (the tag; ehl.pressure.LEVEL_CONSTRAINTS)
@@ -646,7 +651,7 @@ class MicroPhaseNeutralSolver:
         self.Ux_nd = zeta.Ux / self.Uref
         self.Uy_nd = zeta.Uy / self.Uref
         self.hmin_nd = self.h_min / zeta.H
-        delta_h, eps_smooth = s.legacy_value("delta_h"), s.legacy_value("eps_smooth")
+        delta_h, eps_smooth = s.delta_h, s.eps_smooth
         self.delta_h_nd = (delta_h / zeta.H) if float(delta_h) != 0.0 else 0.0
         # [WP-F 2026-09-15] Cap the SMOOTHING width in nondimensional
         # units.  epsP_nd = eps_smooth / p_scale, and p_scale collapses to
@@ -719,7 +724,7 @@ class MicroPhaseNeutralSolver:
         self.mask = self.smooth_levelset_mask(
             phi=phi_mask,
             delta=self.delta_h_nd_const,
-            mask_core=Constant(s.legacy_value("eps_solid")),
+            mask_core=Constant(s.eps_solid),
             mask_fluid=Constant(1.0),
         )
 
@@ -1186,9 +1191,9 @@ class MicroPhaseNeutralSolver:
         self.ripple_info = None
         if not self._ripple_on:
             return
-        E = s.ripple.E_star
+        E = s.E_star
         if E is None or not np.isfinite(float(E)) or float(E) <= 0.0:
-            raise ValueError("the ripple needs a positive, finite ripple.E_star (the resolved "
+            raise ValueError("the ripple needs a positive, finite E_star (the resolved "
                              "two-body modulus, plan O3)")
         if not (float(s.ripple.tol) > 0.0 and int(s.ripple.maxpass) >= 1
                 and 0.0 < float(s.ripple.omega) <= 1.0):
@@ -1258,7 +1263,7 @@ class MicroPhaseNeutralSolver:
         if op is None:
             n, _i, _j = self._periodic_grid()
             op = _rp.ripple_operator(n, n, float(self.Lx), float(self.Ly),
-                                     float(self.settings.ripple.E_star))
+                                     float(self.settings.E_star))
             self._ripple_op_cache = op
         return op
 
@@ -1901,7 +1906,7 @@ class MicroPhaseNeutralSolver:
         rtol = s.rel_tolerance
         max_it = s.max_iterations
         # beta: closure parameter
-        beta = float(s.legacy_value("beta"))
+        beta = float(BETA)
         gamma = self.gamma_nd
         area = float(self._cell_area)
 

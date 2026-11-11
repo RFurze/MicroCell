@@ -94,7 +94,6 @@ _REPLACEMENT_KEYS = {new for new, _ in REPLACED_SETTINGS.values()}
 
 #: WP4: the parent's settings dataclass, field by field, and where the solver reads that value now.
 #:   "settings.<path>"  a field of the call's ``MicroSettings`` (``contact.`` and ``ripple.`` nested)
-#:   "legacy.<key>"     a ``MicroSettings.legacy`` value
 #:   "fixed.<NAME>"     a fixed value (module constant) of ``microcell.micro_phase_neutral_class``
 #:   "contact law"      ``microcell.contact.FFT``, the one contact law
 #:   "ripple on"        "ripple_halfspace" when ``MicroSettings.ripple`` is set, else "off"
@@ -104,13 +103,13 @@ SETTINGS_NOW = {
     "max_iterations": "settings.max_iterations",
     "abs_tolerance": "settings.abs_tolerance",
     "rel_tolerance": "settings.rel_tolerance",
-    "delta_h": "legacy.delta_h",
-    "eps_solid": "legacy.eps_solid",
-    "eps_smooth": "legacy.eps_smooth",
+    "delta_h": "settings.delta_h",
+    "eps_solid": "settings.eps_solid",
+    "eps_smooth": "settings.eps_smooth",
     "print_newton": "fixed.PRINT_NEWTON",
     "print_timing": "fixed.PRINT_TIMING",
     "spos_form": "settings.spos_form",
-    "beta": "legacy.beta",
+    "beta": "fixed.BETA",
     "jacobian_reg_eps": "settings.jacobian_reg_eps",
     "adaptive_damping": "fixed.ADAPTIVE_DAMPING",
     "omega_min": "fixed.OMEGA_MIN",
@@ -120,19 +119,19 @@ SETTINGS_NOW = {
     "omega_recovery_factor": "fixed.OMEGA_RECOVERY_FACTOR",
     "omega_cap_shrink_factor": "fixed.OMEGA_CAP_SHRINK_FACTOR",
     "fluid_deformation": "ripple on",
-    "fluid_E_star": "settings.ripple.E_star",
+    "fluid_E_star": "settings.E_star",
     "ripple_tol": "settings.ripple.tol",
     "ripple_maxpass": "settings.ripple.maxpass",
     "ripple_omega": "settings.ripple.omega",
     "level_constraint": "settings.level_constraint",
-    "patch_pin": "legacy.patch_pin",
-    "patch_pin_kappa": "legacy.patch_pin_kappa",
+    "patch_pin": "fixed.PATCH_PIN",
+    "patch_pin_kappa": "fixed.PATCH_PIN_KAPPA",
     # the mixed and contact classes
     "pattern_flux_contact": "settings.pattern_flux_contact",
     "sigma_yield": "settings.contact.sigma_yield",
     "k_asp_mode": "settings.contact.k_asp_mode",
     "contact_model": "contact law",
-    "contact_E_star": "settings.contact.E_star",
+    "contact_E_star": "settings.E_star",
     "contact_tol": "settings.contact.tol",
     "contact_maxit": "settings.contact.maxit",
     "mu_material": "settings.contact.mu",
@@ -209,25 +208,30 @@ def load_reference(cell: str) -> dict:
 
 
 def settings_from_reference(ref: dict):
-    """``MicroSettings`` carrying exactly what the reference's case and settings recorded."""
+    """``MicroSettings`` carrying exactly what the reference's case and settings recorded.  The one
+    modulus is the contact law's when the reference has contact, else the ripple's (the gate compares
+    both of the reference's moduli with it).  ``beta`` and ``rho0`` of the case are not passed: the
+    first is a fixed value the gate checks, the second was never read."""
     from microcell import ContactSettings, MicroSettings, RippleSettings
 
     mc, sj, meta = ref["micro_case"], ref["settings"], ref["meta"]
     mixed = bool(mc["mixed_enabled"])
     contact = ContactSettings(
-        E_star=mc["contact_E_star"], tol=sj["contact_tol"], maxit=sj["contact_maxit"],
+        tol=sj["contact_tol"], maxit=sj["contact_maxit"],
         sigma_yield=mc["sigma_yield"], mu=mc["mu_material"], k_asp_mode=mc["k_asp_mode"]) if mixed else None
-    ripple = RippleSettings(E_star=mc["fluid_E_star"], tol=sj["ripple_tol"], maxpass=sj["ripple_maxpass"],
+    ripple = RippleSettings(tol=sj["ripple_tol"], maxpass=sj["ripple_maxpass"],
                             omega=sj["ripple_omega"]) if mc["fluid_deformation"] != "off" else None
-    legacy = dict(beta=mc["beta"], delta_h=mc["delta_h"], eps_solid=mc["eps_solid"], eps_smooth=mc["eps_smooth"])
+    modulus = {} if not (mixed or ripple is not None) else {
+        "E_star": mc["contact_E_star"] if mixed else mc["fluid_E_star"]}
     return MicroSettings(
-        mesh_n=int(meta["mesh_used"]), xmax=mc["xmax"], ymax=mc["ymax"], eta0=mc["eta0"], rho0=mc["rho0"],
+        mesh_n=int(meta["mesh_used"]), xmax=mc["xmax"], ymax=mc["ymax"], eta0=mc["eta0"],
         penalty_gamma=mc["penalty_gamma"], h_min=mc["h_min"], spos_form=mc["spos_form"],
         level_constraint=mc["level_constraint"], pattern_flux_contact=mc["pattern_flux_contact"],
         jacobian_reg_eps=mc["jacobian_reg_eps"], relaxation_parameter=mc["relaxation_parameter"],
         max_iterations=mc["max_iterations"], abs_tolerance=mc["abs_tolerance"], rel_tolerance=mc["rel_tolerance"],
         contact=contact, ripple=ripple, cfl_target=float(meta["cfl_target"]),
-        roughness_velocity_ratio=None, legacy=legacy)
+        roughness_velocity_ratio=None, delta_h=mc["delta_h"], eps_solid=mc["eps_solid"],
+        eps_smooth=mc["eps_smooth"], **modulus)
 
 
 def settings_now(st, pair: bool) -> dict:
@@ -251,8 +255,6 @@ def settings_now(st, pair: bool) -> dict:
             out[name] = bool(pair)
         elif where.startswith("fixed."):
             out[name] = getattr(solver_module, where[len("fixed."):])
-        elif where.startswith("legacy."):
-            out[name] = st.legacy_value(where[len("legacy."):])
         else:
             obj = st
             for part in where[len("settings."):].split("."):

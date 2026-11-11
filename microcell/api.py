@@ -91,8 +91,7 @@ class Zeta:
 @dataclass(frozen=True)
 class ContactSettings:
     """Elastic asperity contact (``fft_elastic_v1``).  ``MicroSettings.contact = None`` is the
-    full-film mode."""
-    E_star: float = 203775203775.2038       # reduced modulus [Pa]
+    full-film mode.  The modulus is ``MicroSettings.E_star``."""
     tol: float = 1e-11                      # contact solve tolerance (1e-11 for h_min near 1e-11 m)
     maxit: int = 500
     sigma_yield: float = 250e6              # [Pa]
@@ -103,32 +102,26 @@ class ContactSettings:
 @dataclass(frozen=True)
 class RippleSettings:
     """Fluid-pressure ripple deformation (``ripple_halfspace``).  ``MicroSettings.ripple = None``
-    is off."""
-    E_star: float = 203775203775.2038       # [Pa]
+    is off.  The modulus is ``MicroSettings.E_star``."""
     tol: float = 1e-6
     maxpass: int = 12
     omega: float = 1.0
 
 
-#: WP1 only: fields of the copied settings dataclasses / MicroPhysicalParameters that the plan's
-#: MicroSettings does not list, with the GenSa40-ripple case's values.  Removed at WP4.
-LEGACY_DEFAULTS: Dict[str, Any] = dict(
-    beta=1.0, delta_h=0.0, eps_solid=1e-8, eps_smooth=1e-3,
-    patch_pin=None, patch_pin_kappa=1.0,
-)
-
-
 @dataclass
 class MicroSettings:
-    """Every setting of a cell solve.  Defaults at WP1: the parent's ``GenSa40-ripple`` case
-    (``cases/mixed_transfull_cup90_genrough_ripple.py`` at 2aaccad); revisited at WP4."""
+    """Every setting of a cell solve, each defined here once.  The defaults are the parent's
+    ``GenSa40-ripple`` case (``cases/mixed_transfull_cup90_genrough_ripple.py`` at 2aaccad)."""
     mesh_n: int = 100                       # the cell mesh is UnitSquareMesh(mesh_n, mesh_n)
     xmax: float = 5e-6                      # cell size [m]
     ymax: float = 5e-6
     eta0: float = 1e-3                      # viscosity [Pa s] (isoviscous)
-    rho0: float = 1000.0
     penalty_gamma: float = 1e10             # cavitation penalty
     h_min: float = 1.0331e-11               # contact onset film [m] (used when contact is on)
+    E_star: float = 203775203775.2038       # reduced two-body modulus [Pa]: the contact law and the ripple
+    delta_h: float = 0.0                    # width of the contact mask transition [m] (0: sharp)
+    eps_solid: float = 1e-8                 # mobility factor inside contact
+    eps_smooth: float = 1e-3                # smoothing of the cavitation switch [Pa]
     spos_form: str = "sqrt"                 # "sqrt" | "spline"
     level_constraint: str = "whole_cell"    # "whole_cell" | "fluid_mean_v1"
     pattern_flux_contact: bool = True
@@ -142,17 +135,8 @@ class MicroSettings:
     ripple: Optional[RippleSettings] = field(default_factory=RippleSettings)
     cfl_target: float = 1.0
     roughness_velocity_ratio: Optional[float] = None    # None: taken from the roughness
-    legacy: Dict[str, Any] = field(default_factory=dict)    # WP1 only, see LEGACY_DEFAULTS
-
-    def legacy_value(self, key: str):
-        if key not in LEGACY_DEFAULTS:
-            raise KeyError(key)
-        return self.legacy.get(key, LEGACY_DEFAULTS[key])
 
     def check(self) -> None:
-        unknown = sorted(set(self.legacy) - set(LEGACY_DEFAULTS))
-        if unknown:
-            raise ValueError(f"MicroSettings.legacy: unknown keys {unknown}; allowed: {sorted(LEGACY_DEFAULTS)}")
         if self.spos_form not in ("sqrt", "spline"):
             raise ValueError(f"spos_form must be 'sqrt' or 'spline', got {self.spos_form!r}")
         if self.level_constraint not in ("whole_cell", "fluid_mean_v1"):
@@ -162,23 +146,23 @@ class MicroSettings:
         # every value the solver classes refuse (they keep their own refusals; these come first)
         if not np.isfinite(float(self.jacobian_reg_eps)):
             raise ValueError("jacobian_reg_eps must be finite; zero disables the shift")
+        for name in ("delta_h", "eps_solid", "eps_smooth"):
+            value = float(getattr(self, name))
+            if not (np.isfinite(value) and value >= 0.0):
+                raise ValueError(f"{name} must be finite and not negative, got {getattr(self, name)!r}")
         r, c = self.ripple, self.contact
+        if r is not None or c is not None:
+            if self.E_star is None or not np.isfinite(float(self.E_star)) or float(self.E_star) <= 0.0:
+                raise ValueError("contact and the ripple need a positive, finite E_star (the two-body modulus)")
         if r is not None:
-            if r.E_star is None or not np.isfinite(float(r.E_star)) or float(r.E_star) <= 0.0:
-                raise ValueError("the ripple needs a positive, finite ripple.E_star (the resolved two-body modulus)")
             if not (float(r.tol) > 0.0 and int(r.maxpass) >= 1 and 0.0 < float(r.omega) <= 1.0):
                 raise ValueError("ripple settings: need tol > 0, maxpass >= 1 and 0 < omega <= 1; got "
                                  f"{r.tol}, {r.maxpass}, {r.omega}")
         if c is not None:
-            if c.E_star is None or not np.isfinite(float(c.E_star)) or float(c.E_star) <= 0.0:
-                raise ValueError("contact needs an explicit positive, finite two-body contact.E_star")
             if c.k_asp_mode not in ("off", "closure"):
                 raise ValueError(f"contact.k_asp_mode must be 'off' or 'closure', got {c.k_asp_mode!r}")
             if not (np.isfinite(float(self.h_min)) and float(self.h_min) > 0.0):
                 raise ValueError(f"contact needs a positive contact onset film h_min, got {self.h_min!r}")
-            if r is not None and not abs(float(r.E_star) - float(c.E_star)) <= 1e-12 * float(c.E_star):
-                raise ValueError(f"ripple.E_star {r.E_star!r} != contact.E_star {c.E_star!r}: contact with the "
-                                 "ripple needs one body pair")
 
 
 # ----------------------------------------------------------------------------------------

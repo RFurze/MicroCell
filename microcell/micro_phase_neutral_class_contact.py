@@ -32,7 +32,8 @@ from microcell import elastic_contact as _ec
 from microcell.micro_phase_neutral_class_mixed import MicroPhaseNeutralMixedSolver as _MixedSolver
 
 # The contact-law parameters are ``MicroSettings.contact`` (a ``microcell.ContactSettings``):
-# ``E_star`` the explicit combined modulus (never reduced twice); ``sigma_yield`` the elastic-validity
+# the combined modulus is ``MicroSettings.E_star`` (explicit, never reduced twice; one body pair, so the
+# ripple uses the same one); ``sigma_yield`` the elastic-validity
 # FLAG threshold [Pa] (never clamps); ``k_asp_mode`` [WP-1 2026-09-03] the tangent of the closure,
 # k_asp = -dP_asp/dH [Pa/m], for a Newton-like macro coupling ("off" emits 0.0, "closure" the
 # tangent of the nodal contact solution, ``elastic_contact.contact_tangent``); ``tol`` and ``maxit``
@@ -79,12 +80,6 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
     def _setup_film_and_mask(self) -> None:
         super()._setup_film_and_mask()
         s = self.settings
-        if self._ripple_on and s.contact.E_star is not None:
-            # [option H, WP8] one body pair: u_f and u_c are the same operator (DV5 (i))
-            Ef, Ec = float(s.ripple.E_star), float(s.contact.E_star)
-            if not abs(Ef - Ec) <= 1e-12 * Ec:
-                raise ValueError(f"ripple.E_star {Ef!r} != contact.E_star {Ec!r}: fft_elastic_v1 with "
-                                 "the ripple needs one body pair (plan O3)")
         # Nodal fields on Vper (allocated before this call: __init__ order).
         # h_nd gains the zero-mean contact deformation; the obstruction level
         # set is phi_c / H0 instead of h_nd - h_min (D2).  Zero until the first
@@ -97,7 +92,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         self.mask = self.smooth_levelset_mask(
             phi=phi_mask,
             delta=self.delta_h_nd_const,
-            mask_core=Constant(s.legacy_value("eps_solid")),
+            mask_core=Constant(s.eps_solid),
             mask_fluid=Constant(1.0),
         )
 
@@ -118,9 +113,9 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
 
     def _fft_validate(self):
         s = self.settings
-        E = s.contact.E_star
+        E = s.E_star
         if E is None or not np.isfinite(E) or E <= 0:
-            raise ValueError("fft_elastic_v1 requires an explicit positive two-body contact.E_star")
+            raise ValueError("fft_elastic_v1 requires an explicit positive two-body E_star")
         if s.contact.k_asp_mode not in ("off", "closure"):
             raise ValueError("k_asp_mode must be 'off' or 'closure'")
         descriptor = getattr(self.ht_cb, "contact_cosine", None)
@@ -138,7 +133,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         n, i, j = self._periodic_grid()
         t = np.arange(n) / n
         Xg, Yg = np.meshgrid(t, t, indexing="ij")
-        op = _ec.PeriodicHalfSpace(n, n, float(self.Lx), float(self.Ly), float(self.settings.contact.E_star))
+        op = _ec.PeriodicHalfSpace(n, n, float(self.Lx), float(self.Ly), float(self.settings.E_star))
         g = (n, i, j, Xg, Yg, op)
         self._contact_grid_cache = g
         return g
