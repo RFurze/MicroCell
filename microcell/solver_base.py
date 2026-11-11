@@ -55,7 +55,7 @@ from fenics import *  # legacy FEniCS
 from microcell import ripple as _rp   # [option H] numpy-only operator, traction and checks
 # [extrema M1] the shared fluid pressure extrema sampler (base, mixed and contact classes);
 # [extrema M2b] the fluid traction sampler (the same classes)
-from microcell.micro_diagnostics import sample_fluid_pressure_extrema, sample_fluid_traction
+from microcell.samplers import sample_fluid_pressure_extrema, sample_fluid_traction
 
 # [phase D1] pinned per process by the driver / the pool worker
 # (utils/form_compiler.py, QDEG_MICRO_PHASE_NEUTRAL = 2); this import-time 2

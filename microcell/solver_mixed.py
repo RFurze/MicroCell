@@ -44,14 +44,14 @@ import warnings
 import numpy as np
 from fenics import *  # noqa: F401,F403 — UFL/assembly symbols used below
 
-from microcell.micro_phase_neutral_class import (  # noqa: F401
+from microcell.solver_base import (  # noqa: F401
     MicroPhaseNeutralSolver as _BaseSolver,
     PATCH_PIN,
     PATCH_PIN_KAPPA,
     PeriodicBoundary,               # re-export (back-compat)
 )
 # [extrema M1] the shared fluid pressure extrema sampler; [extrema M2b] the fluid traction sampler
-from microcell.micro_diagnostics import sample_fluid_pressure_extrema, sample_fluid_traction
+from microcell.samplers import sample_fluid_pressure_extrema, sample_fluid_traction
 
 
 class MicroPhaseNeutralMixedSolver(_BaseSolver):

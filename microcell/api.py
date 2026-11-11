@@ -297,7 +297,7 @@ def _vec2(v) -> np.ndarray:
 def _full_film_contact_shear() -> dict:
     """The asperity and total shear entries of a full-film cell: no contact law ran, so every
     statistic is NaN with status ``unavailable`` (the parent's ``MicroTaskResult`` defaults)."""
-    from microcell import contact_shear as _cshear
+    from microcell import shear as _cshear
 
     out = {k: _NAN for k in _cshear.FIELDS}
     out.update(shear_asperity_mean_local_Pa=(_NAN, _NAN), shear_total_mean_local_Pa=(_NAN, _NAN),
@@ -312,8 +312,8 @@ def _failed_result(status: str, reason: str, info: dict, mixed: bool, ripple_on:
     Every named output is NaN (``yield_flag`` 0) and there are no fields.  ``info`` is the
     caller's outcome-independent entries plus the entries an OK result adds, with NaN numbers
     and ``failed`` statuses; the asperity and total shear of a full-film cell stay ``unavailable``."""
-    from microcell import contact_shear as _cshear
-    from microcell.fluid_shear import failed_shear_fields
+    from microcell import shear as _cshear
+    from microcell.shear import failed_shear_fields
     from microcell.pressure import EXTREMA_FAILED
 
     info = dict(info)
@@ -410,17 +410,17 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     _ensure_process()
     from dolfin import Constant, UnitSquareMesh, assemble, dx
 
-    from microcell import contact_shear as _cshear
+    from microcell import shear as _cshear
     from microcell import fields as _fields
     from microcell import ripple as _ripple
     from microcell.contact import ContactResolutionError
-    from microcell.fluid_shear import shear_fields, union_fluid_traction
-    from microcell.ideal_ht import make_ideal_ht
-    from microcell.micro_phase_neutral_class import MicroPhaseNeutralSolver
-    from microcell.micro_phase_neutral_class_contact import MicroPhaseNeutralContactSolver
+    from microcell.shear import shear_fields, union_fluid_traction
+    from microcell.film import make_ideal_ht
+    from microcell.solver_base import MicroPhaseNeutralSolver
+    from microcell.solver_contact import MicroPhaseNeutralContactSolver
     from microcell.pressure import (DELTA_P_DEFINITION, PRESSURE_EXTREMA_DEFINITION, PRESSURE_FIELDS,
                                     average_pressure_ledgers, union_pressure_extrema)
-    from microcell.surface_ht import make_surface_ht
+    from microcell.film import make_surface_ht
 
     # the pin was applied before the solver modules were imported (their import-time
     # set_at_import(2) is then a no-op); check nothing wrote the global since

@@ -27,9 +27,9 @@ import time
 import numpy as np
 from fenics import *  # noqa: F401,F403 — UFL/assembly symbols used below
 from microcell.contact import FFT
-from microcell import elastic_contact as _ec
+from microcell import contact as _ec
 
-from microcell.micro_phase_neutral_class_mixed import MicroPhaseNeutralMixedSolver as _MixedSolver
+from microcell.solver_mixed import MicroPhaseNeutralMixedSolver as _MixedSolver
 
 # The contact-law parameters are ``MicroSettings.contact`` (a ``microcell.ContactSettings``):
 # the combined modulus is ``MicroSettings.E_star`` (explicit, never reduced twice; one body pair, so the
@@ -70,7 +70,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         state, its key checked, never refreshed here; ``unsupported_model`` for the other identities,
         whose means :meth:`compute_asperity_load` completes)."""
         out = super().spatial_homogenisation()
-        from microcell.micro_diagnostics import sample_contact_traction
+        from microcell.samplers import sample_contact_traction
         self.contact_traction = sample_contact_traction(self)
         return out
 
@@ -322,7 +322,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         against the extraction (``micro_diagnostics.finish_contact_traction``: a refreshed solution
         makes them ``state_mismatch``).
         """
-        from microcell.micro_diagnostics import finish_contact_traction
+        from microcell.samplers import finish_contact_traction
         out = self._fft_asperity_load()
         self.contact_traction = finish_contact_traction(self, out)
         return out

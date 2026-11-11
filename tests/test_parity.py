@@ -279,7 +279,7 @@ def settings_now(st, pair: bool) -> dict:
     """The parent's settings dataclass by field name, each value read from where the solver reads it
     now (``SETTINGS_NOW``).  A ripple field is absent when the settings carry no ripple, and a field
     of the parent's contact class when they carry no contact (the parent's full-film class had none)."""
-    import microcell.micro_phase_neutral_class as solver_module
+    import microcell.solver_base as solver_module
     from microcell.contact import FFT
 
     out = {}

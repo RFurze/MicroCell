@@ -68,8 +68,8 @@ def solve_ok(cell: str):
 
 def solve_forced(case: str, monkeypatch):
     """The cell of ``FORCED[case]`` with the named solver method raising the named exception."""
-    from microcell import micro_phase_neutral_class as base
-    from microcell import micro_phase_neutral_class_contact as con
+    from microcell import solver_base as base
+    from microcell import solver_contact as con
     from microcell import ripple
     from microcell.contact import ContactResolutionError
 
@@ -140,8 +140,8 @@ PHYSICAL = ("ok", "no_support")
 def solve_nonfinite(case: str, monkeypatch):
     """The cell of ``NONFINITE[case]`` with one NaN put into a converged solve."""
     from microcell import fields as fields_module
-    from microcell import micro_phase_neutral_class as base
-    from microcell import micro_phase_neutral_class_contact as con
+    from microcell import solver_base as base
+    from microcell import solver_contact as con
 
     cell, what, _ = NONFINITE[case]
     with monkeypatch.context() as m:

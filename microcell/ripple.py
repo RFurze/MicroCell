@@ -44,7 +44,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from microcell.elastic_contact import PeriodicHalfSpace, band_limited_sample
+from microcell.contact import PeriodicHalfSpace, band_limited_sample
 
 __all__ = [
     "RIPPLE_MODEL", "FLUID_DEFORMATION_MODES", "ZERO_MEAN_TOL",

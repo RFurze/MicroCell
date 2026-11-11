@@ -73,7 +73,7 @@ in `microcell/api.py` with its one default: the parent's `GenSa40-ripple` case.
 | `ripple.tol`, `.maxpass`, `.omega` | 1e-6, 12, 1.0 | ripple fixed point |
 
 Not settings: the Newton damping and backtracking values, `BETA` and the patch pin are fixed
-values at the top of `microcell/micro_phase_neutral_class.py`.
+values at the top of `microcell/solver_base.py`.
 
 ### Result
 
@@ -111,8 +111,17 @@ value to a relative 1e-12.  The references were made from the parent at `2aaccad
 |---|---|
 | `microcell/api.py` | `microsolver()`, `Zeta`, `MicroSettings`, `MicroResult` (new; written from the parent's worker `run_micro_task_phase_neutral`) |
 | `microcell/fields.py` | field extraction and the ParaView writers (ported from the parent's `scripts/run/run_micro_cells.py`) |
-| `microcell/roughness/frontend.py` | `Roughness` (new) |
-| `microcell/*.py`, `microcell/roughness/*.py` | the solver, copied from the parent (table below) |
+| `microcell/solver_base.py` | `MicroPhaseNeutralSolver`: the full-film cell, the Newton solve, the time stepping, the ripple loop |
+| `microcell/solver_mixed.py` | `MicroPhaseNeutralMixedSolver`: the contact mask and the fluid-mean level constraint |
+| `microcell/solver_contact.py` | `MicroPhaseNeutralContactSolver`: the elastic contact solve in the cell |
+| `microcell/samplers.py` | fluid pressure and traction samples, contact samples (was `micro_diagnostics.py` + `contact_sample.py`) |
+| `microcell/film.py` | the film callbacks: the cosine cell and the generated surfaces (was `ideal_ht.py` + `surface_ht.py`) |
+| `microcell/contact.py` | the periodic elastic (FFT) contact solve (was `contact.py` + `elastic_contact.py`) |
+| `microcell/ripple.py` | the ripple operator and its acceptance checks |
+| `microcell/pressure.py` | the pressure ledger and the pressure extrema |
+| `microcell/shear.py` | shear traction: reduction, fluid, asperity and total (was `shear_reduce.py` + `fluid_shear.py` + `contact_shear.py`) |
+| `microcell/roughness/` | `generation.py` and `quantiles.py` (the Gaussian IAAFT generator), `evaluator.py`, `runtime.py` and `pair.py` (the surface field and its motion), `frontend.py` (`Roughness`, new) |
+| `microcell/form_compiler.py`, `microcell/process_settings.py` | the process state set before the first form |
 | `tests/` | the parity gate and its references |
 | `tools/` | `make_references.py` (run from the parent's root), `show_references.py` |
 | `docs/notes/` | the plan, the session prompts and the implementation logs |
@@ -149,24 +158,34 @@ marked, and two that were still the parent's: `shear_reduce.py` (marked "pruned 
 `surface_ht.py` (marked "edited in WP4": two lines, the solver attribute it reads).  What
 changed, group by group, with the parity after each:
 `docs/notes/micro_standalone_wp4_implementation_log_2026-11-11.md`.
-The unmarked files are still the parent's.
+
+WP5 (11 Nov 2026) put the files into the plan's layout.  The three solver files are renamed.
+Nine files are merged into four (`samplers.py`, `film.py`, `contact.py`, `shear.py`), each
+part in the order of its rows below.  The code moved verbatim: only module docstrings (the old
+ones are kept inside the new one), import lines and `__all__` changed.  The paragraphs above
+use the file names of their time; the table gives each file's name now, and
+`docs/notes/provenance.tsv` has both (`file`, `file_since_wp5`).  The check and the parity:
+`docs/notes/micro_standalone_wp5_implementation_log_2026-11-11.md`.
+
+Still the parent's text: `ripple.py`, `form_compiler.py`,
+`process_settings.py`, `scripts/ehl_env.sh`, and the `elastic_contact.py` part of `contact.py`.
 
 | File | Parent path | Parent blob |
 |---|---|---|
-| `microcell/micro_phase_neutral_class.py` (pruned) | `microscale/src/functions/micro_phase_neutral_class.py` | ca5040d93a |
-| `microcell/micro_phase_neutral_class_mixed.py` (pruned) | `microscale/src/functions/micro_phase_neutral_class_mixed.py` | 8feecdbaff |
-| `microcell/micro_phase_neutral_class_contact.py` (pruned) | `microscale/src/functions/micro_phase_neutral_class_contact.py` | eea045cf74 |
-| `microcell/micro_diagnostics.py` (pruned) | `microscale/src/functions/micro_diagnostics.py` | a09479ce6b |
-| `microcell/contact_sample.py` (pruned in WP3) | `microscale/src/functions/contact_sample.py` | 4f77a66bac |
-| `microcell/ideal_ht.py` (pruned in WP3) | `microscale/src/functions/ideal_ht.py` | f314c7af1b |
-| `microcell/surface_ht.py` (edited in WP4) | `microscale/src/functions/surface_ht.py` | 6775f693ea |
-| `microcell/contact.py` (pruned, and again in WP3) | `ehl/contact.py` | 1ac7dff6ec |
-| `microcell/elastic_contact.py` | `ehl/elastic_contact.py` | 95ed9d78bf |
+| `microcell/solver_base.py` (pruned; renamed in WP5) | `microscale/src/functions/micro_phase_neutral_class.py` | ca5040d93a |
+| `microcell/solver_mixed.py` (pruned; renamed in WP5) | `microscale/src/functions/micro_phase_neutral_class_mixed.py` | 8feecdbaff |
+| `microcell/solver_contact.py` (pruned; renamed in WP5) | `microscale/src/functions/micro_phase_neutral_class_contact.py` | eea045cf74 |
+| `microcell/samplers.py`, first part (pruned; merged in WP5) | `microscale/src/functions/micro_diagnostics.py` | a09479ce6b |
+| `microcell/samplers.py`, second part (pruned in WP3; merged in WP5) | `microscale/src/functions/contact_sample.py` | 4f77a66bac |
+| `microcell/film.py`, first part (pruned in WP3; merged in WP5) | `microscale/src/functions/ideal_ht.py` | f314c7af1b |
+| `microcell/film.py`, second part (edited in WP4; merged in WP5) | `microscale/src/functions/surface_ht.py` | 6775f693ea |
+| `microcell/contact.py`, first part (pruned, and again in WP3; merged in WP5) | `ehl/contact.py` | 1ac7dff6ec |
+| `microcell/contact.py`, second part (merged in WP5) | `ehl/elastic_contact.py` | 95ed9d78bf |
 | `microcell/ripple.py` | `ehl/ripple.py` | a869e99b30 |
 | `microcell/pressure.py` (pruned in WP3) | `ehl/pressure.py` | 1c7da166fc |
-| `microcell/shear_reduce.py` (pruned in WP4) | `ehl/shear_reduce.py` | ca9e9f9984 |
-| `microcell/fluid_shear.py` (pruned in WP3) | `ehl/fluid_shear.py` | d927ff9942 |
-| `microcell/contact_shear.py` (pruned in WP3) | `ehl/contact_shear.py` | e659bf06ee |
+| `microcell/shear.py`, first part (pruned in WP4; merged in WP5) | `ehl/shear_reduce.py` | ca9e9f9984 |
+| `microcell/shear.py`, second part (pruned in WP3; merged in WP5) | `ehl/fluid_shear.py` | d927ff9942 |
+| `microcell/shear.py`, third part (pruned in WP3; merged in WP5) | `ehl/contact_shear.py` | e659bf06ee |
 | `microcell/roughness/__init__.py` (pruned in WP3) | `ehl/roughness/__init__.py` | 8b51a21a22 |
 | `microcell/roughness/assets.py` (removed in WP3) | `ehl/roughness/assets.py` | bfe9e91419 |
 | `microcell/roughness/case.py` (removed in WP3) | `ehl/roughness/case.py` | c17eb1b970 |
