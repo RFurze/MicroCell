@@ -18,20 +18,10 @@ pinned per process (``utils/form_compiler.py``).
 
 from __future__ import annotations
 
-#: PETSc options set at macro-module import, in their order
-MACRO_PETSC_OPTIONS: tuple[tuple[str, str], ...] = (
-    ("ksp_initial_guess_nonzero", "true"),
-    ("ksp_gmres_restart", "100"),   # if restarts are limiting you
-    ("ksp_rtol", "1e-5"),           # tighten if needed
-    # [CHANGE-2026-03-24: ksp-max-it]
-    # Limit GMRES Krylov iterations to prevent slow convergence on
-    # ill-conditioned systems (h^3 → 0 in thin-film/contact regimes).
-    # Without this, GMRES can do thousands of Krylov iterations before
-    # "converging", costing 0.04s+ per Newton iteration instead of 0.01s.
-    # The GMRES/MUMPS fallback in fenicssolve() catches the resulting error.
-    ("ksp_max_it", "80"),
-    ("ksp_error_if_not_converged", "true"),
-)
+# The parent also set five PETSc KSP options here (ksp_initial_guess_nonzero, ksp_gmres_restart,
+# ksp_rtol, ksp_max_it, ksp_error_if_not_converged) for its macro solve.  The cell solves with a
+# direct factorisation and never read them (PETSc reported all five unused at exit), so they
+# are not set here.
 
 #: form-compiler flags set at macro-module import
 # NOTE: Do NOT set parameters["form_compiler"]["optimize"] = True here.
@@ -45,12 +35,6 @@ MACRO_FORM_COMPILER: tuple[tuple[str, object], ...] = (
 _APPLIED = False
 
 
-def apply_petsc_options() -> None:
-    from fenics import PETScOptions
-    for key, value in MACRO_PETSC_OPTIONS:
-        PETScOptions.set(key, value)
-
-
 def apply_form_compiler_flags() -> None:
     from fenics import parameters
     for key, value in MACRO_FORM_COMPILER:
@@ -58,9 +42,8 @@ def apply_form_compiler_flags() -> None:
 
 
 def apply_macro_process_settings() -> None:
-    """Both, and remember that this process has them."""
+    """The form-compiler flags, and remember that this process has them."""
     global _APPLIED
-    apply_petsc_options()
     apply_form_compiler_flags()
     _APPLIED = True
 

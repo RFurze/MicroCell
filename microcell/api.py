@@ -248,7 +248,7 @@ _PROCESS_READY = False
 
 def _ensure_process() -> None:
     """What the parent's pool worker applies before its first task (``_init_worker``): the
-    macro process settings (PETSc options, form-compiler flags), then the micro quadrature
+    macro process settings (form-compiler flags; its PETSc options are not read by the cell), then the micro quadrature
     degree pinned to 2.  Results differ without them."""
     global _PROCESS_READY
     if _PROCESS_READY:
@@ -486,10 +486,12 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
         n_march = max(1, int(np.ceil(tend / dt_cfl)))
 
     def n_steps_reported() -> int:
-        """``info["n_steps"]``: 0 for a steady solve, the count asked for, or the count marched."""
+        """``info["n_steps"]``: 0 for a steady solve, else the count the solver marched (the count
+        asked for when it fits in the window, ``ceil(t_end / dt_cfl)`` when it does not); before
+        the solver has set its window, the count asked for."""
         if steady:
             return 0
-        return n_steps if n_march is None else int(getattr(solver, "n_steps_run", n_march))
+        return int(getattr(solver, "n_steps_run", n_steps if n_march is None else n_march))
 
     def info_now() -> dict:
         """The ``info`` entries that do not depend on the solve's outcome, as they stand now."""

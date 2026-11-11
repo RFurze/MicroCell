@@ -186,11 +186,12 @@ Conventions:
     `t_start = t_end - N dt_cfl`.  If they do not fit in `[0, t_end]`, the solve starts at
     t = 0 and takes `ceil(t_end / dt_cfl)` equal steps.
   - `n_steps=None`: the march from t = 0, in `ceil(t_end / dt_cfl)` equal steps.
-    `info["n_steps"]` reports the count.  There is no cap, and the cost grows with the
+    There is no cap, and the cost grows with the
     count: the default settings at `t_end = 0.02` s and `Ux = 0.02` m/s give 16000 steps,
     about 11 minutes for the cell of `examples/run_cell.py` (an estimate from runs of 11 and
     21 steps, about 0.04 s per step).
-  - `info["t_start"]` and `info["dt"]` report the window solved.
+  - `info["n_steps"]`, `info["t_start"]` and `info["dt"]` report the steps marched and the
+    window solved.
 - **Steady.**  `steady=True`: one steady solve.  Rates, `t_end` and `n_steps` are not used.
 - **Roughness.**  Height arrays are gap perturbations `z[j_y, i_x]` (`z < 0` is an asperity).
   `moving=False` puts a surface on the stationary side, `moving=True` on the translating

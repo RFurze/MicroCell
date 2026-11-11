@@ -78,6 +78,7 @@ def test_march_equals_the_integer_window_that_does_not_fit(march, extra):
     assert out.ok, out.reason
     assert out.info["t_start"] == 0.0 and out.info["dt"] == march.info["dt"]
     assert out.info["newton_iters"] == march.info["newton_iters"]
+    assert out.info["n_steps"] == math.ceil(t_end / dt_cfl)      # the count marched, not the count asked for
     assert _same(march, out)
 
 
@@ -86,6 +87,7 @@ def test_march_differs_from_the_three_step_window(march):
     out = microsolver(zeta, t_end=t_end, roughness=rough, settings=st, n_steps=3)
     assert out.ok, out.reason
     assert out.info["t_start"] == pytest.approx(t_end - 3 * dt_cfl, rel=1e-12)
+    assert out.info["n_steps"] == 3
     assert out.info["dt"] == pytest.approx(dt_cfl, rel=1e-12)
     assert not _same(march, out)
     assert np.max(np.abs(out.fields["p_fluid"] - march.fields["p_fluid"])) > 0.0
@@ -97,3 +99,13 @@ def test_a_steady_solve_ignores_n_steps():
     b = microsolver(zeta, roughness=rough, settings=st, steady=True)
     assert a.ok and b.ok and a.info["n_steps"] == 0 == b.info["n_steps"]
     assert _same(a, b)
+
+
+def test_a_failed_newton_solve_reports_its_iterations():
+    """Tolerances no solve can meet: the result is FAILED_NEWTON and counts the iterations it made."""
+    _st, zeta, rough, _t_end, _dt_cfl = _cell()
+    st = MicroSettings(**SETTINGS, max_iterations=3, abs_tolerance=1e-300, rel_tolerance=1e-300)
+    out = microsolver(zeta, roughness=rough, settings=st, steady=True)
+    assert out.status == "FAILED_NEWTON", (out.status, out.reason)
+    assert 0 < out.info["newton_iters"] <= 3
+    assert np.isnan(out.dP) and not out.fields

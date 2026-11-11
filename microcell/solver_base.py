@@ -71,10 +71,8 @@ set_log_active(False)
 # -------------------------------------------------------------------
 # Logging / utilities
 # -------------------------------------------------------------------
-# The parent switched a log file on with MICRO_DEBUG_LOG; unset, it disabled logging for the
-# process, which is what stays (MicroCell WP2: no environment reads in the solver).
-logging.disable(logging.CRITICAL)
-
+# The parent disabled logging for the whole process at this point (MICRO_DEBUG_LOG unset).  A
+# library must not do that to its caller: this module only owns its own logger.
 logger = logging.getLogger(__name__)
 
 #: cap of the cavitation smoothing width in nondimensional units (the parent's MICRO_EPSP_ND_CAP
@@ -2021,6 +2019,10 @@ class MicroPhaseNeutralSolver:
             scalar_ok = np.isfinite(G) and np.isfinite(H) and (
                 final_scalar < atol or final_scalar / max(res0_scalar or 0.0, 1e-30) < rtol)
             if not (field_ok and scalar_ok):
+                # count the iterations of the failed solve too, so a failed result reports them
+                if hasattr(self, "_t_asm_total"):
+                    self._n_newton_iters_total += max(0, (nit + 1) - pol.n_bt)
+                    self._n_newton_backtracks_total += pol.n_bt
                 raise RuntimeError(
                     f"MicroPhaseNeutralSolver: Newton (Schur) did not converge after "
                     f"{max_it} iterations.  ||F|| = {final_res:.4e}  "
