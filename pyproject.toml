@@ -11,3 +11,6 @@ packages = ["microcell", "microcell.roughness"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: the parent's long-running tests (T6 and T7 of test_micro_phase_neutral_steady.py); they run in the default suite here",
+]
