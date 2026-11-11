@@ -32,7 +32,7 @@ No solver change was made. The parent was not run on the Sa 40 cell (departure 7
 
 **Open, for Rob.**
 1. Default `abs_tolerance`: stays 1e-6 (the parent's preset). The README now names 1e-5 as the
-   production value. Changing the default is his call; recommended: leave it.
+   production value. Decided (Rob, 11 Nov 2026): keep 1e-6.
 2. Items 9 and 10 (run the full `n_steps=None` march once; open the ParaView files).
 3. No LICENSE file; matters only if the repo is shared.
 4. Push the five commits of §2 and this log's commit.
