@@ -28,8 +28,9 @@ comparisons is exact (largest relative difference zero). Source `F/parity_report
 - `MicroSettings` defaults at WP1 = the GenSa40-ripple values; revisit at WP4.
 - Steady solves are needed: a flag on the function says steady or transient (added as `steady=`).
 - Go-ahead for the first commits ("Yes, commit", after reading the summary of this log).
+- Departures 5.7, 5.8 and 5.9 accepted as they stand ("Accept all three").
 
-**Departures from the plan.** Twelve, numbered in §5. The ones that need a view from Rob:
+**Departures from the plan.** Twelve, numbered in §5. Rob accepted these three on 11 Nov 2026:
 - 5.7 `MicroSettings.legacy`, a pass-through for copied settings the plan does not list (goes at WP4);
 - 5.8 `save_paraview` writes the end state only, not one set per step;
 - 5.9 `n_steps=None` (march from 0) is not built.
@@ -39,9 +40,8 @@ until WP4); shear statistics in the global-x frame are not available because `sh
 an input; rates are exercised by two cells only (c4, c5).
 
 **Waits on Rob.**
-1. A yes or no on departures 5.7-5.9.
-2. Go-ahead for WP2 (prune dead physics) as its own session.
-3. Pushing `main` of `MicroCell`, when he wants it on a remote.
+1. Go-ahead for WP2 (prune dead physics) as its own session.
+2. Pushing `main` of `MicroCell`, when he wants it on a remote.
 
 ## 1. What was built
 
