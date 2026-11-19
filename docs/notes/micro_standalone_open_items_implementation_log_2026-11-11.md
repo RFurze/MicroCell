@@ -242,3 +242,15 @@ The `second-reader` agent recomputed about 75 numbers and claims from the source
 Two wordings changed after its notes: §4 said "every one of the 30 solves is in contact where it is OK"
 (29 are `OK`; the failed one has no contact fraction), and §5 said the parent was "clean before and
 after" without saying that no file records it. It could not check the negative claims of §8.
+
+## 11. Addendum, 19 Nov 2026: library-use example
+
+Rob asked for an example that imports the package from another script and gets a tuple back.
+
+- Added `examples/use_as_library.py`: no `sys.path` change; `micro_model(...)` wraps `microsolver`
+  and returns `(dQx, dQy, dP, P_asp, tau_x, tau_y, contact_frac, fields)`, raising on a failed solve;
+  the script calls it at four films. README examples table extended.
+- Run from `/tmp` with the repo on `PYTHONPATH` (through `wslrun`): exit 0, four rows, in
+  `F/logs/use_as_library_from_tmp.log`. The two docstring qualifications ("not tested" on the
+  `pip install -e` route; the full-film note on the total shear) were made after that run.
+- Not tested: `pip install -e .`.

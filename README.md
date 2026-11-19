@@ -200,7 +200,7 @@ Conventions:
 - **ParaView.**  `save_paraview=True` writes `cell.vts` and `cell.xdmf` (+ `.h5`) of the end
   state (the files also carry `p_fluid_masked`, which `out.fields` does not).
 
-Examples, one per kind of roughness.  Each prints its outputs with units and writes ParaView
+Examples, one per kind of roughness, and one of the package used as a library from another script.  Each prints its outputs with units and writes ParaView
 files under `examples/output/` (not tracked):
 
 | Script | Cell | Output folder |
@@ -209,6 +209,7 @@ files under `examples/output/` (not tracked):
 | `examples/pair_cell.py` | a stationary + translating pair, composite Sa 10 nm, with an offset | `pair_sa10_h25/` |
 | `examples/array_cell.py` | a height array (one pocket), full film; on the stationary and on the translating surface | `pocket_stationary/`, `pocket_translating/` |
 | `examples/cosine_cell.py` | the analytic cosine cell, full film, with a film rate; transient and steady | `cosine_h120/` |
+| `examples/use_as_library.py` | the package imported from a script in any folder: a function returning a tuple, called over four films (pendulum Sa 10 nm surface) | none |
 
 ### Settings
 
