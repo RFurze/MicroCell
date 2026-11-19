@@ -171,10 +171,10 @@ def test_flooded_baseline():
     mean_w = float(new_solver._mean_vec.inner(new_solver.w.vector())) / area
     assert abs(mean_w) < 1e-10, f"w_fluc not zero-mean: mean = {mean_w:.4e}"
 
-    print(f"\n[T1 Flooded] Qx: new={Qx_new:.4e}")
-    print(f"[T1 Flooded] Pst: new={Pst_new:.4e}")
-    print(f"[T1 Flooded] lambda_dim = {lambda_dim:.4e}  (should ≈ 0)")
-    print(f"[T1 Flooded] mean(w_fluc) = {mean_w:.4e}  (should ≈ 0)")
+    print(f"\n[T1 Flooded] Qx = {Qx_new:.4e}")
+    print(f"[T1 Flooded] Pst = {Pst_new:.4e}")
+    print(f"[T1 Flooded] lambda_dim = {lambda_dim:.4e}  (expected: 0)")
+    print(f"[T1 Flooded] mean(w_fluc) = {mean_w:.4e}  (expected: 0)")
 
 
 # ---- T6: mesh convergence ----
@@ -242,7 +242,7 @@ def test_zero_mean_w_fluc():
     area = float(assemble(Constant(1.0) * dx(domain=solver.mesh_m)))
     mean_w = float(solver._mean_vec.inner(solver.w.vector())) / area
 
-    print(f"\n[T8 Zero-mean] mean(w_fluc) = {mean_w:.4e}  (target: < 1e-10)")
+    print(f"\n[T8 Zero-mean] mean(w_fluc) = {mean_w:.4e}  (limit: 1e-8)")
     assert abs(mean_w) < 1e-8, (
         f"Zero-mean constraint not satisfied: mean(w_fluc) = {mean_w:.4e}")
 

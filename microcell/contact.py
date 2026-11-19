@@ -154,7 +154,7 @@ def solve_contact(h_rigid: np.ndarray, h_min: float, op: PeriodicHalfSpace,
     if not mean_gap > 0.0:
         raise ContactInfeasibleError(
             f"contact_infeasible: mean rigid gap {mean_gap:.6e} m <= 0 above h_min "
-            "(the zero-mean ripple cannot lift the mean gap; D8)")
+            "(the zero-mean ripple cannot lift the mean gap)")
     if not (g_r < 0.0).any():
         zero = np.zeros_like(g_r)
         return ContactSolution(p=zero, u=zero.copy(), g=g_r.copy(), phi_c=g_r.copy(),

@@ -401,7 +401,7 @@ def run_cell(cell: str) -> dict:
             if r["rel"] != 0.0:
                 r["ok"] = False
             if not r["ok"]:
-                r["note"] = f"removed setting: the reference stores {want[k]!r}, the code hard-wires {REMOVED_SETTINGS[k]!r}"
+                r["note"] = f"removed setting: the reference stores {want[k]!r}, the code fixes {REMOVED_SETTINGS[k]!r}"
             r["kind"] = "setting"
             records.append(r)
             continue

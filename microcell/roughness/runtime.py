@@ -102,8 +102,8 @@ class SurfaceField:
     def check_cell(self, xmax, ymax) -> None:
         """Raises ``ValueError`` unless the cell ``xmax x ymax`` [m] is that of the surfaces."""
         if not (_close(float(xmax), self.Lx) and _close(float(ymax), self.Ly)):
-            raise ValueError(f"the micro cell {float(xmax):.6g} x {float(ymax):.6g} m is not the prepared "
-                             f"surfaces' {self.Lx:.6g} x {self.Ly:.6g} m")
+            raise ValueError(f"the micro cell {float(xmax):.6g} x {float(ymax):.6g} m is not that of the "
+                             f"surfaces, {self.Lx:.6g} x {self.Ly:.6g} m")
 
 
 def _lattice(u: np.ndarray, n_max: int = 2048) -> int:

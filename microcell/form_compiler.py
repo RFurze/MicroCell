@@ -48,8 +48,7 @@ def pin_multiscale(by: str) -> None:
     if not (QDEG_MACRO_MULTISCALE == QDEG_MICRO_PHASE_NEUTRAL == QDEG_MICRO_MIXED):
         raise RuntimeError(
             f"multiscale macro degree {QDEG_MACRO_MULTISCALE} != micro {QDEG_MICRO_PHASE_NEUTRAL} / "
-            f"{QDEG_MICRO_MIXED}: one process has one global degree; a split needs per-form "
-            "form_compiler_parameters (not implemented)")
+            f"{QDEG_MICRO_MIXED}: one process has one global degree")
     pin(QDEG_MACRO_MULTISCALE, by)
 
 
@@ -70,5 +69,5 @@ def check(where: str) -> int:
     q = int(_fc()["quadrature_degree"])
     if _PINNED is not None and q != _PINNED:
         raise RuntimeError(f"{where}: form-compiler quadrature_degree is {q}, but {_PINNED_BY} pinned "
-                           f"{_PINNED} -- something wrote the global after the pin")
+                           f"{_PINNED}: the global was written after the pin")
     return q

@@ -299,16 +299,15 @@ class MicroPhaseNeutralMixedSolver(_BaseSolver):
         self.mu_nd = 0.0
         self._newton_call_idx = getattr(self, "_newton_call_idx", 0) + 1
 
-    def _assemble_newton_rhs(self) -> float:
+    def _assemble_newton_rhs(self) -> None:
         """Base right-hand side, plus the pin term at the pinned nodes."""
-        t = super()._assemble_newton_rhs()                # b = -(R + mu m)
+        super()._assemble_newton_rhs()                    # b = -(R + mu m)
         idx = self._lc_pin_idx
         if self._lc_path == "fluid_mean" and idx.size:
             b = self._b_vec.get_local()
             b[idx] += self._lc_pin_w * self.w.vector().get_local()[idx]   # R_i -> R_i - kappa m_i w_i
             self._b_vec.set_local(b)
             self._b_vec.apply("insert")
-        return t
 
     def _apply_jacobian_reg_shift(self) -> None:
         """Base shift, plus the pin term on the diagonal at the pinned nodes."""

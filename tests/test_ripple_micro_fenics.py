@@ -88,7 +88,7 @@ def make_contact(mode=RIPPLE, n=60, Ah=20e-9, H=58e-9, h_min=40e-9, mixed_only=F
     from dolfin import Constant, UnitSquareMesh
     from microcell.film import make_ideal_ht
     from microcell.solver_mixed import MicroPhaseNeutralMixedSolver
-    assert mixed_only, "only the mixed class branch of the parent's make_contact is here"
+    assert mixed_only, "only the mixed class is built here"
     mesh = UnitSquareMesh(n, n)
     ht = make_ideal_ht(Ah, 1, 1, Constant(0.337), Constant(0.337))
     common = dict(_COMMON, delta_h=.5e-9, eps_solid=1e-6)

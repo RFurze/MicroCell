@@ -551,9 +551,9 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     ledger = solver.pressure_ledger.copy()
     ripple_info = dict(solver.ripple_info) if ripple_on else None
     if solver.pressure_extrema is None:
-        raise RuntimeError("spatial_homogenisation() did not run the shared pressure extrema sampler")
+        raise RuntimeError("spatial_homogenisation() did not run the pressure extrema sampler")
     if solver.fluid_traction is None:
-        raise RuntimeError("spatial_homogenisation() did not run the shared fluid traction sampler")
+        raise RuntimeError("spatial_homogenisation() did not run the fluid traction sampler")
     extrema_phase = solver.pressure_extrema
     traction_phase = solver.fluid_traction
     lambda_nd = float(solver.lambda_nd)

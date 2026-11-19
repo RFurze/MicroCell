@@ -878,8 +878,7 @@ class MicroPhaseNeutralSolver:
             return
         E = s.E_star
         if E is None or not np.isfinite(float(E)) or float(E) <= 0.0:
-            raise ValueError("the ripple needs a positive, finite E_star (the resolved "
-                             "two-body modulus, plan O3)")
+            raise ValueError("the ripple needs a positive, finite E_star (the two-body modulus)")
         if not (float(s.ripple.tol) > 0.0 and int(s.ripple.maxpass) >= 1
                 and 0.0 < float(s.ripple.omega) <= 1.0):
             raise ValueError("ripple settings: need tol > 0, maxpass >= 1 and "
@@ -967,8 +966,8 @@ class MicroPhaseNeutralSolver:
         two = (0.0 < a < 1.0 or (isinstance(desc, tuple) and len(desc) >= 4 and bool(desc[3]))
                or (self._ripple_pair() and not self._pair_branch_on()))
         if two:
-            raise ValueError("the ripple supports one rough surface only in "
-                             "stage 1 (plan O1): a two-surface pattern has no single frame (O6)")
+            raise ValueError("the ripple supports one rough surface only: "
+                             "a two-surface pattern has no single frame")
 
     def _pair_branch_on(self) -> bool:
         """``self.pair``: the per-step ripple of a surface pair is allowed."""
@@ -1421,7 +1420,7 @@ class MicroPhaseNeutralSolver:
                     f"setting jacobian_reg_eps=0.0"
                 ) from _shift_exc
 
-    def _assemble_newton_rhs(self) -> float:
+    def _assemble_newton_rhs(self) -> None:
         """Assembles the residual only: ``_b_vec = -(R + mu m)``, the right-hand side of
         ``J dw = -F_w``.  The Jacobian is assembled separately, before each factorisation."""
         self._sys_asm.assemble(self._b_vec)

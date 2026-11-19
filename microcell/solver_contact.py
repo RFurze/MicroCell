@@ -115,7 +115,7 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
             raise ValueError("k_asp_mode must be 'off' or 'closure'")
         descriptor = getattr(self.ht_cb, "contact_cosine", None)
         if not callable(getattr(descriptor, "height", None)):
-            raise ValueError("fft_elastic_v1 needs a numpy rigid-film evaluator: the canonical "
+            raise ValueError("fft_elastic_v1 needs a numpy rigid-film evaluator: a "
                              "make_ideal_ht callback (ht.contact_cosine.height)")
         return descriptor
 

@@ -320,3 +320,33 @@ Seen and not changed, as each is code:
 Not run after the rewrite: the six example scripts (their code is identical by the check).
 
 Second reader (19 Nov 2026): no mismatches in this section or in the README numbers. Not checked by it: the timing statements of the README and the source-term agreement, which need a run.
+
+## 14. Addendum, 19 Nov 2026: message strings and the unused return
+
+Rob's answer to the open item of section 13: "Yes, tidy them". This is a code change (string
+constants, two return annotations and one unused return value); no result changes.
+
+- Error, assert and print messages lost their plan and decision tags and their parent wording:
+  `api.py` (2), `contact.py` (1), `form_compiler.py` (2), `roughness/runtime.py` (1),
+  `solver_base.py` (2), `solver_contact.py` (1), `tests/test_micro_phase_neutral_steady.py` (5),
+  `tests/test_ripple_micro_fenics.py` (1), `tests/test_parity.py` (1). The T8 print now states
+  the limit the assert uses (1e-8). The substrings the tests match on ("E_star",
+  "one rough surface") are unchanged.
+- `_assemble_newton_rhs` is annotated `-> None` in `solver_base.py` and `solver_mixed.py`, and
+  the override no longer returns the base call's `None`.
+- Left as they are: `EVALUATOR_REVISION = "ehl.roughness.fourier/1"` (a value), the
+  `[PN-SCALE-GUARD]` print tag, the unused `dt_nd` argument of `_build_forms`, and the messages
+  of `tests/test_parity.py` and `tools/make_references.py` that name the parent as the source
+  of the references.
+
+| Quantity | Value | Source |
+|---|---|---|
+| Files changed, of those checked | 10 of 38 | `F/logs/message_tidy_check.log` |
+| Files where code other than strings and return annotations differs | 1 (`microcell/solver_mixed.py`, expected) | `F/logs/message_tidy_check.log` |
+| Check exit | 0 | `F/logs/message_tidy_check.log` |
+| Gate | 112 passed in 28.58s | `F/logs/gate_message_tidy.log` |
+
+The check is `F/check_strings_only.py`, against `git archive 3d97e5f`
+(`_to_delete/message_tidy_2026-11-19/base_source_3d97e5f/`, not tracked).
+
+Second reader (19 Nov 2026): no mismatches in this section. It read the two logs and the diff against 3d97e5f; it did not rerun the check or the gate.
