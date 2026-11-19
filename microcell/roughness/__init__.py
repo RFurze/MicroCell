@@ -1,26 +1,16 @@
-"""``microcell.roughness`` -- the surfaces of a micro cell (from the parent's ``ehl.roughness``).
+"""The surfaces of a micro cell (NumPy only; ``microcell/film.py`` passes them to the solver).
 
-Pure data and NumPy: no FEniCS and no SciPy are imported anywhere in this package; the FE
-adapter is ``microcell/film.py``.
+``frontend``   ``Roughness``: a generated Gaussian surface, a height array, a stationary and
+               translating pair, the analytic cosine cell
+``generation`` the IAAFT generator for a Gaussian autocorrelation and height distribution
+``quantiles``  the normal quantile function used by the generator
+``evaluator``  ``FourierSurface``: band-limited reconstruction on any grid, at any displacement
+``runtime``    ``SurfaceField``, the surfaces as the solver reads them; the undeformed film
+               of the contact solve; the motion of the translating surface
+``pair``       the displacement of the translating surface
 
-Modules
--------
-``frontend``   :class:`Roughness`, the front end: a generated Gaussian surface, a height array,
-               a stationary + translating pair, the analytic cosine cell
-``generation`` the IAAFT generator (Pérez-Ràfols & Almqvist 2019) for a Gaussian
-               autocorrelation and a Gaussian height distribution
-``quantiles``  the NumPy-only normal quantile function the generator uses
-``evaluator``  :class:`FourierSurface` -- band-limited reconstruction at any grid / displacement
-``runtime``    :class:`SurfaceField`, the member surfaces as the solver reads them; the rigid
-               film ``fft_elastic_v1`` reads; the translating member's motion
-``pair``       the kinematics of the translating member
-
-The parent's recipes, targets, reports, mode lists, file inputs, prepared artefacts and surface
-store (``spec``, ``targets``, ``prepare``, ``report``, ``modes``, ``assets``, ``case``) and its
-statistics module (``stats``) are not in this repo (removed in MicroCell WP3, 11 Nov 2026).
-
-Sign convention: arrays are gap perturbations ``z[j_y, i_x]``,
-``h = H0 + HT*t + z``; ``z < 0`` is an asperity.
+Height arrays are gap perturbations ``z[j_y, i_x]`` [m]: ``h = H0 + HT*t + z``, and ``z < 0`` is
+an asperity.
 """
 from __future__ import annotations
 

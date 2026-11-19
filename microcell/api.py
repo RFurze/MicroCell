@@ -1,29 +1,21 @@
-"""``microsolver()`` -- one micro cell, one call.
-
-Written (WP1) from the body of the parent's worker ``run_micro_task_phase_neutral``
-(``scripts/run/run_microscale_phase_neutral.py`` at 2aaccad): the film callback, the
-physical parameters, the settings, the run, the homogenisation, the asperity load, the
-Reynolds reference flux and the corrections dQ and dP.  Left out, by the plan's decisions:
-the per-worker solver cache, the two mesh tiers and their predictor (D9), the contact
-table and its composition, xwarm, dphi sampling (D4) and every environment override (D10).
+"""``microsolver()``: one micro cell, one call.
 
 Conventions
 -----------
 * SI units throughout.
-* ``Zeta.Ux, Zeta.Uy`` are the mean (entrainment) velocities of the macro task; the cell's
-  surfaces slide at ``2 Ux`` (D8).
-* Transient (``steady=False``): the cell is solved over the window that ends at ``t_end``;
-  the last ``n_steps`` CFL steps are solved and the outputs are the end state (D3).
-  ``zeta`` is the state at t = 0 of that window; the end state is ``zeta + rate * t_end``
-  (e.g. ``Pst`` is returned at ``P + Pdot * t_end``), as in the parent.
-* Steady (``steady=True``): one steady solve at ``(H, P, Ux, Uy, dpdx, dpdy)``; the rates of
+* ``Zeta.Ux`` and ``Zeta.Uy`` are the mean (entrainment) velocities.  The moving surface slides
+  at ``2 Ux``, ``2 Uy``.
+* Transient (``steady=False``): ``zeta`` is the state at t = 0 and the end state is
+  ``zeta + rate * t_end``.  The last ``n_steps`` CFL steps ending at ``t_end`` are solved and
+  the outputs are the end state.
+* Steady (``steady=True``): one steady solve at ``(H, P, Ux, Uy, dpdx, dpdy)``.  The rates of
   ``zeta`` and ``t_end`` are not used.
-* A stationary + translating pair takes one ``offset`` [m] per call, the translating
-  surface's starting displacement; the caller loops over offsets to average (D4).
-* A failed solve returns a result with a non-OK ``status`` and NaN outputs (D11).
+* A stationary + translating pair takes one ``offset`` [m] per call, the starting displacement
+  of the translating surface.  The caller loops over offsets to average.
+* A failed solve returns a result with a non-OK ``status`` and NaN outputs.
 
-``MicroSettings`` is the one definition and the one default of every setting (WP4): the solver
-classes read it, and the ``Zeta`` of the call, directly.
+``MicroSettings`` holds every setting and its default.  The solver classes read it, and the
+``Zeta`` of the call, directly.
 """
 from __future__ import annotations
 
@@ -35,30 +27,27 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
-from microcell.contact import FFT as CONTACT_FFT     # the one contact law (no FEniCS import)
+from microcell.contact import FFT as CONTACT_FFT     # tag of the contact law; no FEniCS import
 
 OK = "OK"
-#: ``contact_model`` of a result: the one contact law (``CONTACT_FFT``), or "off" for a full-film cell
-#: (the parent's result carried its default tag ``legacy_patch_v1`` there; WP2 dropped that law)
+#: ``contact_model`` of a result: ``CONTACT_FFT`` with contact, "off" for a full-film cell.
 CONTACT_OFF = "off"
 FAILED_NEWTON = "FAILED_NEWTON"
 FAILED_RIPPLE = "FAILED_RIPPLE"
 FAILED_CONTACT = "FAILED_CONTACT"
-#: the solve converged but an output is not finite and no status of ``NAN_STATUS`` explains it
+#: The solve converged but an output is not finite and ``NAN_STATUS`` does not explain it.
 FAILED_NONFINITE = "FAILED_NONFINITE"
 STATUSES = (OK, FAILED_NEWTON, FAILED_RIPPLE, FAILED_CONTACT, FAILED_NONFINITE)
 
-#: The one table of the outputs that may be NaN on an OK result (WP4, Rob 11 Nov 2026):
-#:     output -> (the ``info`` entry that holds its status, the values of that status that explain a NaN).
-#: An output is a named output of ``MicroResult`` or an ``info`` entry.  Every other output, every
-#: array of ``fields`` and every entry of ``info["fields"]`` is finite on an OK result, and so is a
-#: listed output whose status is not one of the listed values (``ok``, ``no_support``).
-#: ``microsolver`` checks this before it returns (``unexplained_nonfinite``) and returns
-#: ``FAILED_NONFINITE`` otherwise.  On a failed result every NaN is explained by ``status`` itself.
-#:   ``no_fluid``       no fluid sample (pressure extrema), no fluid area (``Pst_fluid``)
-#:   ``phase_invalid``  a sample that had to be evaluated is not finite, or the contact state at the
-#:                      samples is not the solved one (``microcell/shear.py``: stale, refreshed, check failed)
-#:   ``unavailable``    not computed: no contact law (a full-film cell), or no friction coefficient
+#: Outputs that may be NaN on an OK result:
+#:     output -> (``info`` entry that holds its status, status values that explain a NaN).
+#: An output is a named output of ``MicroResult`` or an ``info`` entry.  Every other output,
+#: every array of ``fields`` and every entry of ``info["fields"]`` is finite on an OK result;
+#: ``microsolver`` returns ``FAILED_NONFINITE`` otherwise (``unexplained_nonfinite``).
+#:   ``no_fluid``       no fluid sample (pressure extrema) or no fluid area (``Pst_fluid``)
+#:   ``phase_invalid``  a sample is not finite, or the contact state at the samples is not the
+#:                      solved one (``microcell/shear.py``)
+#:   ``unavailable``    not computed: a full-film cell, or no friction coefficient
 _EXTREMA, _FLUID, _ASPERITY, _TOTAL = ("pressure_extrema_status", "shear_extrema_status",
                                        "shear_asperity_status", "shear_total_status")
 NAN_STATUS = {
@@ -79,30 +68,37 @@ NAN_STATUS = {
 _NAN = float("nan")
 
 
-# ----------------------------------------------------------------------------------------
-# Inputs
-# ----------------------------------------------------------------------------------------
+# ---- Inputs ----
 @dataclass(frozen=True)
 class Zeta:
-    """The macro state the cell is solved at (SI).  ``Ux, Uy``: mean (entrainment) velocities."""
+    """Macro state the cell is solved at (SI); for a transient solve, the state at t = 0.
+
+    ``Ux``, ``Uy`` are the mean (entrainment) velocities: the moving surface slides at twice
+    these.  The rates are used by a transient solve only.
+    """
     H: float                    # film thickness [m]
     P: float                    # pressure [Pa]
-    Ux: float = 0.0             # [m/s]
+    Ux: float = 0.0             # mean velocity [m/s]
     Uy: float = 0.0
     dpdx: float = 0.0           # pressure gradient [Pa/m]
     dpdy: float = 0.0
-    Hdot: float = 0.0           # [m/s]
-    Pdot: float = 0.0           # [Pa/s]
-    Uxdot: float = 0.0          # [m/s^2]
+    Hdot: float = 0.0           # film rate [m/s]
+    Pdot: float = 0.0           # pressure rate [Pa/s]
+    Uxdot: float = 0.0          # velocity rate [m/s^2]
     Uydot: float = 0.0
-    dpdx_dot: float = 0.0       # [Pa/m/s]
+    dpdx_dot: float = 0.0       # pressure gradient rate [Pa/m/s]
     dpdy_dot: float = 0.0
 
     @classmethod
     def from_task(cls, task) -> "Zeta":
-        """From the parent's task tuple (``micro_task_helpers._parse_task``): 13 elements
-        (steady) or 15 / 16 / 18 / 20+ (transient).  ``task[15]`` is the task's time window
-        (``t_end``), which the caller passes to ``microsolver`` itself."""
+        """Builds a ``Zeta`` from a macro task tuple of 13 elements (steady) or 15 or more
+        (transient).
+
+        Elements read: ``[2:6]`` H, P, Ux, Uy; ``[7:9]`` the pressure gradient; ``[13:15]``
+        Hdot, Pdot; ``[16:18]`` the velocity rates; ``[18:20]`` the gradient rates.  Rates the
+        tuple does not hold are 0.  ``task[15]`` is the time window, which the caller passes to
+        ``microsolver`` as ``t_end``.
+        """
         t = tuple(task)
         if len(t) < 13:
             raise ValueError(f"a task has at least 13 elements, got {len(t)}")
@@ -123,57 +119,57 @@ class ContactSettings:
     """Elastic asperity contact (``fft_elastic_v1``).  ``MicroSettings.contact = None`` is the
     full-film mode.  The modulus is ``MicroSettings.E_star``."""
     tol: float = 1e-11                      # contact solve tolerance (1e-11 for h_min near 1e-11 m)
-    maxit: int = 500
-    sigma_yield: float = 250e6              # [Pa]
-    mu: float = 0.8                         # boundary friction coefficient of the asperity traction
+    maxit: int = 500                        # iteration cap of the contact solve
+    sigma_yield: float = 250e6              # yield flag threshold [Pa]
+    mu: float = 0.8                         # asperity friction coefficient
     k_asp_mode: str = "closure"             # "closure" | "off"
 
 
 @dataclass(frozen=True)
 class RippleSettings:
-    """Fluid-pressure ripple deformation (``ripple_halfspace``).  ``MicroSettings.ripple = None``
-    is off.  The modulus is ``MicroSettings.E_star``."""
-    tol: float = 1e-6
-    maxpass: int = 12
-    omega: float = 1.0
+    """Ripple deformation due to the fluid pressure of the cell (``ripple_halfspace``).
+    ``MicroSettings.ripple = None`` is off.  The modulus is ``MicroSettings.E_star``."""
+    tol: float = 1e-6                       # residual tolerance, relative to H
+    maxpass: int = 12                       # pass cap
+    omega: float = 1.0                      # initial and largest relaxation, 0 < omega <= 1
 
 
 @dataclass
 class MicroSettings:
-    """Every setting of a cell solve, each defined here once.  The defaults are the parent's
-    ``GenSa40-ripple`` case (``cases/mixed_transfull_cup90_genrough_ripple.py`` at 2aaccad)."""
-    mesh_n: int = 100                       # the cell mesh is UnitSquareMesh(mesh_n, mesh_n)
+    """Settings of a cell solve, each with its default.  ``check()`` refuses invalid values."""
+    mesh_n: int = 100                       # cells per side: UnitSquareMesh(mesh_n, mesh_n)
     xmax: float = 5e-6                      # cell size [m]
     ymax: float = 5e-6
     eta0: float = 1e-3                      # viscosity [Pa s] (isoviscous)
     penalty_gamma: float = 1e10             # cavitation penalty
-    h_min: float = 1.0331e-11               # contact onset film [m] (used when contact is on)
-    E_star: float = 203775203775.2038       # reduced two-body modulus [Pa]: the contact law and the ripple
+    h_min: float = 1.0331e-11               # contact onset film [m]; used with contact on
+    E_star: float = 203775203775.2038       # reduced two-body modulus [Pa], of the contact law and the ripple
     delta_h: float = 0.0                    # width of the contact mask transition [m] (0: sharp)
     eps_solid: float = 1e-8                 # mobility factor inside contact
     eps_smooth: float = 1e-3                # smoothing of the cavitation switch [Pa]
-    spos_form: str = "sqrt"                 # "sqrt" | "spline"
+    spos_form: str = "sqrt"                 # "sqrt" | "spline": smoothed positive part of the cavitation penalty
     level_constraint: str = "whole_cell"    # "whole_cell" | "fluid_mean_v1"
-    pattern_flux_contact: bool = True
-    jacobian_reg_eps: float = -1e-7
-    # Newton tolerances and damping
+    pattern_flux_contact: bool = True       # the contact patch of a translating surface carries its film
+    jacobian_reg_eps: float = -1e-7         # shift of the Reynolds Jacobian (0: none)
+    # Newton solve
     relaxation_parameter: float = 1.0
     max_iterations: int = 300
     abs_tolerance: float = 1e-6
     rel_tolerance: float = 1e-6
-    contact: Optional[ContactSettings] = field(default_factory=ContactSettings)
-    ripple: Optional[RippleSettings] = field(default_factory=RippleSettings)
-    cfl_target: float = 1.0
+    contact: Optional[ContactSettings] = field(default_factory=ContactSettings)     # None: full film
+    ripple: Optional[RippleSettings] = field(default_factory=RippleSettings)        # None: no ripple
+    cfl_target: float = 1.0                 # CFL number of the transient steps
     roughness_velocity_ratio: Optional[float] = None    # None: taken from the roughness
 
     def check(self) -> None:
+        """Raises ``ValueError`` for a value the solver would refuse."""
         if self.spos_form not in ("sqrt", "spline"):
             raise ValueError(f"spos_form must be 'sqrt' or 'spline', got {self.spos_form!r}")
         if self.level_constraint not in ("whole_cell", "fluid_mean_v1"):
             raise ValueError(f"level_constraint must be 'whole_cell' or 'fluid_mean_v1', got {self.level_constraint!r}")
         if int(self.mesh_n) < 2:
             raise ValueError("mesh_n must be at least 2")
-        # every value the solver classes refuse (they keep their own refusals; these come first)
+        # values the solver classes also refuse
         if not np.isfinite(float(self.jacobian_reg_eps)):
             raise ValueError("jacobian_reg_eps must be finite; zero disables the shift")
         for name in ("delta_h", "eps_solid", "eps_smooth"):
@@ -195,61 +191,60 @@ class MicroSettings:
                 raise ValueError(f"contact needs a positive contact onset film h_min, got {self.h_min!r}")
 
 
-# ----------------------------------------------------------------------------------------
-# Result
-# ----------------------------------------------------------------------------------------
+# ---- Result ----
 @dataclass
 class MicroResult:
-    """One cell's outputs (SI).  ``status`` is ``"OK"`` or a ``FAILED_*`` code with ``reason``;
-    every homogenised output of a failed cell is NaN and it has no fields.  On an OK result an
-    output is NaN only where ``NAN_STATUS`` ties it to a status in ``info`` that says why (the
-    asperity and total shear means of a full-film cell: ``info["shear_asperity_status"] ==
-    "unavailable"``); the fields are finite.
+    """Outputs of one cell at the end state (SI).
 
-    Each output is in one place: the homogenised outputs below, the arrays in ``fields``, and
-    everything else in ``info`` under the parent's ``MicroTaskResult`` name -- the statuses and
-    formulation tags, the counters, the pressure ledger, the ripple and contact numbers, the
-    sampled shear statistics, the call (``mesh_n``, ``steady``, ``t_end``, ``n_steps``, ``offset``,
-    ``roughness_velocity_ratio``, ``t_start``, ``dt``), ``wall_time`` and the field diagnostics
-    (``info["fields"]``).  An OK and a failed result carry the same ``info`` entries."""
-    status: str
-    reason: str
-    dQ: np.ndarray              # (2,) Q - Q_reynolds [m^2/s]
-    dP: float                   # P_f - P_reynolds [Pa]
+    ``status`` is ``"OK"`` or a ``FAILED_*`` code, with ``reason``.  A failed result has every
+    homogenised output NaN and no fields.  On an OK result the fields are finite, and an output
+    is NaN only where ``NAN_STATUS`` ties it to a status in ``info``; for instance, the asperity
+    and total shear of a full-film cell have ``info["shear_asperity_status"] == "unavailable"``.
+
+    Each output is in one place: a named output below, an array of ``fields``, or an entry of
+    ``info``.  ``info`` holds the statuses and formulation tags, the counters, the pressure
+    ledger, the ripple and contact numbers, the sampled shear statistics, the call (``mesh_n``,
+    ``steady``, ``t_end``, ``n_steps``, ``offset``, ``roughness_velocity_ratio``, ``t_start``,
+    ``dt``), ``wall_time`` and the field diagnostics (``info["fields"]``).  An OK and a failed
+    result have the same ``info`` entries.
+    """
+    status: str                 # "OK" or a FAILED_* code
+    reason: str                 # why the solve failed; "" when OK
+    dQ: np.ndarray              # (2,) Q minus the smooth-film Reynolds flux [m^2/s]
+    dP: float                   # P_f minus the macro pressure at the end state [Pa]
     Q: np.ndarray               # (2,) homogenised flux [m^2/s]
     Pst: float                  # whole-cell pressure diagnostic [Pa]
     P_f: float                  # signed fluid pressure over the cell area [Pa]
-    Fst: float
+    Fst: float                  # fluid area fraction
     tau_fluid: np.ndarray       # (2,) homogenised fluid shear stress [Pa]
     tau_asperity: np.ndarray    # (2,) sampled asperity shear mean, local frame [Pa]
     tau_total: np.ndarray       # (2,) sampled fluid + asperity shear mean, local frame [Pa]
     P_asp: float                # asperity load per cell area [Pa]
-    contact_frac: float
-    A_mech_frac: float
+    contact_frac: float         # obstructed area fraction
+    A_mech_frac: float          # mechanical contact area fraction
     k_asp: float                # closure tangent -dP_asp/dH [Pa/m]
     p_max: float                # fluid pressure extrema [Pa]
     p_min: float
     h_max: float                # film extrema [m]
     h_min: float
-    yield_flag: int
+    yield_flag: int             # 1 when the peak contact pressure passes sigma_yield
+    #: (n+1, n+1) arrays ``[i_x, j_y]`` in SI, with ``x``, ``y`` [m]; ``chi_fluid_dg0`` is per mesh cell
     fields: Dict[str, np.ndarray] = field(default_factory=dict)
     info: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
+        """True when ``status`` is ``OK``."""
         return self.status == OK
 
 
-# ----------------------------------------------------------------------------------------
-# Process set-up: before the first form is built
-# ----------------------------------------------------------------------------------------
+# ---- Process set-up, before the first form is built ----
 _PROCESS_READY = False
 
 
 def _ensure_process() -> None:
-    """What the parent's pool worker applies before its first task (``_init_worker``): the
-    macro process settings (form-compiler flags; its PETSc options are not read by the cell), then the micro quadrature
-    degree pinned to 2.  Results differ without them."""
+    """Applies the form-compiler flags and pins the quadrature degree to 2, once per process.
+    Results differ without them."""
     global _PROCESS_READY
     if _PROCESS_READY:
         return
@@ -259,12 +254,14 @@ def _ensure_process() -> None:
     _PROCESS_READY = True
 
 
-# ----------------------------------------------------------------------------------------
-# Helpers ported from the worker
-# ----------------------------------------------------------------------------------------
+# ---- Helpers ----
 def reynolds_flux(steady: bool, zeta: Zeta, t_end: float, eta0: float) -> np.ndarray:
-    """The smooth-film Reynolds flux at the end state, shape (1, 2)
-    (``micro_task_helpers.q_re`` with the constant viscosity ``eta0``)."""
+    """Smooth-film Reynolds flux ``U H - H^3 G / (12 eta0)`` at the end state.
+
+    zeta: state at t = 0; a transient solve advances it by its rates over ``t_end`` [s].
+    eta0: viscosity [Pa s].
+    Returns an array of shape (1, 2) [m^2/s].
+    """
     H, P, Ux, Uy, gx, gy = zeta.H, zeta.P, zeta.Ux, zeta.Uy, zeta.dpdx, zeta.dpdy
     if not steady:
         dt = t_end
@@ -291,12 +288,13 @@ _RIPPLE_NUMBERS = ("ripple_max", "ripple_resid", "ripple_mean_resid", "ripple_se
 
 
 def _vec2(v) -> np.ndarray:
+    """First two values of ``v`` as a float array of shape (2,)."""
     return np.asarray(v, dtype=float).reshape(-1)[:2].copy()
 
 
 def _full_film_contact_shear() -> dict:
-    """The asperity and total shear entries of a full-film cell: no contact law ran, so every
-    statistic is NaN with status ``unavailable`` (the parent's ``MicroTaskResult`` defaults)."""
+    """Asperity and total shear entries of a full-film cell: every statistic is NaN, with
+    status ``unavailable``."""
     from microcell import shear as _cshear
 
     out = {k: _NAN for k in _cshear.FIELDS}
@@ -307,11 +305,12 @@ def _full_film_contact_shear() -> dict:
 
 
 def _failed_result(status: str, reason: str, info: dict, mixed: bool, ripple_on: bool) -> MicroResult:
-    """The one place a failed result is built (the worker's ``_nan_return``).
+    """Builds a failed result.
 
     Every named output is NaN (``yield_flag`` 0) and there are no fields.  ``info`` is the
-    caller's outcome-independent entries plus the entries an OK result adds, with NaN numbers
-    and ``failed`` statuses; the asperity and total shear of a full-film cell stay ``unavailable``."""
+    caller's entries plus the entries an OK result adds, with NaN numbers and ``failed``
+    statuses.  The asperity and total shear of a full-film cell stay ``unavailable``.
+    """
     from microcell import shear as _cshear
     from microcell.shear import failed_shear_fields
     from microcell.pressure import EXTREMA_FAILED
@@ -335,7 +334,7 @@ def _failed_result(status: str, reason: str, info: dict, mixed: bool, ripple_on:
 
 
 def _not_finite(value) -> bool:
-    """True when ``value`` is a float, or an array or sequence of numbers, holding a NaN or an infinity."""
+    """True when ``value`` is a number, array or sequence that holds a NaN or an infinity."""
     if value is None or isinstance(value, (str, bytes, bool, dict)):
         return False
     try:
@@ -346,8 +345,11 @@ def _not_finite(value) -> bool:
 
 
 def unexplained_nonfinite(out: MicroResult) -> list:
-    """The outputs of ``out`` that are not finite and that ``NAN_STATUS`` does not explain: named
-    outputs and ``info`` entries by name, ``fields.<name>`` and ``info.fields.<name>``."""
+    """Names of the outputs of ``out`` that are not finite and that ``NAN_STATUS`` does not explain.
+
+    Named outputs and ``info`` entries are listed by name, arrays as ``fields.<name>`` and
+    ``info.fields.<name>``.
+    """
     named = [f.name for f in _dataclass_fields(MicroResult) if f.name not in ("status", "reason", "fields", "info")]
     values = [(n, getattr(out, n)) for n in named] + [(k, v) for k, v in out.info.items() if k != "fields"]
     bad = []
@@ -361,31 +363,31 @@ def unexplained_nonfinite(out: MicroResult) -> list:
     return bad
 
 
-# ----------------------------------------------------------------------------------------
-# The call
-# ----------------------------------------------------------------------------------------
+# ---- The call ----
 def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
                 settings: Optional[MicroSettings] = None, n_steps: Optional[int] = 3,
                 offset: Tuple[float, float] = (0.0, 0.0), steady: bool = False,
                 save_paraview: bool = False, output_dir=None) -> MicroResult:
-    """Solve one micro cell and return its homogenised outputs and fields.
+    """Solves one micro cell and returns its homogenised outputs and fields.
 
-    zeta           the macro state (:class:`Zeta`)
-    t_end          the time window [s] of a transient solve (> 0); not used when ``steady``
-    roughness      a :class:`microcell.Roughness`
-    settings       :class:`MicroSettings` (default: ``MicroSettings()``)
-    n_steps        transient: the number of CFL steps solved, ending at ``t_end`` (default 3: the
-                   last 3 steps of the window).  ``None``: march from t = 0 to ``t_end`` in
-                   ``N = ceil(t_end / dt_cfl)`` equal steps, ``dt_cfl = cfl_target * min(xmax, ymax)
-                   / mesh_n / (2 max|U|)`` (``t_end / 10`` when U = 0); ``info["n_steps"]`` is then N.
-                   There is no cap on N and the cost grows with it: the defaults at
-                   ``t_end = 0.02`` s and ``Ux = 0.02`` m/s give N = 16000, about 11 minutes
-                   for the cell of ``examples/run_cell.py`` (an estimate from 11 and 21 steps,
-                   about 0.04 s per step)
-    offset         ``(o_x, o_y)`` [m], the translating surface's starting displacement; pairs only
+    zeta           macroscale state (``Zeta``), SI; ``Ux``, ``Uy`` are the mean velocities
+    t_end          time window [s] of a transient solve (> 0); not used when ``steady``
+    roughness      a ``microcell.Roughness``; heights are gap perturbations (``z < 0`` is
+                   an asperity)
+    settings       ``MicroSettings``; default ``MicroSettings()``
+    n_steps        transient: the number of CFL steps solved, ending at ``t_end`` (default 3),
+                   with ``dt_cfl = cfl_target * min(xmax, ymax) / mesh_n / (2 max|U|)``
+                   (``t_end / 10`` when U = 0).  If they do not fit in ``[0, t_end]``, or with
+                   ``None``, the solve marches from t = 0 in ``ceil(t_end / dt_cfl)`` equal
+                   steps.  The step count of the march has no cap.
+    offset         ``(o_x, o_y)`` [m], starting displacement of the translating surface; pairs only
     steady         True: one steady solve; False: the transient window
-    save_paraview  write ``<output_dir>/cell.vts`` and ``cell.xdmf`` (+ ``.h5``) of the end state
-    output_dir     where to write them (default ``./microcell_output``)
+    save_paraview  writes ``<output_dir>/cell.vts`` and ``cell.xdmf`` (+ ``.h5``) of the end state
+    output_dir     folder of those files; default ``./microcell_output``
+
+    Returns a ``MicroResult`` of the end state in SI.  The fields are (n+1, n+1) arrays
+    ``[i_x, j_y]``.  ``info["n_steps"]``, ``info["t_start"]`` and ``info["dt"]`` report the steps
+    marched and the window solved.
     """
     from microcell.roughness.frontend import Roughness
 
@@ -428,8 +430,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
                                     average_pressure_ledgers, union_pressure_extrema)
     from microcell.film import make_surface_ht
 
-    # the pin was applied before the solver modules were imported (their import-time
-    # set_at_import(2) is then a no-op); check nothing wrote the global since
+    # the quadrature degree must still be the pinned one
     from microcell import form_compiler
     form_compiler.check("microcell.api.microsolver")
 
@@ -442,7 +443,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
             raise ValueError(f"mesh_n = {st.mesh_n} is below the surface's source grid {fld.source_n} "
                              "(fft_elastic_v1 needs n >= N)")
         ht_cb = make_surface_ht(fld)
-        # the translating member's starting displacement of THIS call (None = none)
+        # starting displacement of the translating surface; None for a single surface
         ht_cb.surface_motion.set_offset(offset if pair else None)
     else:
         c = roughness.cosine_parameters()
@@ -454,12 +455,12 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
             two_surface=False, static_moving=False,
         )
 
-    # --- the task state the solver reads ---------------------------------------------------
+    # --- state the solver reads ------------------------------------------------------------
     ratio = roughness.velocity_ratio if st.roughness_velocity_ratio is None else float(st.roughness_velocity_ratio)
     H, P, Ux, Uy, gx, gy = (float(zeta.H), float(zeta.P), float(zeta.Ux), float(zeta.Uy),
                             float(zeta.dpdx), float(zeta.dpdy))
     if steady:
-        Hdot = Pdot = UxT = UyT = gxd = gyd = 0.0       # a steady task carries no rates
+        Hdot = Pdot = UxT = UyT = gxd = gyd = 0.0       # a steady solve has no rates
     else:
         Hdot, Pdot, UxT, UyT, gxd, gyd = (float(zeta.Hdot), float(zeta.Pdot), float(zeta.Uxdot),
                                           float(zeta.Uydot), float(zeta.dpdx_dot), float(zeta.dpdy_dot))
@@ -477,8 +478,8 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     )
     ci_seen = int(getattr(solver, "_contact_iterations", 0))
 
-    # n_steps=None (plan D3): the march from t = 0.  The solver starts its window at t = 0 whenever
-    # the steps asked for do not fit in [0, t_end], and then takes ceil(t_end / dt_cfl) equal steps.
+    # n_steps=None: the march from t = 0.  The solver starts its window at t = 0 when the steps
+    # asked for do not fit in [0, t_end], and then takes ceil(t_end / dt_cfl) equal steps.
     # One step more than that count never fits, so asking for it runs the march.
     n_march = None
     if not steady and n_steps is None:
@@ -486,16 +487,15 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
         n_march = max(1, int(np.ceil(tend / dt_cfl)))
 
     def n_steps_reported() -> int:
-        """``info["n_steps"]``: 0 for a steady solve, else the count the solver marched (the count
-        asked for when it fits in the window, ``ceil(t_end / dt_cfl)`` when it does not); before
-        the solver has set its window, the count asked for."""
+        """``info["n_steps"]``: 0 for a steady solve, otherwise the count the solver marched.
+        Before the solver has set its window, the count asked for."""
         if steady:
             return 0
         return int(getattr(solver, "n_steps_run", n_steps if n_march is None else n_march))
 
     def info_now() -> dict:
-        """The ``info`` entries that do not depend on the solve's outcome, as they stand now."""
-        # the parent reports no level-constraint counts with "whole_cell"
+        """``info`` entries that do not depend on the outcome of the solve, at the time of the call."""
+        # no level-constraint counts are reported with "whole_cell"
         counts = (0, 0, 0) if lc_tag == "whole_cell" else lc_counts
         return dict(
             mesh_n=int(st.mesh_n), steady=steady, t_end=tend, n_steps=n_steps_reported(), offset=offset,
@@ -511,6 +511,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
             contact_eval_s=counters["contact_s"], wall_time=time.time() - start)
 
     def failed(status: str, reason: str) -> MicroResult:
+        """Failed result with the ``info`` of this call."""
         return _failed_result(status, reason, info_now(), mixed, ripple_on)
 
     # --- solve -----------------------------------------------------------------------------
@@ -589,7 +590,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
             contact_resolution = float(asp["contact_min_patch_nodes"])
         counters["contact_s"] += float(getattr(solver, "_contact_solve_s", 0.0))
 
-    # one phase per call: the worker's phase reductions with one member
+    # one phase per call: each phase reduction takes one member
     ledger = average_pressure_ledgers([ledger])
     extrema = union_pressure_extrema([extrema_phase])
     shear = union_fluid_traction([traction_phase])
@@ -601,7 +602,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
     # --- fields ------------------------------------------------------------------------------
     shown, cell_fields, field_info = _fields.extract_fields(solver, mixed)
     fields = _fields.to_si(shown)
-    del fields["p_fluid_masked"]        # p_fluid where chi_fluid is 1, NaN elsewhere: kept in the ParaView files only
+    del fields["p_fluid_masked"]        # p_fluid in the fluid region, NaN elsewhere: ParaView files only
     n = int(st.mesh_n)
     xs, ys = np.linspace(0.0, float(st.xmax), n + 1), np.linspace(0.0, float(st.ymax), n + 1)
     fields["x"], fields["y"] = np.meshgrid(xs, ys, indexing="ij")
@@ -615,7 +616,7 @@ def microsolver(zeta: Zeta, t_end: Optional[float] = None, roughness=None,
         _fields.write_xdmf(out_dir / "cell.xdmf", solver, shown, cell_fields, Lx_um, Ly_um)
         paraview = [str(out_dir / "cell.vts"), str(out_dir / "cell.xdmf")]
 
-    # --- the result: each output once ------------------------------------------------------------
+    # --- result ------------------------------------------------------------------------------
     info = info_now()
     info.update(
         **{k: ledger[k] for k in PRESSURE_FIELDS if k not in ("Pst", "P_f")},

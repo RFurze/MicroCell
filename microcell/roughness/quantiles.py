@@ -1,17 +1,7 @@
-"""NumPy-only standard-normal quantile for the Gaussian height distribution (HPD).
+"""Standard-normal quantile function for the Gaussian height distribution (NumPy only).
 
-The old generator (EHLBase ``microscale/src/functions/rough_surface.py``) took
-its quantiles from ``scipy.stats``.  This package imports NumPy only, so
-``norm.ppf`` is evaluated here by the Cephes rational approximation ``ndtri``
-that SciPy itself evaluates: the Gaussian family reproduces the old
-generator's sorted target heights to the last bit or within one ulp.
-
-[MicroCell WP3] The parent's quantiles of the other HPD families (``gennorm``,
-``weibull``, ``johnsonsu``, ``skewnorm``) and the functions they need
-(``norm_cdf``, the incomplete gamma, Owen's T) were removed with those
-families; they are in the parent (``ehl/roughness/quantiles.py``).
-
-Only ``numpy`` is imported.
+``norm_ppf`` evaluates the Cephes rational approximation ``ndtri``, the routine that
+``scipy.special.ndtri`` uses.
 """
 from __future__ import annotations
 
@@ -20,9 +10,7 @@ import numpy as np
 __all__ = ["norm_ppf"]
 
 
-# ---------------------------------------------------------------------------
-# Normal distribution: Cephes ndtri (the routine behind scipy.special.ndtri)
-# ---------------------------------------------------------------------------
+# Constants and coefficients of the Cephes ``ndtri``
 _S2PI = 2.50662827463100050242e0          # sqrt(2 pi)
 _EXPM2 = 0.13533528323661269189           # exp(-2)
 
@@ -57,6 +45,7 @@ _Q2 = (6.02427039364742014255e0, 3.67983563856160859403e0,
 
 
 def _polevl(x: np.ndarray, coef) -> np.ndarray:
+    """Polynomial with coefficients ``coef``, highest power first."""
     ans = np.full_like(x, coef[0])
     for c in coef[1:]:
         ans = ans * x + c
@@ -64,6 +53,7 @@ def _polevl(x: np.ndarray, coef) -> np.ndarray:
 
 
 def _p1evl(x: np.ndarray, coef) -> np.ndarray:
+    """As ``_polevl``, with an implied leading coefficient of 1."""
     ans = x + coef[0]
     for c in coef[1:]:
         ans = ans * x + c
@@ -71,9 +61,9 @@ def _p1evl(x: np.ndarray, coef) -> np.ndarray:
 
 
 def norm_ppf(p) -> np.ndarray:
-    """Standard-normal quantile (Cephes ``ndtri``), vectorised.
+    """Standard-normal quantile of the probabilities ``p`` (scalar or array, in [0, 1]).
 
-    ``p`` must lie in [0, 1]; 0 and 1 give -inf and +inf.
+    0 and 1 give -inf and +inf.  A scalar ``p`` returns a scalar.
     """
     y0 = np.asarray(p, dtype=float)
     scalar = y0.ndim == 0
@@ -100,7 +90,7 @@ def norm_ppf(p) -> np.ndarray:
                           z * _polevl(z, _P1) / _p1evl(z, _Q1),
                           z * _polevl(z, _P2) / _p1evl(z, _Q2))
             x = x0 - x1
-        # Cephes: code = 1 (lower tail) flips the sign
+        # negative in the lower tail
         x = np.where(upper[tail], x, -x)
         x = np.where(yt == 0.0, np.where(upper[tail], np.inf, -np.inf), x)
         out[tail] = x

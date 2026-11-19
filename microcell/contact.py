@@ -1,67 +1,28 @@
-"""Micro contact: the contact identity and error, and the periodic elastic (FFT) contact solve.
+"""Periodic elastic contact of the micro cell, solved with FFTs (NumPy only).
 
-MicroCell WP5 (11 Nov 2026): ``contact.py`` and ``elastic_contact.py`` in one file, in that order.
-The code is moved verbatim; the import between the two is gone.  Their module docstrings follow.
-Where one names ``elastic_contact``, read this file.
-
-``contact.py`` (the parent's ``ehl/contact.py``)
-------------------------------------------------------------------------------------------
-Contact identities and the shared contact error (SI), independent of FEniCS.
-
-The macro owns mean deformation.  The parent's ``legacy_patch_v1`` and
-``hertz_summit_v1`` laws are not in this repo (MicroCell WP2, 11 Nov 2026).
-
-``elastic_contact.py`` (the parent's ``ehl/elastic_contact.py``)
-------------------------------------------------------------------------------------------
-Periodic elastic micro contact for ``fft_elastic_v1`` (numpy only, FEniCS-free).
-
-One displacement-controlled frictionless normal contact problem per micro cell,
-on the cell's periodic n x n nodal grid (plan
-``docs/notes/fft_elastic_contact_plan_2026-10-16.md`` sections 3.1-3.4)::
+One displacement-controlled, frictionless, elastic normal contact problem on the periodic nodal
+grid of the cell:
 
     find p >= 0 with  g = h_rigid - h_min + u[p] >= 0  and  p * g = 0,
-    u[p]^(q) = 2 p^(q) / (E* |q|)   (q != 0),   u[p]^(0) = 0.
+    u[p]^(q) = 2 p^(q) / (E* |q|)   (q != 0),   u[p]^(0) = 0,
 
-* ``E*`` is the combined two-body modulus (``effective_modulus``).
-* The q = 0 mode is removed: the macro already applies the cell-mean contact
-  deformation through ``K . P_asp`` (decision D3), so the micro carries only the
-  zero-mean ripple.  For a square summit lattice this is the beta correction
-  ``delta = (a^2/R) (1 - 4 beta a / (3 L))``, which comes out of the operator.
-* Displacement control: ``h_rigid`` comes from the macro film and the roughness;
-  there is no load target in the micro.
-* A mean rigid gap <= h_min has no solution (the ripple cannot lift the mean
-  gap).  It is rejected before solving (decision D8), as
-  :class:`ContactInfeasibleError`.
+where p is the contact pressure [Pa], h_rigid the undeformed film [m] (macroscale film plus
+roughness), h_min the contact onset film [m], u the contact deformation [m] and E* the two-body
+modulus [Pa].  The mean of u is removed, as the mean deformation belongs to the macroscale.  A
+mean undeformed film at or below h_min has no solution and raises ``ContactInfeasibleError``.
 
-Grid convention: arrays are indexed ``[i, j]`` with ``i`` along x and ``j``
-along y; node ``(i, j)`` sits at ``(i/nx, j/ny)`` of the unit cell, i.e. at the
-vertices of dolfin's ``UnitSquareMesh(n, n)`` (default 'right' diagonal: cells
-``(i,j)-(i+1,j)-(i+1,j+1)`` and ``(i,j)-(i,j+1)-(i+1,j+1)``), with the periodic
-images at ``x = 1`` / ``y = 1`` dropped.
-
-Every error raised here subclasses :class:`ContactResolutionError`
-(itself a ``RuntimeError``), so the micro worker's failure path records the
-task and the kNN fill applies unchanged.
-
-Ported from the 16 October prototype (``_to_delete/fft_contact_prototype_20261016/
-contact_fft_proto.py``); its outputs are the expected values of
-``tests/elastic_contact/test_elastic_contact.py``.  Departures from the
-prototype, each deliberate:
-
-* no rigid overlap at any node returns the exact solution p = 0 at once,
-  whatever the warm start (the prototype iterated from a positive warm start);
-* the stopping rule is followed by a complementarity check on the returned
-  state, and an exhausted iteration budget raises instead of returning;
-* the P1 area is vectorised (same formula).
+Arrays are indexed ``[i, j]``, with i along x and j along y.  Node ``(i, j)`` is at
+``(i/nx, j/ny)`` of the unit cell: the vertices of ``UnitSquareMesh(n, n)`` ('right' diagonal)
+without the periodic images at x = 1 and y = 1.
 """
 from __future__ import annotations
 
-#: periodic elastic (FFT) contact solve per micro cell, ehl.elastic_contact (16 Oct 2026)
+#: name of the contact law: the periodic elastic FFT solve of this module
 FFT = "fft_elastic_v1"
 
 
 class ContactResolutionError(RuntimeError):
-    """Valid geometry but an unresolved fluid obstruction mesh."""
+    """A contact problem that could not be resolved.  Base class of the contact errors."""
 
 
 
@@ -79,23 +40,21 @@ __all__ = [
 
 
 class ContactInfeasibleError(ContactResolutionError):
-    """No contact solution exists: the mean rigid gap is at or below h_min (D8)."""
+    """No contact solution exists: the mean undeformed film is at or below h_min."""
 
 
 class ContactNotConvergedError(ContactResolutionError):
     """The contact solve or its tangent did not meet its tolerances."""
 
 
-# ---------------------------------------------------------------------------
 # Operator
-# ---------------------------------------------------------------------------
 class PeriodicHalfSpace:
     """Combined surface displacement of two periodic elastic half-spaces.
 
-    ``apply(p)`` returns ``u`` [m] for a nodal pressure ``p`` [Pa] on the
-    ``(nx, ny)`` grid of a cell ``Lx x Ly`` [m]: ``u^(q) = 2 p^(q) / (E* |q|)``,
-    mean removed.  The kernel is computed once (rfft2 layout).  This is the
-    one implementation of the operator; option H's fluid ripple uses it too.
+    nx, ny: nodes per side; Lx, Ly: cell size [m]; E_star: two-body modulus [Pa].
+    ``apply(p)`` returns u [m] for a nodal pressure p [Pa]: ``u^(q) = 2 p^(q) / (E* |q|)``,
+    mean removed.  The kernel ``G`` is stored in the rfft2 layout.  The ripple deformation uses
+    the same operator.
     """
 
     def __init__(self, nx: int, ny: int, Lx: float, Ly: float, E_star: float):
@@ -119,12 +78,12 @@ class PeriodicHalfSpace:
 
     @property
     def k_fundamental(self) -> float:
-        """Half-space stiffness of the cell's fundamental mode, E* pi / max(Lx, Ly) [Pa/m]."""
+        """Half-space stiffness of the fundamental mode of the cell, E* pi / max(Lx, Ly) [Pa/m]."""
         return self.E_star * np.pi / max(self.Lx, self.Ly)
 
     @property
     def k_nyquist(self) -> float:
-        """Stiffness of the grid's Nyquist mode, k_N = E* pi / (2 max(dx, dy)) [Pa/m] (D2)."""
+        """Stiffness of the Nyquist mode of the grid, k_N = E* pi / (2 max(dx, dy)) [Pa/m]."""
         return self.E_star * np.pi / (2.0 * max(self.dx, self.dy))
 
     def apply(self, p: np.ndarray) -> np.ndarray:
@@ -134,29 +93,28 @@ class PeriodicHalfSpace:
     __call__ = apply
 
 
-# ---------------------------------------------------------------------------
 # Contact solve
-# ---------------------------------------------------------------------------
 @dataclass
 class ContactSolution:
-    """Nodal solution of one contact problem (arrays on the solver grid, SI)."""
+    """Nodal solution of one contact problem.  Arrays are on the solver grid, in SI."""
     p: np.ndarray            # contact pressure [Pa], >= 0
     u: np.ndarray            # zero-mean contact deformation [m]
-    g: np.ndarray            # deformed gap above h_min, h_rigid + u - h_min [m]
-    phi_c: np.ndarray        # complementarity level set g - p / k_N [m] (< 0 in contact)
+    g: np.ndarray            # deformed film above h_min, h_rigid + u - h_min [m]
+    phi_c: np.ndarray        # level set g - p / k_N [m], negative in contact
     active: np.ndarray       # bool, p > 0
     iterations: int
     residual: float          # complementarity violation of the returned state [m]
-    change: float            # last relative pressure change sum|dp| / sum p
-    k_N: float               # mask stiffness [Pa/m]
+    change: float            # last relative pressure change, sum|dp| / sum p
+    k_N: float               # Nyquist stiffness used in phi_c [Pa/m]
 
     @property
     def P_asp(self) -> float:
-        """Cell-mean contact pressure = force per TOTAL cell area [Pa]."""
+        """Cell-mean contact pressure: contact force per total cell area [Pa]."""
         return float(self.p.mean())
 
 
 def _complementarity(p: np.ndarray, g: np.ndarray) -> float:
+    """Complementarity violation [m]: the largest |g| in contact or overlap -g out of contact."""
     act = p > 0
     on_set = float(np.max(np.abs(g[act]))) if act.any() else 0.0
     off_set = float(max(-np.min(g[~act]), 0.0)) if (~act).any() else 0.0
@@ -166,21 +124,19 @@ def _complementarity(p: np.ndarray, g: np.ndarray) -> float:
 def solve_contact(h_rigid: np.ndarray, h_min: float, op: PeriodicHalfSpace,
                   p0: np.ndarray | None = None, tol: float = 1e-8, maxit: int = 500,
                   comp_tol: float | None = None) -> ContactSolution:
-    """Polonsky-Keer conjugate gradient with projection, displacement controlled.
+    """Contact solve: Polonsky-Keer conjugate gradient with projection, displacement controlled.
 
-    ``h_rigid`` [m] is the rigid (undeformed) film on the grid, ``h_min`` [m]
-    the contact datum.  ``p0`` is an optional warm start (negative entries are
-    dropped).  Two FFTs per iteration.  Safeguards (plan 3.2):
-
-    * soft start: the rigid overlap times the fundamental-mode stiffness
-      E* pi / L (a start at grid stiffness overshoots to a fully loaded cell,
-      where the mean-removed problem is singular);
-    * whole-cell guard: a step that loads every node is halved;
-    * a-priori feasibility: mean(h_rigid) - h_min <= 0 raises
-      :class:`ContactInfeasibleError` before any iteration (D8);
-    * stopping rule sum|dp| / sum p <= ``tol``, then the complementarity of the
-      returned state must be <= ``comp_tol`` (default 1e-6 h_min), else
-      :class:`ContactNotConvergedError`.
+    h_rigid: undeformed film on the grid [m], shape ``op.shape``.
+    h_min: contact onset film [m], > 0.
+    op: the half-space operator of the cell.
+    p0: optional starting pressure [Pa]; negative entries are dropped.  Without it the start is
+        the rigid overlap times the fundamental-mode stiffness.
+    tol: stopping rule, sum|dp| / sum p <= tol, within ``maxit`` iterations.
+    comp_tol: limit on the complementarity violation of the returned state [m] (default
+        1e-6 h_min).
+    Returns a ``ContactSolution``; p = 0 at once when no node overlaps.  Raises
+    ``ContactInfeasibleError`` when mean(h_rigid) <= h_min and ``ContactNotConvergedError`` when
+    a tolerance is not met.
     """
     h_rigid = np.asarray(h_rigid, dtype=float)
     if h_rigid.shape != op.shape:
@@ -230,7 +186,7 @@ def solve_contact(h_rigid: np.ndarray, h_min: float, op: PeriodicHalfSpace,
         p = p - tau * t
         p[p < 0.0] = 0.0
         if p.all():
-            # whole cell 'in contact': singular for the mean-removed problem
+            # every node loaded: the mean-removed problem is singular there, so the step is halved
             p = 0.5 * (p_old + p)
             p[p < 0.0] = 0.0
         I_ol = (p == 0.0) & (g < 0.0)
@@ -260,12 +216,12 @@ def solve_contact(h_rigid: np.ndarray, h_min: float, op: PeriodicHalfSpace,
 
 def contact_tangent(op: PeriodicHalfSpace, active: np.ndarray, tol: float = 1e-8,
                     maxit: int = 500) -> float:
-    """dP_asp/dH [Pa/m] (<= 0) on the frozen contact set (plan 3.3, D7).
+    """Tangent dP_asp/dH [Pa/m] (<= 0) with the contact set held fixed.
 
-    Solves ``G_II dp = -1`` on the active set I by conjugate gradients with the
-    same operator, and returns ``<dp>`` (cell mean).  ``G_II`` is positive
-    definite whenever I is not the whole cell.  The Newton-like macro coupling
-    uses ``k_asp = -dP_asp/dH``.
+    op: the half-space operator; active: bool contact set I, from ``ContactSolution.active``.
+    Solves ``G_II dp = -1`` on I by conjugate gradients and returns the cell mean of dp.
+    ``G_II`` is positive definite unless I is the whole cell, which raises
+    ``ContactInfeasibleError``.  The asperity stiffness is ``k_asp = -dP_asp/dH``.
     """
     active = np.asarray(active, dtype=bool)
     if not active.any():
@@ -294,18 +250,15 @@ def contact_tangent(op: PeriodicHalfSpace, active: np.ndarray, tol: float = 1e-8
     raise ContactNotConvergedError(f"contact_tangent: CG did not reach {tol:.1e} in {maxit} iterations")
 
 
-# ---------------------------------------------------------------------------
-# Mask area and topology (diagnostics on the same nodal solution)
-# ---------------------------------------------------------------------------
+# Contact area and topology (diagnostics of the nodal solution)
 def p1_area(phi: np.ndarray) -> float:
-    """Area fraction of ``{phi < 0}`` for the P1 interpolant of nodal ``phi``.
+    """Area fraction of ``{phi < 0}`` for the P1 interpolant of the nodal ``phi[i, j]``.
 
-    Exact for the 'right'-diagonal ``UnitSquareMesh`` triangulation of the
-    periodic grid: per square, triangles ``(i,j),(i+1,j),(i+1,j+1)`` and
-    ``(i,j),(i,j+1),(i+1,j+1)``.  A triangle with one negative vertex value
-    ``f0`` and the others ``f1, f2`` has negative area fraction
-    ``f0^2 / ((f0 - f1)(f0 - f2))``; two negatives take the complement of the
-    same formula for the positive vertex.  Zero counts as non-negative.
+    Exact on the 'right'-diagonal triangulation of the periodic grid: per square, triangles
+    ``(i,j),(i+1,j),(i+1,j+1)`` and ``(i,j),(i,j+1),(i+1,j+1)``.  A triangle with one negative
+    vertex value ``f0`` and the others ``f1, f2`` has the negative area fraction
+    ``f0^2 / ((f0 - f1)(f0 - f2))``; with two negatives it is the complement of the same formula
+    for the positive vertex.  Zero counts as non-negative.
     """
     a = np.asarray(phi, dtype=float)
     b = np.roll(a, -1, 0)
@@ -317,11 +270,11 @@ def p1_area(phi: np.ndarray) -> float:
         neg = (F < 0.0).sum(0)
         total += float(np.count_nonzero(neg == 3))
         S = np.sort(F, axis=0)
-        one = neg == 1          # odd vertex = the negative one = the minimum
+        one = neg == 1          # the odd vertex is the negative one, the minimum
         if one.any():
             fo, fa, fb = S[0, one], S[1, one], S[2, one]
             total += float(np.sum(fo * fo / ((fo - fa) * (fo - fb))))
-        two = neg == 2          # odd vertex = the non-negative one = the maximum
+        two = neg == 2          # the odd vertex is the non-negative one, the maximum
         if two.any():
             fo, fa, fb = S[2, two], S[0, two], S[1, two]
             total += float(np.sum(1.0 - fo * fo / ((fo - fa) * (fo - fb))))
@@ -329,11 +282,11 @@ def p1_area(phi: np.ndarray) -> float:
 
 
 def periodic_components(active: np.ndarray) -> tuple[int, int]:
-    """(number of connected contact components, fewest nodes in one).
+    """Number of connected contact patches and the fewest nodes in one.
 
-    Nodes connect along the mesh edges of the 'right'-diagonal triangulation
-    (x, y and the (+1, +1) diagonal), across the periodic seams.  Diagnostic
-    only: the mechanics never use patch topology.  ``(0, 0)`` without contact.
+    active: bool contact set ``[i, j]``.  Nodes connect along the mesh edges (x, y and the
+    (+1, +1) diagonal), across the periodic boundaries.  Returns ``(0, 0)`` without contact.
+    A diagnostic: the contact solve does not use it.
     """
     active = np.asarray(active, dtype=bool)
     nx, ny = active.shape
@@ -363,27 +316,19 @@ def periodic_components(active: np.ndarray) -> tuple[int, int]:
     return int(counts.size), int(counts.min())
 
 
-# ---------------------------------------------------------------------------
-# Band-limited (Fourier) evaluator of a sampled periodic surface (D4)
-# ---------------------------------------------------------------------------
+# Band-limited (Fourier) evaluation of a sampled periodic surface
 def band_limited_sample(z: np.ndarray, nx: int, ny: int, shift_x: float = 0.0,
                         shift_y: float = 0.0) -> np.ndarray:
-    """Trigonometric interpolant of the periodic source ``z`` (N x M, node
-    ``(i, j)`` at ``(i/N, j/M)``) evaluated at the ``nx x ny`` grid nodes
-    ``(i/nx - shift_x, j/ny - shift_y)`` (shifts in cell fractions).
+    """Trigonometric interpolant of a sampled periodic surface on another grid.
 
-    [16 Oct 2026, Rob's decision] A thin wrapper of the canonical evaluator,
-    ``microcell.roughness.evaluator.FourierSurface`` (decision D4), so there is one
-    reconstruction: this module keeps its x-first ``[i, j]`` layout and
-    cell-fraction shifts, and the source mean is kept.  An even axis's
-    Nyquist modes are split symmetrically, the (N/2, M/2) corner mode
-    included (the earlier real-part formula gave cos(ax + by) there; the two
-    differ only in that mode).  Reproduces the source exactly at
-    ``nx = N, ny = M`` with no shift.  Bilinear refill makes every source
-    minimum a pyramid tip and the contact load grid-dependent (plan 1,
-    condition 1).
+    z: source heights ``[i, j]``, shape (N, M), node ``(i, j)`` at ``(i/N, j/M)``.
+    nx, ny: nodes of the target grid; shift_x, shift_y: shifts in cell fractions.
+    Returns the interpolant at ``(i/nx - shift_x, j/ny - shift_y)``, shape (nx, ny), with the
+    source mean kept.  The Nyquist modes of an even axis are split symmetrically.  The source
+    is reproduced at ``nx = N, ny = M`` with no shift.  The evaluation is that of
+    ``microcell.roughness.evaluator.FourierSurface``.
     """
     from microcell.roughness.evaluator import FourierSurface
     z = np.asarray(z, dtype=float)
-    fs = FourierSurface(z.T, 1.0, 1.0)              # canonical z[j_y, i_x] on a unit cell
+    fs = FourierSurface(z.T, 1.0, 1.0)              # z[j_y, i_x] on a unit cell
     return fs.nodal(int(nx), int(ny), shift=(float(shift_x), float(shift_y))).T + fs.mean_removed

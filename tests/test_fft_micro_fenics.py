@@ -1,23 +1,17 @@
-"""Gate G2b of ``fft_elastic_v1``: the micro solver integration (FEniCS; under a minute).
+"""The elastic (FFT) contact solve inside the micro solver (the ``G2b`` tests; under a minute).
 
-Copied in WP5 from the parent ``MultiscaleMixedBallinSocket`` at 2aaccad,
-``tests/elastic_contact/test_fft_micro_fenics.py``.  Expected numbers and tolerances are the
-parent's.  Changed: the imports; ``make_solver`` builds a ``Zeta`` and a ``MicroSettings`` with the
-parent's values (``tests/parent_fixtures.py``); ``solver.params.<x>`` is read from ``solver.zeta`` /
-``solver.settings``; ``reset_task`` takes ``(zeta, t_end, velocity_ratio)``; the spring's film term
-``hd_nd_const`` (zero in these tests, removed with the spring) is gone from the history check.
-Left out, because the laws they compare with are not in this package:
-``test_G2b_fft_against_hertz_lattice_ratio`` (``hertz_summit_v1``) and
-``test_G2b_other_identities_keep_their_graph`` (``legacy_patch_v1``, ``hertz_summit_v1``).
+The cell is a cosine of amplitude 20 nm on a 5 um cell, built by ``make_solver`` through
+``tests/parent_fixtures.py``.  The reference is an independent numpy contact solve of the same
+state (``numpy_solution``).  Checked:
 
-       (a) the area of {phi_c < 0} from the dolfin mesh's own cells equals the numpy
-           ``p1_area`` to 1e-10 (checks the grid map and the triangle orientation); the
-           quadrature integral of chi (``contact_frac``, what the fluid sees) is reported
-           against it and must agree within 2 % on the fine tier (n >= 100) and 5 % at n = 40;
-       (b) ``h_hist`` holds u_c at the history times (the arrays themselves);
-       (c) steady and transient cosine tasks reproduce the numpy P_asp to solver tolerance;
-       (d) translation and reset_task (fresh and reused solvers bitwise identical);
-       (e) the D8 infeasible state raises before any fluid solve.
+(a) the area of ``{phi_c < 0}`` from the cells of the dolfin mesh equals the numpy ``p1_area``
+    to a relative 1e-10, which checks the grid map and the triangle orientation; the quadrature
+    integral of chi (``contact_frac``) agrees with it within 2 % for n >= 100 and 5 % at n = 40;
+(b) ``h_hist`` holds ``u_c`` at the history times;
+(c) steady and transient solves reproduce the numpy ``P_asp`` to a relative 1e-7;
+(d) a translated state is solved again, and a solver reused after ``reset_task`` is bitwise
+    equal to a fresh one;
+(e) a mean rigid film below ``h_min`` raises before any fluid solve.
 """
 from __future__ import annotations
 
@@ -40,11 +34,14 @@ E_STAR = effective_modulus(380e9, 0.26, 380e9, 0.26)
 L = 5e-6
 
 
-# ---------------------------------------------------------------------------
-# solver fixtures
-# ---------------------------------------------------------------------------
+# ---- solver and reference ----
 def make_solver(n=40, H=58e-9, h_min=40e-9, alpha=0.0, phase=0.337, Ux=0.01, mesh=None):
-    """test_corrected.make_solver's operating point (delta = 2 nm on the Ah = 20 nm cosine)."""
+    """``MicroPhaseNeutralContactSolver`` on the 20 nm cosine, not yet solved.
+
+    n: cells per side.  H: mean film [m].  h_min: contact onset film [m].  alpha: velocity ratio
+    of the roughness.  phase: cosine phase in x and y [rad].  Ux: mean velocity [m/s].
+    With the defaults the rigid film falls 2 nm below ``h_min``.
+    """
     from dolfin import Constant, UnitSquareMesh
     from microcell.film import make_ideal_ht
     from microcell.solver_contact import MicroPhaseNeutralContactSolver
@@ -61,7 +58,8 @@ def make_solver(n=40, H=58e-9, h_min=40e-9, alpha=0.0, phase=0.337, Ux=0.01, mes
 
 
 def numpy_solution(solver, T=None):
-    """Independent numpy solve of the solver's current state (or at time T)."""
+    """Independent numpy contact solve of the current state of ``solver``, or of its state at
+    time ``T`` [s].  Returns the solution of ``ec.solve_contact``."""
     n, i, j, Xg, Yg, op = solver._contact_grid()
     p = solver.settings
     Tv = float(solver.T_dim_const) if T is None else T
@@ -71,8 +69,8 @@ def numpy_solution(solver, T=None):
 
 
 def cut_area_from_mesh(solver, phi_vper):
-    """Area of {phi < 0} of the CG1 interpolant, cell by cell on the dolfin mesh's own
-    triangles (independent of the numpy grid map and the assumed diagonal)."""
+    """Area fraction of ``{phi < 0}`` of the CG1 interpolant of ``phi_vper``, summed over the
+    triangles of the dolfin mesh.  Independent of the numpy grid map and of the diagonal."""
     from dolfin import FunctionSpace, interpolate, vertex_to_dof_map
     mesh = solver.mesh_m
     Vf = FunctionSpace(mesh, "CG", 1)
@@ -93,35 +91,31 @@ def cut_area_from_mesh(solver, phi_vper):
     return float(np.sum(frac * area) / np.sum(area))
 
 
-# ---------------------------------------------------------------------------
-# G2b (a): mask area through the mesh's own cells; quadrature chi integral
-# ---------------------------------------------------------------------------
+# ---- (a) contact area from the mesh cells; quadrature integral of chi ----
 @pytest.mark.parametrize("n,H,h_min,phase", [(40, 58e-9, 40e-9, 0.337), (100, 20e-9, 1e-9, 0.337),
                                              (100, 19.5e-9, 1e-9, 1.9)])
 def test_G2b_mask_area_mesh_cells_equal_numpy_p1(n, H, h_min, phase):
     s = make_solver(n=n, H=H, h_min=h_min, phase=phase)
-    out = s.compute_asperity_load()            # refreshes the contact state (no fluid solve needed)
+    out = s.compute_asperity_load()            # updates the contact state; no fluid solve
     sol = s._contact_solution
     a_mesh = cut_area_from_mesh(s, s.phic_nd_func)
     a_np = ec.p1_area(sol.phi_c)
     assert a_np > 0
     assert abs(a_mesh - a_np) <= 1e-10 * a_np
     assert out["A_mech_frac"] == a_np
-    # the fluid's obstruction (quadrature integral of chi) against the exact P1 area
+    # quadrature integral of chi against the P1 area
     mism = abs(out["contact_frac"] - a_np) / a_np
     print(f"G2b(a) n={n} H={H*1e9:.1f} nm: P1 area {a_np:.6e}, chi integral {out['contact_frac']:.6e}, "
           f"rel {mism:.3e}")
-    assert mism <= (0.02 if n >= 100 else 0.05)     # measured 0.49-0.60 % at n = 100, 1.48 % at n = 40
-    # u_c and phi_c on Vper are the numpy fields at the right nodes
+    assert mism <= (0.02 if n >= 100 else 0.05)
+    # u_c and phi_c on Vper equal the numpy fields at the mapped nodes
     n_, i, j, *_ = s._contact_grid()
     np.testing.assert_array_equal(s.uc_nd_func.vector().get_local(), sol.u[i, j] / H)
     np.testing.assert_array_equal(s.phic_nd_func.vector().get_local(), sol.phi_c[i, j] / H)
     assert abs(sol.u.mean()) <= 1e-12 * np.abs(sol.u).max()
 
 
-# ---------------------------------------------------------------------------
-# G2b (b): BDF history carries u_c at the history times
-# ---------------------------------------------------------------------------
+# ---- (b) the BDF history holds u_c at the history times ----
 def test_G2b_bdf_history_contains_uc_at_history_times():
     s = make_solver(alpha=1.0)
     seen = {}
@@ -134,32 +128,30 @@ def test_G2b_bdf_history_contains_uc_at_history_times():
 
     s.run(Tf=4e-5, n_steps=2, cfl_target=1., step_callback=cb)
     T0, dt = seen["T0"], seen["dt"]
-    assert dt > 0 and T0 > dt                                   # a fast-forwarded window
+    assert dt > 0 and T0 > dt                                   # the window starts after t = 0
     n, i, j, *_ = s._contact_grid()
     H0 = float(s.zeta.H)
     for key, T in (("nm1", T0), ("nm2", T0 - dt)):
-        # h_hist - P(h_rigid(T)/H0) must be exactly the nodal u_c(T)/H0 (the projection
-        # of a CG1 field onto CG1 is the field itself)
+        # h_hist minus the projected rigid film is the nodal u_c(T) / H0: the projection of a
+        # CG1 field onto CG1 is the field itself
         s.T_dim_const.assign(T)
         base = s._project_to_Vper(s.h_base_nd).vector().get_local()
         uc = numpy_solution(s, T=T).u[i, j] / H0
-        assert np.abs(uc).max() > 1e-4                          # a real deformation
-        # equal to the contact-solve tolerance (the run's solves stop at 1e-8, warm started)
+        assert np.abs(uc).max() > 1e-4                          # the deformation is not negligible
+        # agreement to the tolerance of the contact solves in the run (1e-8, warm started)
         assert np.abs(seen[key] - base - uc).max() <= 1e-6 * np.abs(uc).max()
         other = numpy_solution(s, T=T + (dt if key == "nm2" else -dt)).u[i, j] / H0
-        assert np.abs(seen[key] - base - other).max() > 1e-3 * np.abs(uc).max()   # not another time's
+        assert np.abs(seen[key] - base - other).max() > 1e-3 * np.abs(uc).max()   # not u_c of the next level
     # after the run: nm1 is the final time level
     s.T_dim_const.assign(4e-5)
     base = s._project_to_Vper(s.h_base_nd).vector().get_local()
     uc = s.uc_nd_func.vector().get_local()
     assert np.abs(s.h_hist_nm1.vector().get_local() - base - uc).max() <= 1e-12 * np.abs(uc).max() + 1e-14
-    # refreshes: 2 history + seed + 2 steps
+    # contact solves: 2 history levels, the seed and 2 steps
     assert s._contact_solves == 5
 
 
-# ---------------------------------------------------------------------------
-# G2b (c): steady and transient tasks reproduce the numpy P_asp
-# ---------------------------------------------------------------------------
+# ---- (c) steady and transient solves reproduce the numpy P_asp ----
 @pytest.mark.parametrize("alpha", [0.0, 1.0])
 def test_G2b_steady_and_transient_reproduce_numpy(alpha):
     s = make_solver(alpha=alpha)
@@ -177,26 +169,24 @@ def test_G2b_steady_and_transient_reproduce_numpy(alpha):
     ref = numpy_solution(s)
     assert tr["Pasp_hom"] == pytest.approx(ref.P_asp, rel=1e-7)
     assert np.isfinite(s.pressure_ledger["P_f"])
-    # the obstruction the fluid saw is this state's contact set
+    # the fluid obstruction is the contact set of this state
     assert tr["contact_frac"] > 0 and tr["A_patch_frac"] == tr["contact_frac"]
-    if alpha == 0.0:                                            # static texture: no change in time
+    if alpha == 0.0:                                            # stationary roughness: no change in time
         assert tr["Pasp_hom"] == pytest.approx(out["Pasp_hom"], rel=1e-7)
 
 
-# ---------------------------------------------------------------------------
-# G2b (d): translation, reset and escalation re-solve
-# ---------------------------------------------------------------------------
+# ---- (d) translation and reset_task; (e) infeasible state ----
 def test_G2b_translation_refreshes_the_contact_state():
     s = make_solver(alpha=1.0)
     before = s.compute_asperity_load()
     k_before = s._contact_key
     uc_before = s.uc_nd_func.vector().get_local().copy()
-    s.T_dim_const.assign(3.7e-4)                                # non-grid-aligned move, across the seam
+    s.T_dim_const.assign(3.7e-4)                                # a move off the grid, across the periodic seam
     moved = s.compute_asperity_load()
     assert s._contact_key != k_before and s._contact_solves == 2
     ref = numpy_solution(s)
     assert moved["Pasp_hom"] == pytest.approx(ref.P_asp, rel=1e-7)
-    # the same summit lattice: the load is translation-invariant to the grid-locking spread
+    # same summits: the load differs only by the spread due to the grid position
     assert moved["Pasp_hom"] == pytest.approx(before["Pasp_hom"], rel=0.02)
     assert np.abs(s.uc_nd_func.vector().get_local() - uc_before).max() > 0.1 * np.abs(uc_before).max()
     again = s.compute_asperity_load()                           # same state: no new solve
@@ -221,11 +211,11 @@ def test_G2b_reset_task_zeroes_and_matches_fresh_bitwise():
     assert {k: v for k, v in reused[1].items() if k != "contact_solve_s"} == \
            {k: v for k, v in fresh[1].items() if k != "contact_solve_s"}
     np.testing.assert_array_equal(reused[2], fresh[2])
-    assert ra[1]["Pasp_hom"] > reused[1]["Pasp_hom"] > 0      # more open: less load
+    assert ra[1]["Pasp_hom"] > reused[1]["Pasp_hom"] > 0      # larger film: less load
 
 
 def test_G2b_infeasible_mean_gap_is_a_contact_failure():
-    s = make_solver(H=39e-9)                                    # mean rigid gap below h_min
+    s = make_solver(H=39e-9)                                    # mean rigid film below h_min
     with pytest.raises(ec.ContactInfeasibleError) as err:
         s.run_steady()
     assert isinstance(err.value, ContactResolutionError) and isinstance(err.value, RuntimeError)

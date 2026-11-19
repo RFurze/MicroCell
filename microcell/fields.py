@@ -1,10 +1,7 @@
-"""The cell's final state as arrays, and the two ParaView writers.
+"""Final state of the cell as arrays, and the two ParaView writers.
 
-Ported from the parent's ``scripts/run/run_micro_cells.py`` at 2aaccad: ``_extract_fields``
-(143), ``_b64``, ``_write_vts`` (242), ``_write_xdmf`` (267).  The bodies are the parent's;
-the only change is that ``extract_fields`` takes ``mixed`` (a bool) where the parent took
-the ``MicroCase``.  ``to_si`` is new: the display units (MPa, nm) back to SI, with the
-arithmetic ``tools/make_references.py`` used for the reference files.
+``extract_fields`` reads a solved solver and returns the fields in display units (MPa, nm).
+``to_si`` converts them to SI.  ``write_vts`` and ``write_xdmf`` write them for ParaView.
 """
 from __future__ import annotations
 
@@ -18,8 +15,12 @@ MPA = 1.0e-6
 
 
 def extract_fields(s, mixed: bool) -> tuple[dict, dict, dict]:
-    """The solver's final state on the (n+1) x (n+1) vertex grid ([i_x, j_y], display units:
-    MPa and nm), the DG0 fluid indicator, and consistency diagnostics."""
+    """Final state of the solver ``s`` on the vertex grid.
+
+    mixed: True when the solver has a contact mask.
+    Returns ``(fields, cell_fields, info)``: the (n+1, n+1) arrays ``[i_x, j_y]`` in display
+    units (MPa, nm), the DG0 fluid indicator, and scalar diagnostics.
+    """
     from dolfin import Constant, project
 
     n, _i, _j = s._periodic_grid()
@@ -55,7 +56,7 @@ def extract_fields(s, mixed: bool) -> tuple[dict, dict, dict]:
     fft = getattr(s, "_contact_solution", None) is not None and getattr(s, "uc_nd_func", None) is not None
     if fft:
         sol = s._contact_solution
-        rigid = from_grid(s._rigid_film_grid())          # the contact's own rigid film (exact, nodal)
+        rigid = from_grid(s._rigid_film_grid())          # rigid film at the nodes, as the contact solve uses it
         u_c = from_grid(sol.u)
         p_c = from_grid(sol.p)
         phi_c = from_grid(sol.phi_c)
@@ -111,9 +112,11 @@ def extract_fields(s, mixed: bool) -> tuple[dict, dict, dict]:
 
 
 def to_si(fields: dict) -> dict:
-    """The display-unit fields of :func:`extract_fields` in SI, the unit suffix dropped
-    (``p_fluid_MPa`` -> ``p_fluid`` [Pa], ``film_nm`` -> ``film`` [m]); the dimensionless
-    ``contact`` and ``chi_fluid`` unchanged."""
+    """Fields of ``extract_fields`` in SI, with the unit suffix dropped.
+
+    ``p_fluid_MPa`` becomes ``p_fluid`` [Pa] and ``film_nm`` becomes ``film`` [m].  The
+    dimensionless ``contact`` and ``chi_fluid`` are unchanged.
+    """
     out = {}
     for name, G in fields.items():
         if name.endswith("_MPa"):
@@ -126,12 +129,16 @@ def to_si(fields: dict) -> dict:
 
 
 def _b64(a, dtype="<f8") -> str:
+    """Array as a base64 VTK binary block: a UInt32 byte count, then the data."""
     raw = np.ascontiguousarray(a, dtype=dtype).tobytes()
     return base64.b64encode(np.uint32(len(raw)).tobytes() + raw).decode("ascii")
 
 
 def write_vts(path: Path, fields: dict, Lx_um: float, Ly_um: float) -> None:
-    """VTK XML structured grid, binary inline (NaN-safe), x fastest."""
+    """Writes ``fields`` as a VTK XML structured grid (``.vts``), inline binary, x fastest.
+
+    fields: (n+1, n+1) arrays ``[i_x, j_y]``.  Lx_um, Ly_um: cell size [um].
+    """
     n1 = next(iter(fields.values())).shape[0]
     n = n1 - 1
     XX, YY = np.meshgrid(np.linspace(0.0, Lx_um, n1), np.linspace(0.0, Ly_um, n1), indexing="ij")
@@ -156,8 +163,11 @@ def write_vts(path: Path, fields: dict, Lx_um: float, Ly_um: float) -> None:
 
 
 def write_xdmf(path: Path, s, fields: dict, cell_fields: dict, Lx_um: float, Ly_um: float) -> None:
-    """The fields as CG1 functions (and DG0 cell data) on a copy of the micro mesh
-    scaled to um, one XDMF file per cell (functions share the mesh)."""
+    """Writes the fields to one XDMF file on a copy of the mesh of solver ``s``, scaled to um.
+
+    fields: (n+1, n+1) arrays ``[i_x, j_y]``, written as CG1 functions.
+    cell_fields: DG0 arrays in the dof order of ``s.Vdg0``, written as cell data.
+    """
     from dolfin import MPI, Function, FunctionSpace, Mesh, XDMFFile
 
     n = next(iter(fields.values())).shape[0] - 1
@@ -169,7 +179,7 @@ def write_xdmf(path: Path, s, fields: dict, cell_fields: dict, Lx_um: float, Ly_
     X = V.tabulate_dof_coordinates().reshape(-1, 2)
     I = np.rint(X[:, 0] / Lx_um * n).astype(int)
     J = np.rint(X[:, 1] / Ly_um * n).astype(int)
-    # DG0: match cells by midpoint (triangle midpoints sit on the 1/(3n) lattice)
+    # DG0: cells are matched by midpoint, which lies on the 1/(3n) lattice
     V0 = FunctionSpace(mesh, "DG", 0)
     X0 = V0.tabulate_dof_coordinates().reshape(-1, 2)
     X0s = s.Vdg0.tabulate_dof_coordinates().reshape(-1, 2)

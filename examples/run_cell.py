@@ -1,13 +1,16 @@
-"""One micro cell from Python: a generated Gaussian surface (Sa 40 nm) on the cup side, mixed
-contact with ripple deformation, solved over a 0.02 s window and once steady, with the fields
-written for ParaView.
+"""One micro cell: generated Gaussian roughness (Sa 40 nm) on the stationary surface, in mixed
+contact with ripple deformation.
 
-Run in WSL from the repo root:
+Solved over a 0.02 s window and once steady.  Prints a table of both solves (status, dP, P_asp,
+contact fraction, Newton iterations, wall time) and the field names, and writes the fields of
+the transient solve for ParaView.
+
+Run in WSL from the repository root:
 
     source scripts/ehl_env.sh
     python examples/run_cell.py                  # writes examples/output/gensa40_h130/
 
-exit 0 = both solves OK, 1 = a solve failed.
+Exit 0 = both solves OK, 1 = a solve failed.
 """
 from __future__ import annotations
 
@@ -25,8 +28,8 @@ OUT = ROOT / "examples" / "output" / "gensa40_h130"
 
 def main() -> int:
     rough = Roughness.generated(Sa=40e-9, seed=1000)        # 64 x 64 source grid on a 5 um cell
-    settings = MicroSettings()                              # the GenSa40-ripple case's values
-    zeta = Zeta(H=130e-9, P=40.8e6, Ux=0.02)                # Ux is the mean (entrainment) velocity
+    settings = MicroSettings()                              # default settings
+    zeta = Zeta(H=130e-9, P=40.8e6, Ux=0.02)                # Ux: mean (entrainment) velocity
 
     transient = microsolver(zeta, t_end=0.02, roughness=rough, settings=settings, n_steps=3,
                             save_paraview=True, output_dir=OUT)

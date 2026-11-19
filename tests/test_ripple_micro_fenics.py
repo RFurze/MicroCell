@@ -1,48 +1,25 @@
-"""Option H gate G-H2 (FEniCS): the ripple in the micro solver (base and mixed classes).
+"""The ripple in the micro solver, in the full-film and mixed solver classes.
 
-Copied in WP5 from the parent ``MultiscaleMixedBallinSocket`` at 2aaccad,
-``tests/ripple/test_ripple_micro_fenics.py``.  Expected numbers and tolerances are the parent's.
-Changed: the imports; ``make_base`` / ``make_contact`` build a ``Zeta`` and a ``MicroSettings`` with
-the parent's values (``tests/parent_fixtures.py``): ``fluid_deformation = "ripple_halfspace"`` is
-``MicroSettings.ripple = RippleSettings(...)``, ``"off"`` is ``ripple = None``, ``fluid_E_star`` is
-``E_star``; ``rho0`` (never read) and ``k_spring`` (0; the spring is removed) are not carried;
-``solver.params.H0`` is ``solver.zeta.H``; ``reset_task`` takes ``(zeta, t_end, velocity_ratio)``;
-the manufactured-contraction fake carries ``settings.ripple.tol / omega / maxpass`` and ``zeta.H``
-where the parent's carried ``settings.ripple_*`` and ``params.H0``; the spring's film term
-``hd_nd_const`` (zero in these tests, removed with the spring) is gone from the history check; in
-``test_refusals`` the two messages that named a renamed setting are matched by the new name
-(``maxpass >= 1``, ``E_star``).
-Left out, with the reason:
-``test_moving_generated_surface_is_refreshed_before_the_ripple`` (built its surface through the
-parent's roughness spec / case / store modules, not in this package),
-``test_masked_patch_has_a_negative_ripple_and_zero_mean`` (``legacy_patch_v1``, not in this
-package), and of ``test_refusals`` the refusals of things that no longer exist (the
-``fluid_deformation`` string, ``spring_pointwise``, ``k_spring``, ``hertz_summit_v1``).
+The cells are cosine films built by ``make_base`` and ``make_contact`` through
+``tests/parent_fixtures.py``.  Checked:
 
-Plan ``docs/notes/ripple_halfspace_plan_2026-10-17.md`` of the parent (decisions O1-O10, taken as
-recommended on 17 October), section 5 rows DV1-DV3 and section 6 (H2):
+* DV2  a prescribed one-mode fluid pressure: the ripple target equals the analytic half-space
+       response to a relative 1e-10, with a projection error <= 1e-10 and no seam mismatch;
+* DV1  no roughness, uniform pressure: no ripple, the cell-mean film is H0 to 1e-12 and the
+       loop accepts at pass 1;
+* DV3  the cell tiled 2 x 2 gives the tiled target to a relative 1e-10.  A cavitation boundary
+       that crosses the seam gives a seam mismatch and a projection error, and none without it;
+* the history levels carry the ripple in the frame of the rough surface: the same field for a
+  static surface, the shifted field for a translating cosine (relative 1e-9);
+* the pass loop ``_ripple_run`` on a manufactured map ``T(u) = T0 + g u``: 2 passes at g = 0,
+  3 at a negative gain, 8 at g = 0.25 and the cap at g = 1.6;
+* the pass loop on a rippled cell: accepted after at least 2 passes, the cap raises
+  ``RippleNotConvergedError`` (a ``RuntimeError``), the counters are task totals and the
+  per-step record of the mixed class holds the final pass only;
+* a reused solver after ``reset_task`` equals a new one bitwise;
+* refusals: no modulus, ``maxpass = 0``, a film that is not one rough surface.
 
-* DV2  a prescribed one-mode fluid pressure: the solver's target equals the analytic
-       half-space response (<= 1e-10), projection exact, no seam mismatch;
-* DV1  no roughness, uniform pressure: no ripple, the cell-mean film is H0 exactly, and
-       the loop accepts at pass 1 (the residual rule of the ripple fast loop; before it,
-       13.4's two consecutive transitions made that pass 3);
-* DV3  the FE cell tiled 2 x 2 gives the tiled target; a seam-crossing cavitation boundary
-       gives a reported seam mismatch and projection error, and none without it;
-* O6   history levels carry the iterate in the rough surface's frame: the same field for a
-       static surface, the field shifted with a translating cosine;
-* O5   the loop on a manufactured contraction T(u) = T0 + g u (the solver's own
-       ``_ripple_run``): 2 passes at g = 0, 3 at a negative gain (secant exact), the
-       predicted count at g = 0.25 (omega clamped at 1), the cap at g = 1.6 -- the
-       residual acceptance of plan ripple_fast_loop_plan_2026-10-19 (section 4.6), which
-       replaced 13.4's two-transition rule on 19 October (counts were 4, 5, 5, 10);
-* O5   the loop: acceptance at >= 2 passes on a rippled cell, the cap raises
-       RippleNotConvergedError (a RuntimeError, the worker's failure path), counters are
-       task totals, the mixed per-step record holds the final pass only;
-* reuse: a reused solver after reset_task equals a fresh one bitwise;
-* refusals: a missing modulus, ``maxpass = 0``, two-surface patterns.
-
-Run from the repo root::
+Run from the repository root::
 
     python -m pytest tests/test_ripple_micro_fenics.py -q
 """
@@ -65,11 +42,9 @@ L = 5e-6
 RIPPLE = "ripple_halfspace"
 
 
-# ---------------------------------------------------------------------------
-# fixtures
-# ---------------------------------------------------------------------------
+# ---- cells ----
 def _zeta(H=47e-9, Ux=0.022, dpdx=0.0, p0=3e7, UxT=0.0):
-    """The macro state of the parent's ``_params`` (its defaults)."""
+    """Macro state of the test cells, through ``parent_zeta``."""
     return parent_zeta(Ux=Ux, Uy=0., p0=p0, dpdx=dpdx, dpdy=0., H0=H, HT=0., PT=0., UxT=UxT)
 
 
@@ -78,9 +53,11 @@ _COMMON = dict(relaxation_parameter=1., max_iterations=100, abs_tolerance=1e-6, 
 
 
 def _settings(mode=RIPPLE, h_min=0.0, Lx=L, common=_COMMON, **over):
-    """The parent's settings dataclass and the cell values of its ``_params``: the ripple on
-    (``mode = RIPPLE``) with the modulus, or off (``mode = "off"``) without one.  ``over``
-    replaces fields (``ripple=...``, ``E_star=...``)."""
+    """Settings of the test cells, through ``parent_settings``.
+
+    mode: ``RIPPLE`` for the ripple with the modulus ``E_STAR``, "off" for neither.
+    over: replaces fields (``ripple=...``, ``E_star=...``).
+    """
     kw = dict(common, eta0=1e-3, penalty_gamma=1e10, xmax=Lx, ymax=Lx, h_min=h_min,
               ripple=parent_ripple() if mode != "off" else None,
               E_star=E_STAR if mode != "off" else None)
@@ -90,6 +67,10 @@ def _settings(mode=RIPPLE, h_min=0.0, Lx=L, common=_COMMON, **over):
 
 def make_base(mode=RIPPLE, n=60, Ah=20e-9, ht=None, mesh=None, kx=1, ky=1, settings=None, alpha=0.0,
               h_min=0.0, Tend=0.0, Lx=L, **kw):
+    """``MicroPhaseNeutralSolver`` on a cosine film (or ``ht``), not yet solved.
+
+    settings: fields passed to ``_settings``.  kw: arguments of ``_zeta``.
+    """
     from dolfin import Constant, UnitSquareMesh
     from microcell.film import make_ideal_ht
     from microcell.solver_base import MicroPhaseNeutralSolver
@@ -102,8 +83,8 @@ def make_base(mode=RIPPLE, n=60, Ah=20e-9, ht=None, mesh=None, kx=1, ky=1, setti
 
 def make_contact(mode=RIPPLE, n=60, Ah=20e-9, H=58e-9, h_min=40e-9, mixed_only=False, alpha=0.0,
                  Tend=0.0, **kw):
-    """The parent's ``make_contact`` with ``mixed_only=True`` (its contact-class branch built
-    ``legacy_patch_v1`` / ``hertz_summit_v1``, which are not in this package)."""
+    """``MicroPhaseNeutralMixedSolver`` on a cosine film with the ripple on, not yet solved.
+    ``mixed_only`` must be True.  kw: arguments of ``_zeta``."""
     from dolfin import Constant, UnitSquareMesh
     from microcell.film import make_ideal_ht
     from microcell.solver_mixed import MicroPhaseNeutralMixedSolver
@@ -118,7 +99,7 @@ def make_contact(mode=RIPPLE, n=60, Ah=20e-9, H=58e-9, h_min=40e-9, mixed_only=F
 
 
 def _set_pressure(sv, w_expr_str, amp_nd, **params):
-    """Prescribe the fluid pressure: w = amp_nd * <expr> (zero-mean, on Vper), lambda = 0."""
+    """Sets the fluid pressure: ``w = amp_nd * <expr>`` (zero mean, on ``Vper``) and ``lambda = 0``."""
     from dolfin import Expression, interpolate
     w = interpolate(Expression(w_expr_str, degree=2, A=amp_nd, pi=np.pi, **params), sv.Vper)
     sv.w.vector().set_local(w.vector().get_local())
@@ -127,19 +108,18 @@ def _set_pressure(sv, w_expr_str, amp_nd, **params):
 
 
 def _grid_xy(sv):
+    """Returns the size ``n`` and the coordinates ``X``, ``Y`` [m] of the periodic grid."""
     n, i, j = sv._periodic_grid()
     x = np.arange(n) / n * float(sv.Lx)
     X, Y = np.meshgrid(x, np.arange(n) / n * float(sv.Ly), indexing="ij")
     return n, X, Y
 
 
-# ---------------------------------------------------------------------------
-# DV2: one prescribed mode
-# ---------------------------------------------------------------------------
+# ---- DV2: one prescribed mode ----
 def test_DV2_one_mode_target_is_the_analytic_response():
     sv = make_base(n=60)
     for kx, ky in ((1, 0), (2, 3)):
-        amp = 0.2                                              # p_scale * 0.2 against P0 = p_scale
+        amp = 0.2                                              # amplitude 0.2 p_scale, with P0 = p_scale
         _set_pressure(sv, "A*cos(2*pi*(kx*x[0] + ky*x[1]))", amp, kx=kx, ky=ky)
         tgt = sv._ripple_target()
         n, X, Y = _grid_xy(sv)
@@ -149,40 +129,35 @@ def test_DV2_one_mode_target_is_the_analytic_response():
         assert tgt["proj_err"] <= 1e-10 and tgt["seam"] == 0.0
 
 
-# ---------------------------------------------------------------------------
-# DV1: no roughness, uniform pressure
-# ---------------------------------------------------------------------------
+# ---- DV1: no roughness, uniform pressure ----
 def test_DV1_smooth_cell_has_no_ripple_and_the_mean_film_is_H0():
     from dolfin import assemble, dx
     for transient in (False, True):
         sv = make_base(Ah=0.0, Tend=2e-6 if transient else 0.0)
         sv.run(Tf=2e-6, n_steps=3, dt_override=2e-6 / 3) if transient else sv.run_steady()
         info = sv.ripple_info
-        # the residual rule accepts pass 1: no ripple above the budget, u = 0 stands (before
-        # the ripple fast loop, 13.4 needed two passing transitions, i.e. 3 passes)
+        # accepted at pass 1: the residual at u = 0 is within the tolerance
         assert info["passes"] == 1, info
         assert info["max"] == 0.0 and info["resid"] <= 1e-6
         mean_h = float(assemble(sv.h_nd * dx(domain=sv.mesh_m)))
         assert abs(mean_h - 1.0) <= 1e-12
 
 
-# ---------------------------------------------------------------------------
-# the loop on a rippled cell: acceptance, zero mean, counters, reuse
-# ---------------------------------------------------------------------------
+# ---- the pass loop on a rippled cell: acceptance, zero mean, counters, reuse ----
 def _rippled(**kw):
-    """A cell with a resolvable ripple: fast cosine, thin film."""
+    """Cell with a ripple: small film, high velocity."""
     return make_base(H=32e-9, Ux=0.5, **kw)
 
 
 def test_rippled_cell_accepts_after_at_least_two_passes_with_zero_mean():
-    """A real ripple cannot be accepted at pass 1 (u = 0 there, so the residual is the
-    whole ripple): at least 2 passes, the residual within budget, the contraction within
-    CONTRACTION_MAX (before the ripple fast loop: >= 4 passes under 13.4)."""
+    """A ripple is not accepted at pass 1, where u = 0 and the residual is the whole ripple.
+    Checked: at least 2 passes, residual <= 1e-6, contraction <= ``CONTRACTION_MAX`` and a mean
+    of ``u_r`` below 1e-10 of its maximum."""
     sv = _rippled(Tend=1e-7)
     sv.run(Tf=1e-7, n_steps=3)
     info = sv.ripple_info
     assert info["passes"] >= 2, info
-    assert info["max"] > 1e-13                                 # a real ripple
+    assert info["max"] > 1e-13                                 # the ripple is not zero
     assert info["resid"] <= 1e-6 and info["worst"]["contraction"] <= rp.CONTRACTION_MAX
     u = sv.ur_nd_func.vector().get_local()
     assert abs(u.mean()) <= 1e-10 * np.abs(u).max()
@@ -192,6 +167,8 @@ def test_rippled_cell_accepts_after_at_least_two_passes_with_zero_mean():
 
 
 def test_ripple_changes_the_solution_and_off_is_the_plain_solver():
+    """The ripple changes the first six homogenised outputs; with ``mode="off"`` the solver holds
+    no ripple function."""
     on, off = _rippled(), _rippled(mode="off")
     assert off._ripple_on is False and off.ur_nd_func is None
     on.run_steady()
@@ -202,8 +179,8 @@ def test_ripple_changes_the_solution_and_off_is_the_plain_solver():
 
 
 def test_cap_raises_a_recorded_micro_failure_with_task_counters():
-    # maxpass = 2 on the rippled cell: pass 1's residual is the whole ripple and
-    # pass 2's about g times it, both far above the budget, so the cap raises
+    # maxpass = 2: the residual of pass 1 is the whole ripple and that of pass 2 about g times
+    # it, both above the tolerance, so the cap raises
     sv = _rippled(settings=dict(ripple=parent_ripple(ripple_maxpass=2)))
     with pytest.raises(rp.RippleNotConvergedError, match="ripple_not_converged: 2 passes") as exc:
         sv.run_steady()
@@ -214,9 +191,11 @@ def test_cap_raises_a_recorded_micro_failure_with_task_counters():
 
 
 class _Contraction:
-    """The pass loop of ``MicroPhaseNeutralSolver._ripple_run`` on a manufactured map:
-    the end-of-pass target is T(u) = T0 + g u (exact, linear), every level snapshot is the
-    same, so only the deformation rows decide.  The loop is the solver's own method."""
+    """Stand-in solver for ``MicroPhaseNeutralSolver._ripple_run`` on a manufactured map.
+
+    The target at the end of a pass is ``T(u) = T0 + g u`` and every level snapshot is the same,
+    so only the deformation decides acceptance.  The loop is the method of the solver class.
+    """
 
     def __init__(self, g, maxpass=12, n=16, H0=20e-9, amp=0.3e-9):
         from types import SimpleNamespace
@@ -236,7 +215,7 @@ class _Contraction:
         for name in M._PASS_COUNTERS:
             setattr(self, name, 0)
 
-    # the solver hooks the loop calls
+    # solver methods that the loop calls
     def _ripple_check_task(self):
         pass
 
@@ -264,33 +243,31 @@ class _Contraction:
 
 @pytest.mark.parametrize("g, passes", [(0.0, 2), (-0.5, 3), (-2.0, 3)])
 def test_manufactured_contraction_pass_counts(g, passes):
-    """The residual rule.  g = 0: pass 1 runs at u = 0 (residual T0), pass 2 at u = T0 has
-    residual 0 -> accept at 2, the minimum for a non-zero ripple.  A linear negative gain:
-    the secant step of pass 2 lands on the fixed point T0 / (1 - g) exactly (omega =
-    1 / (1 - g), inside the clamp), so pass 3's residual is 0 -> accept at 3.  (Before the
-    ripple fast loop, 13.4's two transitions made these 4, 5, 5.)"""
+    """Pass counts of the residual rule, with ``u`` against ``T0 / (1 - g)`` to 1e-6 H0.
+
+    g = 0: pass 1 at u = 0 has residual T0 and pass 2 at u = T0 has residual 0, so the loop
+    accepts at 2.  A negative gain: the secant step of pass 2 gives the fixed point
+    ``T0 / (1 - g)`` (omega = 1 / (1 - g), inside the clamp), so the loop accepts at 3.
+    """
     c = _Contraction(g)
     c._ripple_run(c.body)
     info = c.ripple_info
     assert info["passes"] == passes == c.passes, info
     np.testing.assert_allclose(c._ripple_u, c.T0 / (1.0 - g), rtol=0, atol=1e-6 * 20e-9)
-    assert c._n_newton_iters_total == passes                        # task totals over passes
+    assert c._n_newton_iters_total == passes                        # task total over the passes
 
 
 def test_manufactured_positive_gain_converges_at_the_clamp_and_gain_above_one_hits_the_cap():
-    """g in (0, 1): the secant omega 1/(1 - g) > 1 is clamped to omega_0 = 1, so the error
-    falls by g per pass and the residual budget 1e-6 H0 sets the count.  g > 1 (the
-    thin-film gain of plan section 4): the secant omega is negative, clamped to 0.1, the
-    iteration still diverges and the cap raises."""
+    """g in (0, 1): the secant omega 1 / (1 - g) > 1 is clamped to 1, so the error falls by g per
+    pass and the residual tolerance 1e-6 H0 sets the count.  g > 1: the secant omega is negative
+    and clamped to 0.1, the iteration diverges and the cap raises."""
     g = 0.25
     c = _Contraction(g)
     c._ripple_run(c.body)
     assert c.ripple_info["omega"] == 1.0
-    # with omega = 1 pass k runs at u_k = T0 (1 + g + ... + g^(k-2)) (u_1 = 0), so its
-    # residual is R_k = g^(k-1) T0 and the contraction is g <= 0.5: accept at the first k
-    # with g^(k-1) max|T0| <= tol H0 (8 here; j + 1 = 10 under 13.4 before the fast loop);
-    # the field is then R_k / (1 - g) from the fixed point, within 2 tol H0 (1.22e-6 H0
-    # here, against the 13.4 loop's stop at the Newton's resolution)
+    # with omega = 1, pass k runs at u_k = T0 (1 + g + ... + g^(k-2)), so its residual is
+    # R_k = g^(k-1) T0: accepted at the first k with g^(k-1) max|T0| <= tol H0, which is 8.
+    # The field is then R_k / (1 - g) from the fixed point, within 2 tol H0
     a = np.max(np.abs(c.T0))
     k = next(k for k in range(1, 60) if g ** (k - 1) * a <= 1e-6 * 20e-9)
     assert c.ripple_info["passes"] == k == 8, (c.ripple_info["passes"], k)
@@ -313,9 +290,8 @@ def test_reused_solver_equals_fresh_bitwise():
     assert a.spatial_homogenisation() == b.spatial_homogenisation()
     np.testing.assert_array_equal(a.ur_nd_func.vector().get_local(), b.ur_nd_func.vector().get_local())
     assert a.ripple_info["passes"] == b.ripple_info["passes"]
-    # a second run on the same task without reset starts the ripple again from u_r = 0 (the
-    # pressure starts from the last state, so agreement is to the Newton tolerance, as it is
-    # with the ripple off)
+    # a second run of the same task without a reset starts the ripple from u_r = 0 and the
+    # pressure from the last state, so the agreement is to the Newton tolerance
     c = _rippled(Tend=1e-7, mesh=a.mesh_m)
     c.reset_task(_zeta(H=34e-9, Ux=0.4), 1e-7, 0.0)
     c.run(Tf=1e-7, n_steps=3)
@@ -324,12 +300,10 @@ def test_reused_solver_equals_fresh_bitwise():
     assert c.ripple_info["passes"] == b.ripple_info["passes"]
 
 
-# ---------------------------------------------------------------------------
-# O6: the history levels
-# ---------------------------------------------------------------------------
+# ---- the history levels ----
 def _rigid_nd_at(sv, T):
-    """The rigid film / H0 projected on Vper at time T (the time Constants left as the run
-    left them otherwise), restoring T afterwards."""
+    """Rigid film / H0 projected on ``Vper`` at time T [s].  The time constant is set back
+    afterwards."""
     T_end = float(sv.T_dim_const)
     sv.T_dim_const.assign(T)
     v = sv._project_to_Vper(sv.h_base_nd).vector().get_local()
@@ -351,28 +325,24 @@ def test_history_levels_carry_the_ripple_in_the_surface_frame(alpha):
         shift = alpha * 2.0 * 0.5 * (T - T_end)               # s(T) - s(T_end), UxT = 0
         want = sv._grid_to_dofs(rp.pattern_shift(u_end, shift / L, 0.0))
         assert np.max(np.abs(got - want)) <= 1e-9 * np.max(np.abs(want)), (alpha, T)
-    if alpha == 0.0:   # a static surface: the same field at both levels
+    if alpha == 0.0:   # static surface: the same field at both levels
         np.testing.assert_allclose(sv.h_hist_nm2.vector().get_local() - _rigid_nd_at(sv, T_end - dt),
                                    sv.h_hist_nm1.vector().get_local() - _rigid_nd_at(sv, T_end),
                                    rtol=0, atol=1e-9 * np.max(np.abs(u_end)) / H0)
 
 
-# ---------------------------------------------------------------------------
-# the mixed per-step record
-# ---------------------------------------------------------------------------
+# ---- the per-step record of the mixed class ----
 def test_mixed_per_step_record_holds_the_final_pass_only():
-    sv = make_contact(mixed_only=True, Tend=1e-6)      # H 58 nm: a patch, so a real ripple
+    sv = make_contact(mixed_only=True, Tend=1e-6)      # H = 58 nm: a contact patch, so a ripple
     sv.record_homog = True
     sv.run(Tf=1e-6, n_steps=3, dt_override=1e-6 / 3)
-    # >= 2 passes so that "the final pass only" means something (>= 3 under 13.4 before the
-    # ripple fast loop); with record_homog every pass is a whole run (plan section 4.7)
+    # at least 2 passes, so the final pass is not the only one; with record_homog every pass
+    # is a whole run
     assert sv.ripple_info["passes"] >= 2 and sv.ripple_info["resid"] <= 1e-6
-    assert len(sv.homog_history) == 4                           # seed + 3 steps, once
+    assert len(sv.homog_history) == 4                           # seed + 3 steps, recorded once
 
 
-# ---------------------------------------------------------------------------
-# DV3: tiling, seam and projection
-# ---------------------------------------------------------------------------
+# ---- DV3: tiling, seam and projection ----
 def test_DV3_tiled_fe_cell_gives_the_tiled_target():
     one = make_base(n=40)
     two = make_base(n=80, Lx=2 * L)
@@ -385,11 +355,11 @@ def test_DV3_tiled_fe_cell_gives_the_tiled_target():
 
 
 def test_DV3_seam_crossing_cavitation_is_reported():
-    # no gradient, no cavitation: nothing to report
+    # no gradient and no cavitation: no seam mismatch
     sv = make_base(n=60)
     sv.run_steady()
     assert sv.ripple_info["seam_mismatch"] == 0.0
-    # a strong gradient with a low cell pressure: the cavitation boundary crosses the seam
+    # a large gradient and a low cell pressure: the cavitation boundary crosses the seam
     sv = make_base(n=60, p0=8e6, dpdx=-4e12, Ux=0.1)
     sv.run_steady()
     info = sv.ripple_info
@@ -399,15 +369,13 @@ def test_DV3_seam_crossing_cavitation_is_reported():
     assert abs(u.mean()) <= 1e-10 * np.abs(u).max()
 
 
-# ---------------------------------------------------------------------------
-# refusals
-# ---------------------------------------------------------------------------
+# ---- refusals ----
 def test_refusals():
     from dolfin import Constant
     from microcell.film import make_ideal_ht
-    with pytest.raises(ValueError, match="E_star"):                    # the parent's fluid_E_star
+    with pytest.raises(ValueError, match="E_star"):                    # no modulus
         make_base(settings=dict(E_star=None))
-    with pytest.raises(ValueError, match="maxpass >= 1"):              # 0 refused; 1 allowed (fast loop)
+    with pytest.raises(ValueError, match="maxpass >= 1"):              # 0 is refused, 1 is allowed
         make_base(settings=dict(ripple=parent_ripple(ripple_maxpass=0)))
     make_base(settings=dict(ripple=parent_ripple(ripple_maxpass=1)))
     with pytest.raises(ValueError, match="one rough surface"):

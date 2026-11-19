@@ -1,27 +1,26 @@
-"""Changing the equations: a source term added to the Reynolds equation, checked against its
-analytic solution.  The worked example of the README section "Changing the equations".
+"""A source term added to the Reynolds equation, checked against its analytic solution.
 
 With a source ``s`` [m/s] (film volume added per unit area per unit time) the cell equation is
 
     div( h^3 / (12 eta0) grad p ) = div( U h ) + dh/dt - s
 
-so ``s`` enters wherever ``dh/dt`` does.  The solver's one place for that is
-``_squeeze_residual_terms(dh_dt)``; this script wraps it from outside, without editing the
-package (in the repo itself the same change is ``dh_dt - s_nd`` in ``_build_forms``).  The
-solver's equation is non-dimensional: a rate in m/s is multiplied by ``t0 / H``.
+so ``s`` enters wherever ``dh/dt`` does.  The script wraps ``_squeeze_residual_terms(dh_dt)`` of
+the solver class, without editing the package; inside the package the same change is
+``dh_dt - s_nd`` in ``_build_forms``.  The equation of the solver is non-dimensional: a rate in
+m/s is multiplied by ``t0 / H``.  As for the squeeze term, the cell mean of the source is
+subtracted and the term is off in a steady solve.
 
-The check: a flat film (no roughness, full-film mode), ``s = s0 sin(2 pi x / L)``.  The pressure
-is then ``p = P + s0 (12 eta0 / H^3) (L / (2 pi))^2 sin(2 pi x / L)``, 1 MPa in amplitude here.
-
-Two things the wrapper inherits from the squeeze term (see the README section):
-the cell mean of the source is subtracted, and the term is off in a steady solve.
+Check: a flat film (no roughness, full film) with ``s = s0 sin(2 pi x / L)``.  The pressure is
+then ``p = P + s0 (12 eta0 / H^3) (L / (2 pi))^2 sin(2 pi x / L)``, of amplitude 1 MPa here.
+Prints the source amplitude, the pressure deviation without the source, the pressure range and
+the relative error with it, and dP.
 
 Run in WSL:
 
     source scripts/ehl_env.sh
     python examples/source_term.py
 
-exit 0 = the solved pressure matches the analytic one to 1 %, 1 = it does not or the solve failed.
+Exit 0 = the solved pressure matches the analytic one to 1 %, 1 = it does not or a solve failed.
 """
 from __future__ import annotations
 
@@ -37,18 +36,18 @@ L = 5e-6            # cell size [m]
 H = 100e-9          # film [m]
 P = 40.8e6          # macro pressure [Pa]
 ETA0 = 1e-3         # viscosity [Pa s]
-AMPLITUDE = 1e6     # wanted pressure amplitude [Pa]
+AMPLITUDE = 1e6     # target pressure amplitude [Pa]
 S0 = AMPLITUDE * H ** 3 / (12.0 * ETA0) * (2.0 * math.pi / L) ** 2     # source amplitude [m/s]
 
 
 def add_source(solver_cls, source):
-    """Make ``solver_cls`` solve with the source ``source(x, y)`` [m/s], a UFL expression of the
-    unit-cell coordinates (``x``, ``y`` in 0..1).  Returns the method it replaced."""
+    """Makes ``solver_cls`` solve with the source ``source(x, y)`` [m/s], a UFL expression of the
+    unit-cell coordinates (``x``, ``y`` from 0 to 1).  Returns the method it replaced."""
     original = solver_cls._squeeze_residual_terms
 
     def with_source(self, dh_dt):
         from dolfin import Constant
-        s_nd = Constant(self.t0 / float(self.zeta.H)) * source(self.x, self.y)    # m/s -> non-dimensional
+        s_nd = Constant(self.t0 / float(self.zeta.H)) * source(self.x, self.y)    # [m/s] to non-dimensional
         return original(self, dh_dt - s_nd)
 
     solver_cls._squeeze_residual_terms = with_source
@@ -56,6 +55,7 @@ def add_source(solver_cls, source):
 
 
 def sine_source(x, y):
+    """Source ``S0 sin(2 pi x)`` [m/s] on the unit cell."""
     from dolfin import Constant, pi, sin
     return Constant(S0) * sin(2.0 * pi * x)
 
@@ -75,7 +75,7 @@ def main() -> int:
         print(f"solve failed: {without.status} {without.reason} / {with_s.status} {with_s.reason}")
         return 1
 
-    x = with_s.fields["x"]                                   # [m], arrays are [i_x, j_y]
+    x = with_s.fields["x"]                                   # [m]; arrays are indexed [i_x, j_y]
     analytic = P + AMPLITUDE * np.sin(2.0 * math.pi * x / L)
     err = float(np.max(np.abs(with_s.fields["p_fluid"] - analytic))) / AMPLITUDE
     flat_dev = float(np.max(np.abs(without.fields["p_fluid"] - P)))

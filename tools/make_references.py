@@ -1,49 +1,41 @@
 #!/usr/bin/env python
-"""Reference cells for the MicroCell parity gate, made from the parent repository.
+"""Reference cells of the parity test, computed by the parent repository.
 
-Each reference is one micro cell solved by the parent's production worker
-(``scripts/run/run_microscale_phase_neutral.run_micro_task_phase_neutral``), called the
-way ``scripts/run/run_micro_cells.run_cell`` calls it, and saved at full double precision
-as ``<out>/<cell>.npz``.  ``cells.tsv`` of ``run_micro_cells.py`` holds six significant
-figures, which cannot carry a 1e-12 parity.
+Each reference is one micro cell solved by the worker ``run_micro_task_phase_neutral`` of the
+parent (``MultiscaleMixedBallinSocket`` at commit ``2aaccad``), one cell per process, and saved
+in double precision as ``<out>/<cell>.npz``.
 
-Run it from the PARENT's root (the parent resolves ``config/`` from the working
-directory), in WSL with the parent's environment:
+Run from the root of the parent, in WSL with its environment:
 
     cd /mnt/c/Users/Robin/Documents/code/RefactorRefactor/MultiscaleMixedBallinSocket
     source scripts/ehl_env.sh
     python ../MicroCell/tools/make_references.py --list
     python ../MicroCell/tools/make_references.py --all --procs 8
 
-Nothing is written inside the parent: the references go to ``--out`` (default
-``MicroCell/tests/references``), the prepared surfaces and the contact table to
-``--store`` (default ``RefactorRefactor/_to_delete/micro_standalone_2026-11-11/surface_store``,
-used through the parent's own ``EHL_SURFACE_STORE``), and bytecode is not written.
+The references go to ``--out`` (default ``tests/references``), the prepared surfaces and the
+contact table to ``--store`` (default ``DEFAULT_STORE``).  Nothing is written inside the parent.
 
-One cell per process: a cached solver re-targeted by ``reset_task`` cannot enter a
-reference.  ``--all`` starts one child process per cell.
+Contents of a reference (the JSON strings hold every float in full):
 
-What a reference holds (JSON strings keep every float exactly):
-
-    meta_json        cell id, case file, variant, in-memory changes, parent commit, status,
-                     failure reason, transient flag, offset, n_steps, cfl_target, the NaN audit
-    task             the task tuple (20 values transient, 13 steady)
-    micro_case_json  the MicroCase fields the worker read
-    env_json         the MICRO_* environment of the process
-    settings_json    the solver settings the worker built (dataclass fields + class name)
-    phys_json        the solver's MicroPhysicalParameters
-    result_json      every field of the worker's MicroTaskResult, by name
-    coupled_json     the solver's own Pasp_hom / k_asp_hom after the coupled solve (for the
-                     pair, the values before the contact-table composition)
-    field__<name>    the solver's final state on the (n+1) x (n+1) vertex grid, SI units
-    chi_fluid_dg0    the DG0 fluid indicator
-    info_json        run_micro_cells._extract_fields' consistency diagnostics
+    meta_json        cell id, case file, variant, changes to the case, parent commit, status,
+                     failure reason, transient flag, offset, n_steps, cfl_target, NaN audit
+    task             task tuple (20 values transient, 13 steady)
+    micro_case_json  ``MicroCase`` fields read by the worker
+    env_json         ``MICRO_*`` environment of the process
+    settings_json    solver settings built by the worker (fields and class name)
+    phys_json        physical parameters of the solver
+    result_json      every field of the result of the worker, by name
+    coupled_json     ``Pasp_hom`` and ``k_asp_hom`` of the solver after the coupled solve (for
+                     the pair cell, the values before the contact table is applied)
+    field__<name>    final state on the (n+1) x (n+1) vertex grid, SI units
+    chi_fluid_dg0    DG0 fluid indicator
+    info_json        consistency diagnostics of the field extraction
     surface_json, surface__<role>__z
-                     the member surfaces of a generated-roughness cell (source arrays [m],
-                     cell, bandwidth, member offsets), so the parity test needs no store
+                     member surfaces of a generated-roughness cell (source arrays [m], cell,
+                     bandwidth, member offsets)
 
-A NaN in a reference must come with a status (``nan_audit``); an uncovered NaN makes the
-reference a failure.  Exit status: 0 = every cell OK, 1 = a cell failed, 2 = incomplete.
+A NaN in a reference needs a status that explains it (``nan_audit``); otherwise the reference
+fails.  Exit status: 0 = every cell OK, 1 = a cell failed, 2 = incomplete.
 """
 from __future__ import annotations
 
@@ -79,12 +71,12 @@ WANGPAIR = "cases/wang2008_mixed_genpair_ripple.py"
 BASELINE = "cases/refactor_baseline.py"
 CUP90 = "cases/mixed_transfull_cup90.py"
 
-#: non-zero gradients and rates of the cells that carry them
+#: gradients and rates of the cells with ``rates`` or ``gradients`` set
 RATES = dict(Uy=0.005, gx=2.0e9, gy=-1.0e9, Hdot=-1.0e-7, Pdot=1.0e7, UxT=0.05, UyT=0.01,
              dpdx_dot=1.0e9, dpdy_dot=-5.0e8)
 
-#: id -> the cell.  ``changes``: dataclasses.replace() of the case's MicroCase, in memory
-#: ("@gensa40:<field>" takes the value from the GenSa40-ripple MicroCase).
+#: cell id -> specification.  ``changes`` replaces fields of the ``MicroCase`` of the case, in
+#: memory; "@gensa40:<field>" takes the value from the GenSa40-ripple ``MicroCase``
 CELLS = {
     "c1_gensa40_h200_ripple": dict(
         case=GENROUGH, variant="GenSa40-ripple", H=200e-9, P=40.8e6,
@@ -102,9 +94,7 @@ CELLS = {
         covers="generated pair at a set offset, ripple on, fluid_mean_v1, gradients and rates"),
     "c5_cosine_fullfilm": dict(
         case=BASELINE, variant="ms", H=120e-9, P=40.8e6, rates=True,
-        # WP2 (Rob, 11 Nov 2026): the case's k_spring = 1e20 "off" value still ran the
-        # cell-average spring loop in a transient full-film cell; the reference is made
-        # with the spring really off, and the standalone has no spring
+        # k_spring = 0: no cell-average spring in the reference (the case value 1e20 runs it)
         changes={"k_spring": 0.0},
         covers="cosine, full film, gradients and rates"),
     "c6_cosine_fft_sqrt": dict(
@@ -119,7 +109,6 @@ CELLS = {
     "c8_cosine_fullfilm_steady": dict(
         case=BASELINE, variant="ms", H=120e-9, P=40.8e6, steady=True, gradients=True,
         covers="steady solve: cosine, full film, gradients"),
-    # open item 8 (Rob, 11 Nov 2026): added, the eight above are not re-made
     "c9_gensa10_h26_rates": dict(
         case=GENROUGH, variant="GenSa10-ripple-tdfc", H=26e-9, P=40.8e6, rates=True,
         covers="one generated surface (Sa 10 nm, the pendulum production recipe), ripple on, contact, "
@@ -130,10 +119,10 @@ U_DEFAULT = 0.02
 DT_DEFAULT = 0.02
 
 
-# ---------------------------------------------------------------------------------------
-# the parent tree
-# ---------------------------------------------------------------------------------------
+# ---- the parent tree ----
 def _parent_root() -> Path:
+    """Root of the parent (the working directory), put on ``sys.path``.  Exits if the working
+    directory is not the parent."""
     root = Path.cwd()
     if not ((root / "ehl").is_dir() and (root / "config").is_dir() and (root / "scripts" / "run").is_dir()):
         sys.exit("ERROR: run this from the parent repository's root (MultiscaleMixedBallinSocket)")
@@ -143,7 +132,8 @@ def _parent_root() -> Path:
 
 
 def _parent_commit(root: Path) -> str:
-    """The parent's HEAD, read from its .git files (git itself must not run in WSL here)."""
+    """HEAD commit of the parent, read from its ``.git`` files without running git.  Returns
+    "worktree" for a worktree and "" if it cannot be read."""
     try:
         git = root / ".git"
         if git.is_file():                        # a worktree: "gitdir: <path>"
@@ -164,15 +154,14 @@ def _parent_commit(root: Path) -> str:
 
 
 def _stray_micro_env() -> dict:
+    """``MICRO_*`` variables of the environment."""
     return {k: v for k, v in os.environ.items() if k.startswith("MICRO_")}
 
 
-# ---------------------------------------------------------------------------------------
-# the surface store (outside the parent)
-# ---------------------------------------------------------------------------------------
+# ---- the surface store (outside the parent) ----
 def _fill_store(root: Path, store: Path) -> None:
-    """Copy the parent's prepared surfaces and contact tables into ``store`` (never the
-    other way), so the pair's members are the bytes its table was built on."""
+    """Copies the prepared surfaces and contact tables of the parent into ``store``, so the
+    members of the pair are the arrays its table was built on.  Files already in ``store`` stay."""
     src = root / "data" / "surfaces"
     (store / "tables").mkdir(parents=True, exist_ok=True)
     for f in sorted(src.glob("*.json")) + sorted(src.glob("*.npz")):
@@ -184,13 +173,14 @@ def _fill_store(root: Path, store: Path) -> None:
 
 
 def _load_case(spec: dict):
+    """Returns (case file, case of the variant) for the cell specification ``spec``."""
     from ehl import caseio
     cf = caseio.load(spec["case"])
     return cf, cf.get(spec["variant"])
 
 
 def _prepare_surfaces(store: Path) -> None:
-    """Prepare (idempotent) every generated surface the cells need, into ``store``."""
+    """Prepares, into ``store``, every generated surface the cells need.  Safe to repeat."""
     from ehl.roughness.case import prepare_arrangement
     done = set()
     for spec in CELLS.values():
@@ -204,7 +194,7 @@ def _prepare_surfaces(store: Path) -> None:
 
 
 def _micro_case(spec: dict):
-    """(case, MicroCase as the case has it, MicroCase of the cell, the changes applied)."""
+    """Returns (case, ``MicroCase`` of the case, ``MicroCase`` of the cell, changes applied)."""
     from ehl.micro_case import MicroCase
     _cf, case = _load_case(spec)
     mc0 = MicroCase.from_case(case)
@@ -219,31 +209,30 @@ def _micro_case(spec: dict):
 
 
 def _film(spec: dict, mc) -> float:
+    """Film H of the cell [m]: ``spec["H"]``, or the rule below when it is None."""
     if spec["H"] is not None:
         return float(spec["H"])
     return float(mc.Ah) + float(mc.h_min) - 5e-9          # H_rule "Ah + h_min - 5 nm"
 
 
 def _task(spec: dict, mc, index: int) -> tuple:
+    """Task tuple of the cell: 20 values for a transient solve, the first 13 for a steady one."""
     r = dict(Uy=0.0, gx=0.0, gy=0.0, Hdot=0.0, Pdot=0.0, UxT=0.0, UyT=0.0, dpdx_dot=0.0, dpdy_dot=0.0)
     if spec.get("rates"):
         r.update(RATES)
     if spec.get("gradients"):
         r.update(Uy=RATES["Uy"], gx=RATES["gx"], gy=RATES["gy"])
     H = _film(spec, mc)
-    # the 20-element transient task of coupling_helper_fns.build_task_list_transient
-    # (run_micro_cells._ladder_task), with the rate slots filled
+    # transient task in the order of the parent's ``build_task_list_transient``, with the rates filled
     t = (index, index, float(H), float(spec["P"]), float(U_DEFAULT), float(r["Uy"]), 0.0,
          float(r["gx"]), float(r["gy"]), 0.0, 0.0, 0.0, 0.0, float(r["Hdot"]), float(r["Pdot"]),
          float(DT_DEFAULT), float(r["UxT"]), float(r["UyT"]), float(r["dpdx_dot"]), float(r["dpdy_dot"]))
     return t[:13] if spec.get("steady") else t
 
 
-# ---------------------------------------------------------------------------------------
-# NaN audit
-# ---------------------------------------------------------------------------------------
+# ---- NaN audit ----
 _NAN_COVER = (
-    # (field prefix, status field, values of the status under which the field is measured)
+    # (field prefix, status field, status values under which the field holds a value)
     ("shear_fluid_", "shear_extrema_status", ("ok",)),
     ("shear_asperity_", "shear_asperity_status", ("ok",)),
     ("shear_total_", "shear_total_status", ("ok",)),
@@ -259,7 +248,8 @@ _NAN_COVER = (
 
 
 def nan_audit(result: dict) -> tuple[list, list]:
-    """(covered, uncovered): the NaN floats of a result and the status that explains each."""
+    """Returns (covered, uncovered): the NaN outputs of ``result`` as (name, status that explains
+    it), with None in place of the status for the uncovered ones."""
     covered, uncovered = [], []
     for name, v in result.items():
         vals = np.ravel(np.asarray(v, dtype=float)) if isinstance(v, (float, list, tuple)) else None
@@ -275,6 +265,7 @@ def nan_audit(result: dict) -> tuple[list, list]:
 
 
 def _jsonable(v):
+    """``v`` with numpy types, tuples and dict keys converted for ``json.dumps``."""
     if isinstance(v, np.ndarray):
         return v.tolist()
     if isinstance(v, (np.floating,)):
@@ -291,15 +282,16 @@ def _jsonable(v):
 
 
 def _dc(obj) -> dict:
+    """Fields of a dataclass, or the attributes of any other object, as a dict."""
     if dataclasses.is_dataclass(obj):
         return {f.name: getattr(obj, f.name) for f in dataclasses.fields(obj)}
     return dict(vars(obj))
 
 
-# ---------------------------------------------------------------------------------------
-# one cell
-# ---------------------------------------------------------------------------------------
+# ---- one cell ----
 def run_cell(cell_id: str, out: Path, store: Path) -> int:
+    """Solves cell ``cell_id`` with the worker of the parent and writes ``<out>/<cell_id>.npz``.
+    Returns 0 = OK, 1 = failed, 2 = incomplete."""
     root = _parent_root()
     spec = CELLS[cell_id]
     stray = _stray_micro_env()
@@ -312,7 +304,7 @@ def run_cell(cell_id: str, out: Path, store: Path) -> int:
     from ehl import launch
     case, mc0, mc, changes = _micro_case(spec)
 
-    # ---- the environment the worker reads: the case's own exports, then run_micro_cells' ----
+    # environment read by the worker: the exports of the case, then those of ``run_micro_cells``
     exports = launch.env_exports(case)
     for k, v in exports.items():
         if k.startswith("MICRO_") and k not in ("MICRO_NPROCS", "MICRO_PAIR_XWARM"):
@@ -331,7 +323,7 @@ def run_cell(cell_id: str, out: Path, store: Path) -> int:
     from scripts.run import run_micro_cells as rmc
     from scripts.run import run_microscale_phase_neutral as pn
 
-    rmc._init_worker(True)                  # macro process settings + the micro quadrature pin
+    rmc._init_worker(True)                  # macro process settings and the micro quadrature degree
     pn.set_micro_case(mc, workers_get_macro_settings=True)
     if mc.surface is not None:
         pn._surface_field(mc)
@@ -436,10 +428,9 @@ def run_cell(cell_id: str, out: Path, store: Path) -> int:
     return 0 if status == "OK" else 1
 
 
-# ---------------------------------------------------------------------------------------
-# list / all
-# ---------------------------------------------------------------------------------------
+# ---- list and all ----
 def list_cells(store: Path) -> int:
+    """Prints the table of cells, without a solve.  Returns 0."""
     root = _parent_root()
     os.environ["EHL_SURFACE_STORE"] = str(store)
     _fill_store(root, store)
@@ -464,6 +455,9 @@ def list_cells(store: Path) -> int:
 
 
 def run_all(out: Path, store: Path, procs: int, only: list | None) -> int:
+    """Runs every cell, or the cells of ``only``, in a child process each, at most
+    ``min(procs, 8)`` at once, with a log per cell in ``<out>/logs``.
+    Returns 0 = every cell OK, 1 = a cell failed, 2 = incomplete."""
     root = _parent_root()
     commit = _parent_commit(root)
     if not commit.startswith(PARENT_COMMIT_EXPECTED):
@@ -505,6 +499,7 @@ def run_all(out: Path, store: Path, procs: int, only: list | None) -> int:
 
 
 def main() -> int:
+    """Command line: ``--list``, ``--all`` or one ``--cell``.  Returns the exit status."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     ap.add_argument("--list", action="store_true", help="print the cell table (no solve)")
     ap.add_argument("--all", action="store_true", help="every cell, one process each")

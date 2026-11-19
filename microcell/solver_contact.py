@@ -1,23 +1,14 @@
-"""Phase-neutral mixed solver with the resolved elastic contact law ``fft_elastic_v1``.
+"""Mixed solver with the elastic contact law ``fft_elastic_v1``.
 
-``contact_frac`` and ``A_patch_frac`` are the integrated obstruction indicator, not
-mechanical area; ``A_mech_frac`` is the mechanical contact area of the nodal solution.
-Homogenised force is per TOTAL cell area (Pa), additive to the macro pressure channel.
+One periodic elastic contact problem is solved per cell on the nodal grid (``microcell.contact``)
+and refreshed at every time level.  The fluid sees the deformed film ``h_rigid + u_c``
+(``uc_nd_func``; zero mean, as the macroscale keeps the cell mean).  Its obstruction mask is the
+contact set of the same solution, through the level set ``phi_c = g - p/k_N`` (``phic_nd_func``).
+Load, mechanical area, peak, tangent and mask all come from that one nodal solution.
 
-Serial-only: one micro task per worker.
-
-The parent's ``legacy_patch_v1`` and ``hertz_summit_v1`` laws are not in this repo
-(MicroCell WP2, 11 Nov 2026).
-
-``fft_elastic_v1`` (16 Oct 2026, plan docs/notes/fft_elastic_contact_plan_
-2026-10-16.md) solves one periodic elastic contact problem per cell on the
-nodal grid (``microcell.contact``), refreshed at every time level through
-the base class's ``_refresh_geometry`` seam.  The fluid sees the deformed film
-``h_rigid + u_c`` (``uc_nd_func``, zero-mean ripple; the macro keeps the cell
-mean, D3) and its obstruction mask is the contact set of the same solution,
-through the complementarity level set ``phi_c = g - p/k_N`` (``phic_nd_func``,
-D2).  Load, mechanical area, peak, tangent and mask all come from one nodal
-solution.
+``contact_frac`` and ``A_patch_frac`` are the integrated obstruction indicator.  ``A_mech_frac``
+is the mechanical contact area of the nodal solution.  The homogenised load is per total cell
+area [Pa].  Serial only.
 """
 
 from __future__ import annotations
@@ -25,65 +16,63 @@ from __future__ import annotations
 import time
 
 import numpy as np
-from fenics import *  # noqa: F401,F403 — UFL/assembly symbols used below
+from fenics import *  # noqa: F401,F403
 from microcell.contact import FFT
 from microcell import contact as _ec
 
 from microcell.solver_mixed import MicroPhaseNeutralMixedSolver as _MixedSolver
 
-# The contact-law parameters are ``MicroSettings.contact`` (a ``microcell.ContactSettings``):
-# the combined modulus is ``MicroSettings.E_star`` (explicit, never reduced twice; one body pair, so the
-# ripple uses the same one); ``sigma_yield`` the elastic-validity
-# FLAG threshold [Pa] (never clamps); ``k_asp_mode`` [WP-1 2026-09-03] the tangent of the closure,
-# k_asp = -dP_asp/dH [Pa/m], for a Newton-like macro coupling ("off" emits 0.0, "closure" the
-# tangent of the nodal contact solution, ``contact.contact_tangent``); ``tol`` and ``maxit``
-# the Polonsky-Keer stopping rule sum|dp|/sum p and iteration budget (plan 3.2; the tangent's CG
-# uses the same tolerance); ``mu`` [extrema M3b, 23 Oct 2026] the dry asperity friction coefficient
-# of the diagnostic asperity / total traction only (``samplers.sample_contact_traction``;
-# no solver channel reads it).  ``self.pair`` [phase-table WP3, 4 Nov 2026; MicroCell WP2] is True for
-# a stationary + translating surface pair: it lifts the two-member refusal of the ripple (R-e, the
-# converged per-step branch) and turns on the warm-start contact rescue.
+# Settings read (``MicroSettings.contact``, a ``microcell.ContactSettings``):
+#   ``E_star``          combined two-body modulus [Pa], from ``MicroSettings``; the ripple uses the same
+#   ``sigma_yield``     threshold of ``yield_flag`` [Pa]; it does not limit the pressure
+#   ``k_asp_mode``      "closure": k_asp = -dP_asp/dH [Pa/m] from ``contact.contact_tangent``; "off": 0.0
+#   ``tol``, ``maxit``  stopping rule sum|dp|/sum p and iteration cap of the contact solve; the
+#                       tangent solve uses the same tolerance
+#   ``mu``              asperity friction coefficient, read by the sampled asperity and total
+#                       traction only (``samplers.sample_contact_traction``)
+# ``self.pair`` is True for a stationary + translating pair.  It allows the ripple with two
+# surfaces and turns on the cold-start retry of the contact solve.
 
 
 class MicroPhaseNeutralContactSolver(_MixedSolver):
-    """Mixed micro solver + asperity contact load channel (P1.2/P1.3)."""
+    """Mixed micro solver with the elastic asperity contact solve.
 
-    # [fft_elastic_v1] per-task contact bookkeeping (zeroed by reset_task)
+    ``compute_asperity_load()`` returns the load summary after a converged solve.
+    ``contact_traction`` holds the asperity and total traction statistics.
+    """
+
+    # contact bookkeeping of the current task, zeroed by reset_task
     _contact_solution = None
     _contact_key = None
     _contact_p_warm = None
     _contact_solve_s = 0.0
     _contact_solves = 0
     _contact_iterations = 0
-    _contact_restarts = 0                   # [phase-table D-B2] the warm-start rescues of the task (field on only)
+    _contact_restarts = 0                   # cold-start retries of the contact solve (pairs only)
     _contact_restart_kinds = None
-    # [extrema M3b] this phase's asperity / total traction statistics (shear.py)
+    # asperity and total traction statistics of the current phase (shear.py)
     contact_traction = None
 
-    # ------------------------------------------------------------------
-    # [extrema M3b, 23 Oct 2026] asperity and total traction on the fluid sampler's points
-    # ------------------------------------------------------------------
+    # ---- Asperity and total traction ----
     def spatial_homogenisation(self):
-        """The mixed class's homogenisation (every output unchanged), then the asperity and total
-        traction of this phase on the sample set its fluid traction sampler kept
-        (``samplers.sample_contact_traction``: the stored ``fft_elastic_v1`` solution of this
-        state, its key checked, never refreshed here; ``unsupported_model`` for the other identities,
-        whose means :meth:`compute_asperity_load` completes)."""
+        """Homogenisation of the mixed class, then the asperity and total traction on the sample
+        points of the fluid traction sampler (``samplers.sample_contact_traction``).
+
+        The stored contact solution of this state is used and is not refreshed here.
+        Returns the outputs of the mixed class.
+        """
         out = super().spatial_homogenisation()
         from microcell.samplers import sample_contact_traction
         self.contact_traction = sample_contact_traction(self)
         return out
 
-    # ------------------------------------------------------------------
-    # fft_elastic_v1: film and mask graph, grid map, refresh (plan WP3)
-    # ------------------------------------------------------------------
+    # ---- Film, mask, grid map and contact refresh ----
     def _setup_film_and_mask(self) -> None:
+        """Adds the contact deformation to the film and builds the mask from the contact level set."""
         super()._setup_film_and_mask()
         s = self.settings
-        # Nodal fields on Vper (allocated before this call: __init__ order).
-        # h_nd gains the zero-mean contact deformation; the obstruction level
-        # set is phi_c / H0 instead of h_nd - h_min (D2).  Zero until the first
-        # refresh, exactly as after reset_task.
+        # Nodal fields on Vper, zero until the first contact refresh.  h_nd gains the zero-mean
+        # contact deformation; the obstruction level set is phi_c / H0, not h_nd - h_min.
         self.uc_nd_func = Function(self.Vper, name="uc_nd")
         self.phic_nd_func = Function(self.Vper, name="phic_nd")
         self.h_nd = self.h_nd + self.uc_nd_func
@@ -97,8 +86,9 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         )
 
     def _reset_task_subclass(self) -> None:
+        """Zeroes the contact fields and the contact bookkeeping of the task."""
         super()._reset_task_subclass()
-        self.contact_traction = None        # [extrema M3b] never a previous task's
+        self.contact_traction = None        # statistics of the current task only
         for f in (self.uc_nd_func, self.phic_nd_func):
             f.vector().zero()
             f.vector().apply("insert")
@@ -108,10 +98,15 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         self._contact_solve_s = 0.0
         self._contact_solves = 0
         self._contact_iterations = 0
-        self._contact_restarts = 0          # [phase-table D-B2] warm-start rescues of this task (field on only)
+        self._contact_restarts = 0          # cold-start retries of this task
         self._contact_restart_kinds = {"collapse": 0, "stall": 0}
 
     def _fft_validate(self):
+        """Checks ``E_star``, ``k_asp_mode`` and the film callback.
+
+        Returns the ``contact_cosine`` descriptor of the callback, which evaluates the rigid
+        film with numpy.
+        """
         s = self.settings
         E = s.E_star
         if E is None or not np.isfinite(E) or E <= 0:
@@ -125,8 +120,11 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         return descriptor
 
     def _contact_grid(self):
-        """(n, i, j, Xg, Yg, op): the structured periodic n x n grid of the Vper dofs
-        (the base class's checked map, shared with option H) and the contact operator."""
+        """Returns ``(n, i, j, Xg, Yg, op)``, cached.
+
+        n, i, j: the periodic n x n grid of the Vper dofs and its index maps, from the base class.
+        Xg, Yg: unit-cell coordinates of the grid.  op: the contact operator.
+        """
         g = getattr(self, "_contact_grid_cache", None)
         if g is not None:
             return g
@@ -139,28 +137,37 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         return g
 
     def _contact_state_key(self):
+        """Tuple of the state the contact solution depends on.
+
+        Holds the film, its rate, the time, the velocities, the phases, ``h_min``, the cell
+        size, and where present the ripple version and the starting displacement.  A stored
+        solution is current when its key matches.
+        """
         descriptor = self.ht_cb.contact_cosine
         vals = (self.H0_const, self.HT_const, self.T_dim_const, self._Ux_dim_const, self._Uy_dim_const,
                 descriptor.phi_x, descriptor.phi_y, descriptor.dphi_x, descriptor.dphi_y,
                 self.h_min, self.settings.xmax, self.settings.ymax)
         key = tuple(float(v) for v in vals)
-        if self._ripple_on:                 # [option H] the rigid gap includes u_f
+        if self._ripple_on:                 # the contact is solved on the film with the ripple
             key = key + (float(self._ripple_version),)
         motion = getattr(self.ht_cb, "surface_motion", None)
-        if motion is not None:              # [phase-table WP4, D3] the task's starting displacement
+        if motion is not None:              # starting displacement of the translating surface
             key = key + (float(motion.s0[0]), float(motion.s0[1]))
         return key
 
     def _solve_contact_rescued(self, h_r, h_min, op, p0):
-        """[phase-table D-B2, Rob 4 Nov 2026: "port the rescue, field-on only"] ``solve_contact`` with the study's
-        warm-start rescue (``tests/micro_averaging/cell.py`` ``install_contact_restart``, 48-91 of the study tree) under
-        ``pair_branch`` only: a WARM-started solve that collapses ("relative change
-        inf / nan": the first CG step clears every warm-start node when the pattern has moved) or stalls
-        ("contact_complementarity": converged on the stale active set) is retried once from the solver's own cold
-        start, which converges in a few iterations on the same problem; a solve that never fails is unchanged bit
-        for bit; a cold start that fails, and any other failure, is raised as before.  Counted per task
-        (``_contact_restarts``, by kind) and printed by the worker.  With the field off the call is exactly the one
-        it always was (no try, no rescue: the off path is bitwise)."""
+        """``solve_contact`` with one cold-start retry, for pairs only.
+
+        A warm-started solve can collapse (relative change inf or nan: the first step clears
+        every warm-start node when the pattern has moved) or stall on a stale active set
+        (``contact_complementarity``).  It is then retried once from a cold start.  A failed
+        cold start, and any other failure, is raised.  Retries are counted in
+        ``_contact_restarts`` and, by kind, in ``_contact_restart_kinds``.
+
+        h_r: rigid film on the contact grid [m].  h_min: contact onset film [m].
+        op: contact operator.  p0: warm-start contact pressure, or None for a cold start.
+        Returns the ``ContactSolution``.
+        """
         tol, maxit = float(self.settings.contact.tol), int(self.settings.contact.maxit)
         if not self._pair_branch_on():
             return _ec.solve_contact(h_r, h_min, op, p0=p0, tol=tol, maxit=maxit)
@@ -174,30 +181,30 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
             if p0 is None or not (collapse or stall):
                 raise
             self._contact_restarts += 1
-            if self._contact_restart_kinds is None:        # a solver before its first reset_task
+            if self._contact_restart_kinds is None:        # before the first reset_task
                 self._contact_restart_kinds = {"collapse": 0, "stall": 0}
             self._contact_restart_kinds["collapse" if collapse else "stall"] += 1
             return _ec.solve_contact(h_r, h_min, op, p0=None, tol=tol, maxit=maxit)
 
     def _rigid_film_grid(self):
-        """Dimensional rigid film [m] on the contact grid, from the SAME
-        description as the UFL ht (CosineContactDescriptor.height, gate G2a)."""
+        """Rigid film [m] on the contact grid, from the same description as the UFL film
+        (``contact_cosine.height``)."""
         n, i, j, Xg, Yg, op = self._contact_grid()
         return self.ht_cb.contact_cosine.height(
             Xg, Yg, self.settings.xmax, self.settings.ymax, self.H0_const, self.HT_const, self.T_dim_const,
             self._Ux_dim_const, self._Uy_dim_const)
 
     def _refresh_geometry(self) -> None:
+        """Refresh of the base class, then the contact solve."""
         super()._refresh_geometry()
         self._refresh_contact()
 
     def _refresh_contact(self) -> None:
-        """Rigid film -> contact solve (warm) -> uc_nd_func, phic_nd_func.
+        """Solves the contact on the rigid film and writes ``uc_nd_func`` and ``phic_nd_func``.
 
-        D8: a mean rigid gap at or below h_min raises ContactInfeasibleError
-        here, before any fluid solve; the worker records it as a micro failure
-        (kNN-filled).  h_min <= 0 is the explicit contact-off convention: no
-        deformation and the plain h - h_min level set.
+        The solve is warm-started from the previous contact pressure.  A mean rigid film at or
+        below ``h_min`` raises ``ContactInfeasibleError``, before any fluid solve.  ``h_min <= 0``
+        is contact off: no deformation and the level set ``h - h_min``.
         """
         self._fft_validate()
         _t0 = time.perf_counter()
@@ -206,8 +213,8 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         h_min = float(self.h_min)
         h_r = self._rigid_film_grid()
         if self._ripple_on:
-            # [option H, WP8] the contact is solved on the rigid film plus the fluid
-            # ripple at this time (written just before by the base refresh, plan O2)
+            # the contact is solved on the rigid film plus the ripple of this time level,
+            # which the base refresh has written
             h_r = h_r + self._dofs_to_grid(self.ur_nd_func.vector().get_local()) * H0
         if h_min <= 0.0:
             zero = np.zeros_like(h_r)
@@ -227,8 +234,8 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         self._contact_solve_s += time.perf_counter() - _t0
 
     def _fft_asperity_load(self) -> dict:
-        """compute_asperity_load for fft_elastic_v1: every output from the
-        stored nodal solution of the current state (refreshed if stale)."""
+        """Asperity load summary from the stored nodal solution of the current state, which is
+        refreshed if stale.  Returns the dict of ``compute_asperity_load``."""
         s = self.settings
         self._fft_validate()
         if self._contact_solution is None or self._contact_key != self._contact_state_key():
@@ -241,8 +248,8 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         self.contact_frac = 1.0 - float(assemble(chi_dg0 * dx(domain=mesh))) / float(self._cell_area)
         self.Pasp_hom = sol.P_asp
         self.A_mech_frac = _ec.p1_area(sol.phi_c)
-        self.A_patch_frac = self.contact_frac          # the obstruction (chi) integral
-        self.pasp_max = float(sol.p.max())             # nodal peak, resolution-dependent
+        self.A_patch_frac = self.contact_frac          # obstruction (chi) integral
+        self.pasp_max = float(sol.p.max())             # nodal peak; depends on the resolution
         self.yield_flag = int(self.pasp_max > float(s.contact.sigma_yield))
         if s.contact.k_asp_mode == "closure":
             self.k_asp_hom = -_ec.contact_tangent(op, sol.active, tol=float(s.contact.tol),
@@ -281,10 +288,10 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
             **self.contact_indicators,
         }
 
-    # ------------------------------------------------------------------
-    # [option H] fft_elastic_v1 quantities for the 13.4 pass checks (plan O5)
-    # ------------------------------------------------------------------
+    # ---- Contact quantities for the ripple pass checks ----
     def _ripple_contact_snapshot(self) -> dict:
+        """Contact pressure, load, mechanical area and contact set of the stored solution.
+        Empty without a solution."""
         sol = self._contact_solution
         if sol is None:
             return {}
@@ -292,11 +299,12 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
                 "set": np.asarray(sol.active, dtype=bool).copy()}
 
     def _ripple_chi_nodes(self) -> np.ndarray:
+        """Fluid indicator at the Vper dofs: 1.0 where ``phi_c > 0``."""
         return (self.phic_nd_func.vector().get_local() > 0.0).astype(float)
 
     def _ripple_traction_overlap(self, s_dofs) -> float:
-        """Share of the projected fluid traction |s| on contact nodes: the support the
-        L2 projection smears into the contact set (a discretisation overlap, plan O2)."""
+        """Share of the projected fluid traction ``|s|`` (at the Vper dofs) on contact nodes.
+        The L2 projection spreads some traction into the contact set."""
         if self._contact_solution is None:
             return 0.0
         a = np.abs(np.asarray(s_dofs, dtype=float))
@@ -306,21 +314,18 @@ class MicroPhaseNeutralContactSolver(_MixedSolver):
         act = self._grid_to_dofs(self._contact_solution.active)
         return float(a[act].sum()) / tot
 
-    # ------------------------------------------------------------------
-    # Public entry
-    # ------------------------------------------------------------------
+    # ---- Public entry ----
     def compute_asperity_load(self) -> dict:
-        """The asperity load summary of the current state (:meth:`_fft_asperity_load`).
+        """Asperity load summary of the current state.  Call after a converged solve.
 
-        Call AFTER a converged solve (quasi-static, memory-free: re-evaluated per step; the
-        caller reads it once per task).  Keys: ``Pasp_hom`` [Pa], ``contact_frac`` [-],
-        ``pasp_max`` [Pa] (the nodal peak of the resolved pressure, resolution-dependent),
-        ``yield_flag`` {0,1}, ``n_patches``, ``A_patch_frac`` (the obstruction mask),
-        ``A_mech_frac``, ``k_asp_hom`` and the ``contact_indicators``.
+        Returns a dict: ``Pasp_hom`` [Pa], ``contact_frac`` [-], ``pasp_max`` [Pa] (nodal peak,
+        depends on the resolution), ``yield_flag`` (0 or 1), ``n_patches``, ``A_patch_frac``
+        (the obstruction mask), ``A_mech_frac``, ``k_asp_hom`` [Pa/m] and the
+        ``contact_indicators``.
 
-        [extrema M3b] Afterwards the phase's asperity / total traction statistics are rechecked
-        against the extraction (``samplers.finish_contact_traction``: a refreshed solution
-        makes them ``state_mismatch``).
+        ``contact_traction`` is then rechecked against this solution
+        (``samplers.finish_contact_traction``): a solution refreshed here gives the status
+        ``state_mismatch``.
         """
         from microcell.samplers import finish_contact_traction
         out = self._fft_asperity_load()

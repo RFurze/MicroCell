@@ -1,96 +1,26 @@
-"""The film callbacks ``ht`` of the micro solver: the analytic cosine cell and the generated surfaces.
+"""Film callbacks ``ht`` of the micro solver: the analytic cosine cell and the generated surfaces.
 
-MicroCell WP5 (11 Nov 2026): ``ideal_ht.py`` and ``surface_ht.py`` in one file, in that order.  The
-code is moved verbatim.  Their module docstrings follow.  Where one names one of the two files,
-read this file.
+A callback has the signature ``ht(x, y, xmax, ymax, H0, HT, T, Ux, Uy)`` and returns the film [m]
+as a UFL expression.  ``x``, ``y`` are the unit-cell coordinates, ``xmax``, ``ymax`` the cell size
+[m], ``H0`` the mean film [m], ``HT`` its rate [m/s], ``T`` the time [s] and ``Ux``, ``Uy`` the
+effective velocity of the moving roughness [m/s] (its displacement divided by ``T``).  The solver
+supplies all of them.
 
-``ideal_ht.py`` (the parent's ``microscale/src/functions/ideal_ht.py``)
-------------------------------------------------------------------------------------------
-Canonical film-thickness function for all microscale code paths.
+Cosine cell (``make_ideal_ht``), with ``x_d = x xmax`` and ``y_d = y ymax``:
 
-Every production and diagnostic microscale code path in this repository
-must use :func:`make_ideal_ht` to build the ``ht`` callback passed to
-``MicroMixedSolver``.  Keeping the definition in a single module prevents
-the historic drift between ``run_microscale.py``, the tests under
-``tests/``, and the analysis scripts under ``analysis/``.
+    h = H0 + HT T + (Ah/2) cos(2 pi kx (x_d - T Ux) / xmax + phi_x)
+                  + (Ah/2) cos(2 pi ky (y_d - T Uy) / ymax + phi_y)
 
-Single-surface expression (``two_surface=False``, default)
-----------------------------------------------------------
-    H(x, y, t) = H0 + HT*T
-                + (Ah/2) * cos(kx*2*pi*(x_d - T*Ux)/xmax + phi_x)
-                + (Ah/2) * cos(ky*2*pi*(y_d - T*Uy)/ymax + phi_y)
+With ``two_surface`` a second pattern of the same amplitude is added, with the phase shifted by
+``dphi``.  The first translates at +(Ux, Uy) and the second at -(Ux, Uy), or, with
+``static_moving``, the first is at rest and the second translates at +(Ux, Uy).
 
-A single roughness pattern translating at velocity (Ux, Uy).  Spatial
-mean is H0 + HT*T.  Extremes are H0 + HT*T +/- Ah.
+Generated surfaces (``make_surface_ht``): ``h = H0 + HT T + z_h``, where ``z_h`` is a CG1 function
+holding the surface heights at the mesh vertices.  A translating surface is displaced by its own
+kinematics, read from the solver, and ``Ux``, ``Uy`` are not used.
 
-Two-surface expression (``two_surface=True``)
----------------------------------------------
-For two surfaces with identical roughness (e.g. ball rotating in a
-stationary cup), each carrying the same sinusoidal profile but
-translating in opposite directions at +/- (Ux, Uy):
-
-    r_1(x,t) = (Ah/2) * cos(kx*2*pi*(x_d - T*Ux)/xmax + phi_x)  + y-term
-    r_2(x,t) = (Ah/2) * cos(kx*2*pi*(x_d + T*Ux)/xmax + phi_x + dphi_x) + y-term
-
-When ``dphi_x = dphi_y = 0`` (both surfaces share the same phase at
-t=0), the trig identity cos(A-B) + cos(A+B) = 2*cos(A)*cos(B) collapses
-this to:
-
-    H = H0 + HT*T
-      + Ah * cos(kx*2*pi*x_d/xmax + phi_x) * cos(kx*2*pi*T*Ux/xmax)
-      + Ah * cos(ky*2*pi*y_d/ymax + phi_y) * cos(ky*2*pi*T*Uy/ymax)
-
-When ``dphi != 0``, the two surfaces have different initial phases and
-the expression is kept in its general two-term form.  Sweeping ``dphi``
-while holding ``phi_x/phi_y`` fixed tests the effect of relative phase
-between the surfaces, independent of the absolute spatial position
-(which is already handled by periodicity).
-
-``Ah`` is the per-surface amplitude.  Combined extremes range from
-H0 + HT*T - 2*Ah  to  H0 + HT*T + 2*Ah  (when dphi=0 and surfaces
-are in phase).
-
-Sweep-friendly design
----------------------
-``phi_x`` and ``phi_y`` are accepted as either dolfin ``Constant``
-objects or Python floats.  **Prefer Constants**: when the caller intends
-to sweep ``phi_x`` over multiple values (see
-``FilmThicknessParams.phi_x_values``), baking a ``Constant`` into the
-UFL expression keeps the form signature stable across the sweep.  FFC
-compiles the residual/Jacobian code once per worker and each phase is
-just a ``phi_x_const.assign(...)`` away — there is no recompilation
-cost, and the Newton solver keeps its previous solution as a warm start
-for the next phase.
-
-``surface_ht.py`` (the parent's ``microscale/src/functions/surface_ht.py``)
-------------------------------------------------------------------------------------------
-Film callback for generated surfaces (R4, R5a): the FE adapter of
-:mod:`microcell.roughness.runtime`.
-
-``make_surface_ht(field)`` returns a callback with the signature of
-``make_ideal_ht``'s (``ht(x, y, xmax, ymax, H0, HT, T, Ux, Uy)``, the last four
-optional), so every solver class takes it unchanged:
-
-    h = H0 + HT*T + z_h
-
-where ``z_h`` is a CG1 ``Function`` on the mesh of ``x`` whose nodal values are
-the Fourier reconstruction of the prepared surfaces at the mesh vertices (exact
-nodal values, one inverse FFT per refill; decision D4).  One refill per mesh, so
-the coarse and fine tiers each have their own (plan 7.4).
-
-Moving surfaces (R5a): ``ht.refresh_geometry(solver)`` -- called by the base
-solver's ``_refresh_geometry`` seam at every time the solver evaluates the
-film, BDF history times included -- sets the task's kinematics from
-``solver.zeta`` and refills ``solver.mesh_m``'s ``z_h`` at the displacement
-``s(T)`` of ``solver.T_dim_const`` (``microcell.roughness.pair.pattern_displacement``;
-not ``T * _Ux_dim``, which is wrong at history times when UT != 0).  The BDF
-history keeps projected copies, so refilling ``z_h`` never alters a stored
-history film.  A stationary arrangement never refills.
-
-``ht.contact_cosine`` is the :class:`~microcell.roughness.runtime.SurfaceContactHeight`
-of the same field and motion -- the attribute ``fft_elastic_v1`` reads its rigid
-film from (``solver_contact.py``; the name is the contact
-solver's).  ``ht.surface_field`` and ``ht.surface_motion`` are exposed.
+Each callback carries ``ht.contact_cosine``, from which the contact solver evaluates the rigid
+film at the mesh nodes.
 """
 from __future__ import annotations
 
@@ -99,17 +29,13 @@ from typing import Any, Callable
 
 
 class CosineContactDescriptor(tuple):
-    """``ht.contact_cosine``: the geometry identity that travels with the callback.
+    """``ht.contact_cosine`` of the cosine cell: its description and a numpy evaluator.
 
-    As a tuple it is exactly ``(Ah, kx, ky, two_surface)`` (:meth:`height`
-    and the ripple check of the solver class read the entries).
-    [fft_elastic_v1, 16 Oct 2026] It also carries the
-    rest of the ``make_ideal_ht`` description -- the four phase objects (dolfin
-    ``Constant`` or float, kept by reference and read at call time, so the
-    worker's per-task ``.assign`` is seen), and ``static_moving`` -- and
-    :meth:`height`, a numpy evaluation of the SAME formula as the UFL ``ht``
-    at nodal coordinates.  ``fft_elastic_v1`` builds its nodal rigid film from
-    it (plan WP2); gate G2a checks it against the UFL ``ht`` at the vertices.
+    As a tuple it is ``(Ah, kx, ky, two_surface)``.  The attributes ``phi_x``, ``phi_y``,
+    ``dphi_x``, ``dphi_y`` (dolfin ``Constant`` or float, held by reference and read at call
+    time) and ``static_moving`` complete the arguments of ``make_ideal_ht``.  ``height``
+    evaluates the same formula as the UFL callback; the contact solver builds its nodal rigid
+    film from it.
     """
 
     def __new__(cls, Ah, kx, ky, two_surface, *, phi_x=0.0, phi_y=0.0, dphi_x=0.0,
@@ -120,16 +46,15 @@ class CosineContactDescriptor(tuple):
         self.static_moving = bool(static_moving)
         return self
 
-    def __reduce__(self):            # pickle/copy keep the full descriptor
+    def __reduce__(self):            # pickle and copy keep the attributes
         return (_rebuild_descriptor, (tuple(self), self.phi_x, self.phi_y, self.dphi_x,
                                       self.dphi_y, self.static_moving))
 
     def height(self, x, y, xmax, ymax, H0, HT, T, Ux, Uy):
-        """Dimensional film [m] at unit-cell coordinates ``(x, y)`` (arrays).
+        """Film [m] at the unit-cell coordinates ``x``, ``y`` (arrays).
 
-        Same argument list as the UFL callback (``MicroPhaseNeutralSolver.
-        _call_ht``); every scalar may be a dolfin ``Constant`` and is read
-        with ``float()`` now.  Mirrors the UFL expression branch for branch.
+        The arguments are those of the UFL callback.  Each scalar may be a dolfin ``Constant``
+        and is read with ``float()`` at the call.  Returns an array of the broadcast shape.
         """
         import numpy as np
 
@@ -181,63 +106,38 @@ def make_ideal_ht(
     two_surface: bool = False,
     static_moving: bool = False,
 ) -> Callable:
-    """Build an ``ht`` callback for the microscale solver.
+    """Film callback of the analytic cosine cell.
 
-    Parameters
-    ----------
-    Ah : float
-        Roughness amplitude [m].  For ``two_surface=False`` this is the
-        peak-to-mean amplitude of the single pattern.  For
-        ``two_surface=True`` this is the *per-surface* amplitude; the
-        combined roughness can reach +/- 2*Ah when the two surfaces are
-        in phase.
-    kx, ky : float
-        Number of roughness periods per cell in x and y.
-    phi_x_const, phi_y_const : dolfin.Constant | float, optional
-        Phase offsets for surface 1 (and shared by surface 2 when
-        ``dphi = 0``).  Pass ``dolfin.Constant`` instances if you want
-        to mutate the phase between solver runs without triggering a UFL
-        form rebuild (the recommended pattern for the production phi_x
-        sweep).  Python floats also work but bake the value into the UFL
-        tree and therefore force FFC to recompile for every new phase.
-    dphi_x_const, dphi_y_const : dolfin.Constant | float, optional
-        *Relative* phase offset applied to surface 2 only
-        (``two_surface=True``).  Surface 2's phase becomes
-        ``phi_x + dphi_x``.  When 0 (default), both surfaces share the
-        same phase at t=0 and the expression collapses to the standing-
-        wave product form.  Sweep ``dphi_x`` to test how dQ depends on
-        the relative alignment of the two surfaces.  Ignored when
-        ``two_surface=False``.
-    two_surface : bool, optional
-        If True, model two identical roughness profiles counter-
-        propagating at +/- (Ux, Uy).  Default False (single translating
-        roughness).
-
-    Returns
-    -------
-    ht : callable
-        A function with signature
-        ``ht(x, y, xmax, ymax, H0, HT, T, Ux, Uy)`` returning a UFL
-        expression (dimensional).  Matches the callback signature
-        expected by ``MicroMixedSolver._call_ht``.
+    Ah: roughness amplitude [m], the largest departure of one surface from the mean film.
+        With ``two_surface`` it is the amplitude of each surface, and the film can depart
+        from its mean by 2 Ah.
+    kx, ky: number of roughness periods per cell in x and y.
+    phi_x_const, phi_y_const: phase of surface 1 [rad].  A dolfin ``Constant`` can be
+        reassigned between solves without the forms being recompiled; a float is fixed in
+        the form.
+    dphi_x_const, dphi_y_const: phase of surface 2 relative to surface 1 [rad].  Used with
+        ``two_surface`` only.
+    two_surface: two surfaces with the same pattern, translating at +(Ux, Uy) and -(Ux, Uy).
+    static_moving: with ``two_surface``, surface 1 is at rest and surface 2 translates at
+        (Ux, Uy).
+    Returns ``ht(x, y, xmax, ymax, H0, HT, T, Ux, Uy)``, the film [m] as a UFL expression,
+    with the attribute ``ht.contact_cosine`` (a ``CosineContactDescriptor``).
     """
 
     def ht(x, y, xmax, ymax, H0, HT, T, Ux, Uy):
-        # Lazy dolfin import so importing this module never drags FEniCS
-        # into processes that only need configuration metadata.
+        # dolfin is imported at the call, so the module imports without FEniCS
         from dolfin import pi, cos
 
         x_d = x * xmax
         y_d = y * ymax
 
-        # Python-side safety check using float projections of the Constants
-        # passed in by the solver.
+        # warning when the minimum film at T = 0 or at T is negative
         H0_val = float(H0)
         HT_val = float(HT)
         T_val = float(T)
 
         if two_surface:
-            # Worst case: both surfaces in phase, both cosines at -1.
+            # both surfaces in phase, both cosines at -1
             hmin_amp = 2.0 * Ah
         else:
             hmin_amp = Ah
@@ -252,7 +152,7 @@ def make_ideal_ht(
             )
             sys.stdout.flush()
 
-        # Fast path: Ah == 0 reduces to the smooth film.
+        # smooth film
         if Ah == 0.0:
             return H0 + HT * T
 
@@ -261,9 +161,7 @@ def make_ideal_ht(
             alpha_y = ky * 2 * pi / ymax
 
             if static_moving:
-                # Split model: surface 1 STATIC, surface 2 MOVING at (Ux, Uy).
-                # r2 carries the relative phase dphi, which phase_sync advances
-                # across macro steps so the moving roughness stays consistent.
+                # surface 1 at rest; surface 2 translating at (Ux, Uy) with relative phase dphi
                 r1 = (
                     0.5 * Ah * cos(alpha_x * x_d + phi_x_const)
                     + 0.5 * Ah * cos(alpha_y * y_d + phi_y_const)
@@ -275,16 +173,14 @@ def make_ideal_ht(
                                      + phi_y_const + dphi_y_const)
                 )
             else:
-                # Legacy: two identical roughnesses counter-propagating at
-                # +/- (Ux, Uy).  Surface 2 carries a relative phase dphi.
-                # When dphi=0 this reduces to the standing-wave product form:
-                #   cos(k(x-Vt)+phi) + cos(k(x+Vt)+phi) = 2*cos(kx+phi)*cos(kVt)
-                # Surface 1: translating at -U (e.g. stationary cup in ball frame)
+                # two surfaces translating in opposite directions.  With dphi = 0 the sum is the
+                # standing wave 2 cos(k x + phi) cos(k V t).
+                # surface 1: pattern argument x_d - T Ux
                 r1 = (
                     0.5 * Ah * cos(alpha_x * (x_d - T * Ux) + phi_x_const)
                     + 0.5 * Ah * cos(alpha_y * (y_d - T * Uy) + phi_y_const)
                 )
-                # Surface 2: translating at +U, with relative phase offset dphi
+                # surface 2: pattern argument x_d + T Ux, with relative phase dphi
                 r2 = (
                     0.5 * Ah * cos(alpha_x * (x_d + T * Ux)
                                    + phi_x_const + dphi_x_const)
@@ -293,7 +189,7 @@ def make_ideal_ht(
                 )
             return H0 + HT * T + r1 + r2
         else:
-            # Single roughness translating at (Ux, Uy).
+            # one surface translating at (Ux, Uy)
             return (
                 H0
                 + HT * T
@@ -303,10 +199,7 @@ def make_ideal_ht(
                 )
             )
 
-    # Geometry identity travels with the canonical callback, including worker
-    # reuse and phase changes. Curvature is independent of a common translation.
-    # [fft_elastic_v1] A tuple equal to the historical (Ah, kx, ky, two_surface),
-    # carrying the full description and a numpy evaluator (CosineContactDescriptor).
+    # description of the cell and its numpy evaluator, read by the contact solver
     ht.contact_cosine = CosineContactDescriptor(
         Ah, kx, ky, two_surface, phi_x=phi_x_const, phi_y=phi_y_const,
         dphi_x=dphi_x_const, dphi_y=dphi_y_const, static_moving=static_moving)
@@ -328,20 +221,29 @@ def _mesh_of(x):
 
 
 def make_surface_ht(field: SurfaceField) -> Callable:
+    """Film callback of generated or supplied surfaces: ``h = H0 + HT T + z_h``.
+
+    field: the ``SurfaceField`` holding the surface heights (``Roughness`` builds it).
+    Returns ``ht(x, y, xmax, ymax, H0, HT, T, Ux, Uy)``, the film [m] as a UFL expression,
+    with the attributes:
+      ``refresh_geometry(solver)``: moves a translating surface to the solver's time;
+      ``contact_cosine``: the ``SurfaceContactHeight`` of the same field and motion;
+      ``surface_field``, ``surface_motion``, ``z_function``.
+    """
     from dolfin import Function, FunctionSpace
 
     motion = SurfaceMotion()
     refills: dict = {}            # mesh.id() -> [Function, mesh, dof coordinates, displacement]
 
     def z_function(mesh, s=(0.0, 0.0)):
-        """The CG1 refill of the surfaces on ``mesh`` with the translating member
-        displaced by ``s`` [m] (refilled only when ``s`` changes)."""
+        """CG1 function of the surface heights [m] on ``mesh``, with the translating surface
+        displaced by ``s`` [m].  The values are recomputed only when ``s`` changes."""
         s = (float(s[0]), float(s[1])) if field.translating else (0.0, 0.0)
         entry = refills.get(mesh.id())
         if entry is None:
             V = FunctionSpace(mesh, "CG", 1)
             X = V.tabulate_dof_coordinates().reshape(-1, 2)
-            entry = [Function(V), mesh, X, None]       # keep the mesh alive with its refill
+            entry = [Function(V), mesh, X, None]       # the entry holds a reference to the mesh
             refills[mesh.id()] = entry
         if entry[3] != s:
             f, _mesh, X = entry[0], entry[1], entry[2]
@@ -354,13 +256,13 @@ def make_surface_ht(field: SurfaceField) -> Callable:
         field.check_cell(xmax, ymax)
         mesh = _mesh_of(x)
         entry = refills.get(mesh.id())
-        # the Function the form holds; its values follow refresh_geometry
+        # the Function held by the form; refresh_geometry updates its values
         f = entry[0] if entry is not None else z_function(mesh)
         return H0 + HT * T + f
 
     def refresh_geometry(solver) -> None:
-        """Refill ``solver.mesh_m``'s film at ``s(solver.T_dim_const)`` with the
-        solver's task kinematics (a no-op for stationary surfaces)."""
+        """Sets ``z_h`` on ``solver.mesh_m`` to the displacement at ``solver.T_dim_const``,
+        with the kinematics of ``solver.zeta``.  Does nothing for stationary surfaces."""
         if not field.translating:
             return
         motion.set_from_solver(solver)

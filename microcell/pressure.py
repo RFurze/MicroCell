@@ -1,4 +1,7 @@
-"""Pressure exchange contract (signed pressure is distinct from traction)."""
+"""Pressure ledger fields and the fluid pressure extrema of a cell (numpy only).
+
+Pressures are signed [Pa] and are distinct from the shear traction.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,40 +11,28 @@ import numpy as np
 DELTA_P_DEFINITION = "fluid_per_cell"
 PRESSURE_FIELDS = ("Pst", "P_f", "Pst_fluid", "P_patch", "P_fluid_pos", "P_fluid_neg")
 
-# ---------------------------------------------------------------------------------------
-# [extrema M1, 23 Oct 2026] The fluid pressure extrema of a micro task (pmin / pmax).
-# Plan docs/plans/masked_pressure_extrema_and_shear_exports_2026-10-23.md sections 2.1 and
-# 3.1, decisions D1-D4 of docs/notes/extrema_shear_exports_review_and_launch_2026-10-23.md
-# section 2.3.  The sampler is microcell/samplers.py; this is the
-# numpy-only part that the worker, run_micro, the pressure guard, the macro driver and the
-# checkpoint share.
-#
-# Definition "fluid_nodal_sharp_v1/phase_union":
-#   per phase (the sampler, fluid_nodal_sharp_v1): the signed physical pressure P_dim [Pa]
-#     at every vertex of the micro mesh whose nodal obstruction level set is > 0 -- the
-#     sharp chi_fluid test itself: no projection of chi, no 0.5 threshold, no clipping, no
-#     asperity or fictitious contact pressure; min and max over those samples;
-#   per task: the min of the phase minima and the max of the phase maxima over the phases
-#     with fluid samples -- an envelope over every fluid sample of every phase.  The old
-#     statistic (the mean over phases of the phase extrema) is kept separately, labelled.
-# They are extrema of a finite sample set, not continuum extrema.
-# ---------------------------------------------------------------------------------------
+# Fluid pressure extrema, definition "fluid_nodal_sharp_v1/phase_union".
+#   Per phase (the sampler in samplers.py): min and max of the signed fluid pressure [Pa] over the
+#     mesh vertices whose nodal obstruction level set is > 0.  No projection, threshold or clipping,
+#     and no contact pressure.
+#   Per cell: the min of the phase minima and the max of the phase maxima.
+# The values are extrema of a finite sample set, not of the continuum.
 PRESSURE_EXTREMA_SAMPLER = "fluid_nodal_sharp_v1"
 PRESSURE_EXTREMA_DEFINITION = PRESSURE_EXTREMA_SAMPLER + "/phase_union"
 
-#: per-task status of the extrema
-EXTREMA_OK = "ok"                         # finite min / max over >= 1 fluid sample
-EXTREMA_NO_FLUID = "no_fluid"             # no fluid sample in any phase: NaN, legitimately
+#: status of the cell's extrema
+EXTREMA_OK = "ok"                         # finite min and max over at least one fluid sample
+EXTREMA_NO_FLUID = "no_fluid"             # no fluid sample in any phase: NaN
 EXTREMA_PHASE_INVALID = "phase_invalid"   # a phase had non-finite fluid pressure: NaN, a failure
 EXTREMA_FAILED = "failed"                 # the micro solve failed
 
-#: per-phase status of the sampler
+#: status of one phase's sample
 PHASE_OK, PHASE_NO_FLUID, PHASE_NONFINITE = "ok", "no_fluid", "nonfinite"
 
 
 @dataclass(frozen=True)
 class FluidPressureExtrema:
-    """One phase's fluid pressure extrema, as the sampler returns them (D1)."""
+    """Fluid pressure extrema of one phase, as returned by the sampler."""
     p_min_Pa: float
     p_max_Pa: float
     n_fluid_samples: int
@@ -49,18 +40,21 @@ class FluidPressureExtrema:
     fluid_frac: float          # n_fluid_samples / n_samples: a vertex-count fraction, not an area
     status: str                # PHASE_OK | PHASE_NO_FLUID | PHASE_NONFINITE
     sampler: str = PRESSURE_EXTREMA_SAMPLER
-    mask_source: str = ""      # "phic_nd_func" (fft_elastic_v1) | "projected_h" (every other class)
+    mask_source: str = ""      # "phic_nd_func" (contact class) | "projected_h" (the other classes)
 
 
 def union_pressure_extrema(phases) -> dict:
-    """The task's extrema from its phases' samples (D3).
+    """Extrema of the cell from the samples of its phases.
 
-    ``p_min`` / ``p_max``: min of the minima / max of the maxima over the phases with
-    fluid samples.  Status: ``phase_invalid`` if any phase had non-finite fluid pressure,
-    else ``no_fluid`` if no phase had a fluid sample, else ``ok``; NaN unless ``ok``.
-    ``p_min_phase_mean`` / ``p_max_phase_mean``: the old statistic, the mean over the
-    phases with fluid samples of their extrema (NaN unless ``ok``), labelled and never
-    used as the envelope.  ``n_fluid_samples``: summed over the phases.
+    phases: ``FluidPressureExtrema`` objects, one per phase.
+    Returns a dict:
+      ``status``: ``phase_invalid`` if any phase had non-finite fluid pressure, else
+        ``no_fluid`` if no phase had a fluid sample, else ``ok``.
+      ``p_min``, ``p_max`` [Pa]: min of the minima and max of the maxima over the phases with
+        fluid samples; NaN unless ``ok``.
+      ``p_min_phase_mean``, ``p_max_phase_mean`` [Pa]: mean over those phases of their extrema;
+        NaN unless ``ok``.
+      ``n_fluid_samples``: summed over the phases.
     """
     phases = list(phases)
     if not phases:
@@ -83,18 +77,13 @@ def union_pressure_extrema(phases) -> dict:
     return out
 
 
-# ---------------------------------------------------------------------------------------
-# [fluid-mean WP3, 30 Oct 2026] The micro pressure-level constraint (the formulation tag).
-# Plan docs/notes/micro_fluid_mean_constraint_plan_2026-10-30.md rev 3, sections 2.3, 3.6 and
-# WP3 (S3 (c), (d)); decision D8.  "whole_cell": (1/A) int P = P_re + lambda;
-# "fluid_mean_v1": (1/A_f) int chi P = P_re + lambda.
-# The setting and its one default are ``microcell.api.MicroSettings.level_constraint`` (MicroCell
-# WP4; the parent's second default LEVEL_CONSTRAINT_RUN_DEFAULT = "fluid_mean_v1" is not here).
-# ---------------------------------------------------------------------------------------
-
-
 def average_pressure_ledgers(ledgers):
-    """Average each diagnostic over phases, never renormalise P_f by fluid area."""
+    """Mean over the phases of each field in ``PRESSURE_FIELDS``.
+
+    ledgers: one dict per phase, keyed by ``PRESSURE_FIELDS`` [Pa].
+    Returns a dict of the means with ``delta_P_definition``.  ``P_f`` stays per cell area and
+    is not renormalised by the fluid area.
+    """
     if not ledgers:
         raise ValueError("empty pressure phase sample")
     return {"delta_P_definition": DELTA_P_DEFINITION,

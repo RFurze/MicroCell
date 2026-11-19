@@ -1,17 +1,18 @@
-"""A surface given as a height array: one Gaussian pocket, 100 nm deep, in an otherwise flat
-surface, full film (no contact, no ripple).  The same array is solved once on the stationary
-surface and once on the translating surface, over a 0.02 s window (the last 3 CFL steps), with
-the end-state fields of each written for ParaView.
+"""A surface given as a height array: one Gaussian pocket, 100 nm deep, in a flat surface, full
+film (no contact, no ripple).
 
-The array is ``z[j_y, i_x]`` [m] on the periodic cell, in the gap convention: the film is
-``H + z``, so a pocket is positive.
+The array is ``z[j_y, i_x]`` [m] on the periodic cell.  The film is ``H + z``, so a pocket is
+positive.  The same array is solved once on the stationary surface and once on the translating
+surface, over a 0.02 s window (the last 3 CFL steps).  Prints a table of both solves (status,
+dP, Qx, tau_fluid_x, p_min, p_max, h_min, Newton iterations, wall time) and writes the fields at
+the end of each window for ParaView.
 
-Run in WSL from the repo root:
+Run in WSL from the repository root:
 
     source scripts/ehl_env.sh
     python examples/array_cell.py                # writes examples/output/pocket_stationary/ and pocket_translating/
 
-exit 0 = both solves OK, 1 = a solve failed.
+Exit 0 = both solves OK, 1 = a solve failed.
 """
 from __future__ import annotations
 
@@ -31,7 +32,8 @@ L = 5e-6                                                    # cell size [m]
 
 
 def pocket(n: int = 64, depth: float = 100e-9, width: float = 0.6e-6) -> np.ndarray:
-    """``z[j_y, i_x]`` [m]: a Gaussian pocket of the given depth and standard width at the cell centre."""
+    """Returns ``z[j_y, i_x]`` [m] on an ``n`` by ``n`` grid: a Gaussian pocket of depth ``depth``
+    [m] and standard deviation ``width`` [m] at the cell centre."""
     x = np.arange(n) * L / n
     X, Y = np.meshgrid(x, x)
     return depth * np.exp(-((X - L / 2) ** 2 + (Y - L / 2) ** 2) / (2.0 * width ** 2))
@@ -40,7 +42,7 @@ def pocket(n: int = 64, depth: float = 100e-9, width: float = 0.6e-6) -> np.ndar
 def main() -> int:
     z = pocket()
     settings = MicroSettings(contact=None, ripple=None)     # full film
-    zeta = Zeta(H=100e-9, P=1e5, Ux=0.02)                   # Ux is the mean (entrainment) velocity
+    zeta = Zeta(H=100e-9, P=1e5, Ux=0.02)                   # Ux: mean (entrainment) velocity
 
     results = {}
     for name, moving in (("pocket_stationary", False), ("pocket_translating", True)):

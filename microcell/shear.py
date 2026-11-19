@@ -1,139 +1,34 @@
-"""Shear traction of a micro cell: the reduction of sampled traction, the fluid statistics, and the
-asperity and total statistics.
+"""Shear traction of a micro cell (numpy only): the reduction of sampled traction to means and
+extrema, and the fluid, asperity and total statistics of a cell.
 
-MicroCell WP5 (11 Nov 2026): ``shear_reduce.py``, ``fluid_shear.py`` and ``contact_shear.py`` in one
-file, in that order.  The code is moved verbatim; the imports between the three are gone.  Their
-module docstrings follow.  Where one names one of the three files, read this file.
+The samples come from ``microcell/samplers.py``: the fluid traction at the quadrature points of
+every cell (``sample_fluid_traction``) and the contact pressure at the same points
+(``sample_contact_traction``).  All tractions are in Pa, in the cell frame.
 
-``shear_reduce.py`` (the parent's ``ehl/shear_reduce.py``)
-------------------------------------------------------------------------------------------
-Reduction of sampled shear traction to a mean and a directional envelope (extrema M2a, 23 Oct 2026).
+Reduction of one state (``reduce_traction``).  The inputs are the traction at N samples, the
+sample weights, the samples that were evaluated (``valid``), the samples where the contribution
+is present (``support``) and a unit direction ``d``.  The traction is zero outside the support.
+The result is the weighted mean vector over all samples (the mean per cell area for area
+weights), the min, max and weighted mean of ``d . t`` over all samples, and the min and max of
+``d . t`` over the support alone.
 
-Pure numpy, no FEniCS: the micro classes (M2b), the pool driver's phase union, the result
-transport and FEniCS-free tests can all import it.  (``microscale/src/functions/__init__.py``
-imports the FEniCS micro classes, so a module there would pull dolfin into every consumer.)
-Plan ``docs/plans/masked_pressure_extrema_and_shear_exports_2026-10-23.md`` sections 2.2-2.4,
-6.2.1-6.2.3 and 6.2.5; decision D5 (fixed global x only) of
-``docs/notes/extrema_shear_exports_review_and_launch_2026-10-23.md`` section 2.3.  The fluid
-shear convention the samples follow is written down, with file:line references, in
-``docs/notes/extrema_m2a_implementation_log_2026-10-23.md`` section 1.
+Fluid traction: ``tau = eta U_s / (H + 1e-30) + (H / 2) grad P`` in the fluid, zero outside it.
+Asperity traction: ``t_a = mu p_a U / (|U| + 1e-30)`` where ``p_a > 0``.  Total traction:
+``t_f + t_a``, formed at each sample before it is reduced.
 
-One micro state (one phase), :func:`reduce_traction`:
+The asperity and total statistics are valid only where the contact grid is the n by n grid of
+the mesh and the sampled mean of ``p_a`` reproduces ``Pasp_hom`` of the contact solution to
+``MEAN_CHECK_BUDGET``.  Otherwise the status is ``check_failed``.
 
-* the input is the traction sampled at N points of the cell (Pa), the samples' weights (area
-  or quadrature weights: their sum is the measure of the whole sample set), which samples were
-  evaluated (``valid``), where the contribution is physically present (``support``: the fluid
-  samples for fluid traction) and a fixed unit direction ``d`` in the macro (global) frame;
-* every sample is projected on ``d`` in the frame the samples are given in (the micro's local
-  frame: a standalone cell has no macro frame, so the parent's rotation with ``R_inv`` is not
-  here, WP4); only then is anything reduced;
-* outside the support the contribution is the physical zero (zero extension), whatever was
-  sampled there, so the whole-cell set contains 0 wherever the support does not cover it;
-* the result is the three-component weighted mean over the whole sample set (the mean per
-  total cell area when the weights are area weights), the min / max and the weighted mean of
-  ``d . t`` over the whole sample set, and -- conditional, labelled ``support_*`` -- the min /
-  max of ``d . t`` over the support samples alone.  A support-only band need not contain the
-  whole-cell mean: that is a property of the two statistics, not an error.
+The statistics of a cell are the means over its phases, with equal weights unless given.  One
+invalid phase makes the cell ``phase_invalid``.
 
-Statuses (strings; never inferred from NaN):
-
-``ok``               evaluated, some support
-``no_support``       a valid state without the contribution: whole-cell mean, min and max are
-                     the physical zero; the support-only extrema are undefined (NaN)
-``invalid_samples``  a support sample was not evaluated (``valid`` False or non-finite): NaN
-``state_invalid``    the state failed or is unsupported (``state_valid=False``) or has no
-                     samples: no physical zero can be inferred, NaN
-``phase_invalid``    a task's status (``fluid_shear``, ``contact_shear``): one of its phases was
-                     ``invalid_samples`` / ``state_invalid``: NaN
-
-``fluid_shear.py`` (the parent's ``ehl/fluid_shear.py``)
-------------------------------------------------------------------------------------------
-Fluid shear traction statistics of a micro task: the exchange contract (extrema M2b, 23 Oct 2026).
-
-Pure numpy, no FEniCS (the worker, ``run_micro``, the pressure guard, the macro driver, the
-checkpoint and FEniCS-free tests share it).  Plan
-``docs/plans/masked_pressure_extrema_and_shear_exports_2026-10-23.md`` sections 2.2 (fluid), 2.4,
-3.2 (fluid) and 5 C-E; decisions D5 (global x only) and D6 (dedup members invalid) of
-``docs/notes/extrema_shear_exports_review_and_launch_2026-10-23.md`` section 2.3; the convention
-(surface, sign, basis, rotation, torque) as M2a found it, ``docs/notes/extrema_m2a_implementation_log_
-2026-10-23.md`` section 1, unchanged.  The reduction is M2a's, above in this file; the sampler is
-``microcell/samplers.py`` (``sample_fluid_traction``).
-
-Definition ``fluid_quadrature_sharp_v1/global_x/phase_union`` (Rob's choice of 23 Oct 2026: the
-ledger's quadrature points, not the M1 vertices -- on the vertices the sampled mean differs from
-``taust`` by the vertex rule's sampling of eta U / H near a contact edge as well as by the mask):
-
-per phase (the sampler ``fluid_quadrature_sharp_v1``)
-    samples   the points of the form compiler's ``default`` rule of the degree in force (the rule
-              ``assemble`` uses for ``taust``) on every cell of the micro mesh; weight = rule weight
-              x cell Jacobian, in unit-cell area (sum 1);
-    traction  the existing micro shear expression at each point, local frame, Pa:
-              ``tau = eta U_s / (H + 1e-30) + (H / 2) grad P`` (the cell's gradient of the CG1
-              pressure; the film as the form evaluates it);
-    support   fluid where the extrema M1 nodal level set (``phic_nd_func`` | the projected
-              ``h_nd - h_min``), interpolated linearly to the point, is > 0 -- the sharp
-              ``chi_fluid`` test at the point; the traction is zero outside it (t_f = chi_f tau_f);
-    reduced   by ``reduce_traction``: the local-frame mean over the whole set (per total cell
-              area).  The parent's global-x envelope (min / max / sample mean, with the macro
-              frame ``R_inv``) is not produced: a standalone cell has no macro frame (WP4);
-per task      means by phase weight (equal); any invalid phase invalidates.
-
-The two cell means, kept apart (plan 3.2): ``micro_raw/mean_existing_integration`` is the existing
-``taust`` (``assemble(chi_dg0 * tau)`` / area: the DG0-projected mask; ``tau_res`` -> ``taust_rot``),
-``micro_raw/mean_sampled`` is the sampled mean here (``shear_fluid_mean_local_Pa`` ->
-``shear_fluid_mean_sampled``).  On the same representation (the samples weighted by the DG0 mask) the
-sampler reproduces ``taust`` to roundoff; the sampled mean differs from it by the mask only.  The DG0
-mask is the rule's cell mean of the class's own ``chi_fluid`` at the same points, so the difference is
-sum_T sum_q W (chi_q - chibar_T)(t_q - tbar_T) / area -- the in-cell covariance of mask and traction,
-zero on uncut cells and for a traction constant in a cell -- when ``chi_fluid`` is the conditional on the
-sampler's level set (``phic_nd_func``; a CG1 film), plus sum W (chi_M1 - chi_class) t / area for an
-analytic film under the projected-h mask (the class tests the analytic film, M1 its CG1 projection).
-Nothing rescales either.
-
-``contact_shear.py`` (the parent's ``ehl/contact_shear.py``)
-------------------------------------------------------------------------------------------
-Asperity and total shear traction of a micro task (extrema M3b, 23 Oct 2026).
-
-Pure numpy, no FEniCS (the worker, ``run_micro``, the pressure guard, the macro driver, the checkpoint and
-FEniCS-free tests share it, as the fluid part of this file).  Plan
-``docs/plans/masked_pressure_extrema_and_shear_exports_2026-10-23.md`` sections 2.2 (contact / total,
-paragraphs 4-5), 2.3, 2.4, 3.2, 4, 5 C-E and 6.3; decisions D5 (global x only), D6 (dedup members invalid),
-D7 (the contact pressure from the stored FFT solution, never ``p_asp_field``) of
-``docs/notes/extrema_shear_exports_review_and_launch_2026-10-23.md`` section 2.3.  Reused, not re-invented:
-the fluid sample set, its status and transport pattern (extrema M2b, above in this file), the reduction
-(M2a, above in this file) and the contact sampler and traction algebra (M3a,
-``microcell/samplers.py``).
-
-Definition ``fft_nodal_p1_periodic_v1@fluid_quadrature_sharp_v1/global_x/phase_union``
-------------------------------------------------------------------------------------
-per phase (``microcell/samplers.py`` ``sample_contact_traction``)
-    samples   the fluid sampler's points and weights (M2b: the ``default`` rule of the form compiler's
-              quadrature degree on every cell of the micro mesh, unit-cell area, sum 1) -- one common set;
-    contact   ``p_a`` = the periodic P1 interpolant of ``sol.p`` of the stored ``fft_elastic_v1`` solution
-              of this phase's state (M3a's ``sample_contact``); the solution is used only if its state key
-              is the current one (``_contact_key == _contact_state_key()``), it is never refreshed here (a
-              refresh would change the mask the fluid was solved with), and a refresh by the extraction
-              (``compute_asperity_load``) after the samples were taken makes the phase ``state_mismatch``;
-    traction  ``t_a = mu_material p_a U_hat`` with ``U_hat = U / (|U| + 1e-30)`` of the micro's own sliding
-              velocity at the end of its run (``Ux_nd_const``, ``Uy_nd_const``: the velocity of the Couette
-              term of the fluid traction; the macro's law ``calc_asp_friction``, unchanged); zero outside
-              its mechanical support ``p_a > 0``; ``t_t = t_f + t_a`` at each sample, each contribution its
-              physical zero outside its own support, both kept where they overlap;
-    reduced   by ``reduce_traction``: the local-frame mean over the whole set (per total
-              cell area; the total formed per sample before it is reduced).  The parent's global-x
-              envelope (with the macro frame ``R_inv``) is not produced: a standalone cell has no
-              macro frame (WP4);
-    checks    the common-support construction is published only when (a) the contact grid is the micro
-              mesh's n x n grid and (b) the sampled mean of ``p_a`` reproduces the solution's own
-              ``Pasp_hom`` to ``MEAN_CHECK_BUDGET`` (M3a's gate-1 budget, stated before its comparison);
-              otherwise ``check_failed``.  The supports' mismatch (fluid samples carrying contact pressure,
-              obstruction without pressure, the contact force on fluid samples) is recorded, never
-              suppressed;
-per task      means by phase weight (equal); a phase whose state is invalid invalidates the task
-              (``phase_invalid``).
-
-Contact model: ``fft_elastic_v1``, the only one in this repo (``samplers.sample_contact_traction``
-raises for any other).
+Statuses of a reduction:
+  ``ok``               evaluated, some support
+  ``no_support``       valid state without the contribution: mean, min and max are zero and the
+                       support extrema are NaN
+  ``invalid_samples``  a support sample was not evaluated or is not finite: NaN
+  ``state_invalid``    the state is invalid or has no samples: NaN
 """
 from __future__ import annotations
 
@@ -145,16 +40,15 @@ STATUS_NO_SUPPORT = "no_support"
 STATUS_INVALID_SAMPLES = "invalid_samples"
 STATUS_STATE_INVALID = "state_invalid"
 STATUS_PHASE_INVALID = "phase_invalid"
-#: the statuses whose numbers are physical (the others carry NaN)
+#: statuses with valid numbers; the others carry NaN
 VALID_STATUSES = (STATUS_OK, STATUS_NO_SUPPORT)
 
 STATISTIC_SAMPLE = "sample_extremum"
 
-#: the default (and, by decision D5, the only production) direction: the macro frame's x axis,
-#: the axis of the existing friction force F_x and torque T_y = -Rc * F_x
+#: default projection direction: the x axis of the frame of the samples
 GLOBAL_X = (1.0, 0.0, 0.0)
 
-#: tolerance of the unit-direction check (programming errors raise ValueError)
+#: tolerance on |d| = 1 for a direction
 UNIT_TOL = 1e-12
 
 _NAN3 = (float("nan"),) * 3
@@ -162,14 +56,14 @@ _NAN3 = (float("nan"),) * 3
 
 @dataclass(frozen=True)
 class ShearReduction:
-    """One reduced traction distribution.  Pa; vectors in the frame of the samples.
+    """One reduced traction distribution [Pa], with vectors in the frame of the samples.
 
-    ``mean``          weighted mean vector over the whole sample set (zero outside the support)
-    ``min``, ``max``  extrema of ``d . t`` over the whole sample set (the zero extension included)
-    ``sample_mean``   weighted mean of ``d . t`` over the whole sample set (= ``d . mean``)
-    ``support_min``, ``support_max``  extrema of ``d . t`` over the support samples only
-                      (conditional statistics; NaN without support)
-    ``support_fraction``  support weight / total weight
+    ``mean``          weighted mean vector over all samples (zero outside the support)
+    ``min``, ``max``  extrema of ``d . t`` over all samples, the zeros outside the support included
+    ``sample_mean``   weighted mean of ``d . t`` over all samples (``d . mean``)
+    ``support_min``, ``support_max``  extrema of ``d . t`` over the support samples; NaN without
+                      support
+    ``support_fraction``  support weight divided by total weight
     """
     mean: tuple
     min: float
@@ -186,11 +80,12 @@ class ShearReduction:
 
     @property
     def valid(self) -> bool:
-        """The numbers are physical (status ``ok`` or ``no_support``)."""
+        """True for the statuses ``ok`` and ``no_support``."""
         return self.status in VALID_STATUSES
 
 
 def _direction(direction) -> np.ndarray:
+    """``direction`` as a (3,) array.  Raises unless it is a finite unit vector."""
     d = np.asarray(direction, dtype=float).reshape(-1)
     if d.shape != (3,) or not np.all(np.isfinite(d)):
         raise ValueError(f"direction must be three finite numbers, got {direction!r}")
@@ -201,6 +96,7 @@ def _direction(direction) -> np.ndarray:
 
 def _invalid(status: str, d: np.ndarray, n: int, n_support: int, frac: float,
              statistic: str = STATISTIC_SAMPLE) -> ShearReduction:
+    """``ShearReduction`` with NaN statistics and the given status."""
     nan = float("nan")
     return ShearReduction(mean=_NAN3, min=nan, max=nan, sample_mean=nan, support_min=nan,
                           support_max=nan, support_fraction=frac, n_samples=int(n),
@@ -210,25 +106,17 @@ def _invalid(status: str, d: np.ndarray, n: int, n_support: int, frac: float,
 
 def reduce_traction(vectors, weights, valid, direction=GLOBAL_X, *, support=None,
                     state_valid: bool = True) -> ShearReduction:
-    """Reduce the traction sampled in one micro state.
+    """Reduces the traction sampled in one state of the cell.
 
-    Parameters
-    ----------
-    vectors : (N, 2) or (N, 3) array, Pa
-        The sampled traction, in the micro's local basis.  Two columns are padded with a zero third component (the macro
-        sets the normal component of the micro traction to zero).
-    weights : (N,) array
-        Finite, positive sample weights.  The means are normalised by their sum over all N
-        samples (the whole sample set), not by the support's weight.
-    valid : (N,) bool array
-        The sample was evaluated.  Samples outside the support need not be valid: their
-        value is replaced by the physical zero and never read.
-    direction : three floats, default ``GLOBAL_X``
-        Unit vector, in the frame of the samples, on which every sample is projected.
-    support : (N,) bool array, optional
-        Where the contribution is physically present (default: every sample).
-    state_valid : bool
-        False for a failed or unsupported state: everything NaN, status ``state_invalid``.
+    vectors: sampled traction, (N, 2) or (N, 3) [Pa], cell frame.  A zero third component is
+        added to two columns.
+    weights: (N,) finite positive sample weights.  The means are normalised by their sum over
+        all N samples, not by the weight of the support.
+    valid: (N,) bool, the sample was evaluated.  Samples outside the support are not read.
+    direction: unit vector in the frame of the samples, on which each sample is projected.
+    support: (N,) bool, where the contribution is present.  Default: every sample.
+    state_valid: False for an invalid state, which gives NaN and the status ``state_invalid``.
+    Returns a ``ShearReduction``.
     """
     d = _direction(direction)
     v = np.asarray(vectors, dtype=float)
@@ -254,8 +142,8 @@ def reduce_traction(vectors, weights, valid, direction=GLOBAL_X, *, support=None
     if np.any(sup & ~evaluated):
         return _invalid(STATUS_INVALID_SAMPLES, d, n, n_support, frac)
 
-    t = np.where(sup[:, None], v, 0.0)          # zero extension: nothing outside the support is read
-    s = t @ d                                    # project every sample on d
+    t = np.where(sup[:, None], v, 0.0)          # zero outside the support
+    s = t @ d                                    # projection on d
     mean = tuple(float(c) for c in (w @ t) / total)
     sample_mean = float(w @ s / total)
     if n_support:
@@ -281,23 +169,22 @@ import numpy as np
 SHEAR_SAMPLER = "fluid_quadrature_sharp_v1"
 SHEAR_EXTREMA_DEFINITION = SHEAR_SAMPLER + "/global_x/phase_union"
 
-# ------------------------------------------------------------------------------- statuses
-#: per-task status of the shear statistics: ``ok`` (a phase has fluid samples), ``no_support``
-#: (a valid state with no fluid sample: the mean is the physical zero) or one of
+# ---- fluid traction of a cell ----
+#: status of the fluid shear statistics of a cell: ``ok`` (a phase has fluid samples),
+#: ``no_support`` (valid, no fluid sample: the mean is zero) or one of
 SHEAR_PHASE_INVALID = STATUS_PHASE_INVALID  # a phase had a fluid point without a finite traction: NaN
 SHEAR_FAILED = "failed"                    # the micro solve failed
 
 
-# ------------------------------------------------------------------------- one phase, the union
 @dataclass(frozen=True)
 class FluidTractionPhase:
-    """One phase's sampled fluid traction, as the sampler returns it.
+    """Sampled fluid traction of one phase, as returned by ``samplers.sample_fluid_traction``.
 
-    ``mean_local``       (t_x, t_y) [Pa]: the mean over the whole sample set, zero outside the fluid,
-                         per total cell area, in the micro's local frame (micro_raw/mean_sampled)
-    ``mean_existing_weights``  (t_x, t_y) [Pa]: the same samples weighted by the class's own mask of
-                         ``taust`` (the DG0 ``chi`` of the mixed classes; none in the base class): a
-                         check that the sampler evaluates the existing expression -- ``taust`` to roundoff
+    ``mean_local``       (t_x, t_y) [Pa]: mean over all samples, zero outside the fluid, per cell
+                         area, in the cell frame
+    ``mean_existing_weights``  (t_x, t_y) [Pa]: the same samples weighted by the mask of the
+                         solver's ``taust`` integral (DG0 ``chi`` in the mixed classes, none in the
+                         base class); it reproduces ``taust`` to rounding
     ``status``           ``ok`` | ``no_support`` | ``invalid_samples`` | ``state_invalid``
     """
     mean_local: tuple
@@ -316,9 +203,13 @@ _NAN2 = (float("nan"), float("nan"))
 
 
 def union_fluid_traction(phases: Sequence[FluidTractionPhase], weights=None) -> dict:
-    """The task's statistics from its phases (equal weights unless given): means by weight; a phase
-    whose samples are invalid invalidates the task (``phase_invalid``, everything NaN); ``ok`` when a
-    phase has fluid samples, else ``no_support``."""
+    """Fluid traction statistics of the cell from its phases.
+
+    phases: ``FluidTractionPhase`` objects.  weights: one positive weight per phase; equal if None.
+    Returns a dict: ``mean_local`` (t_x, t_y) [Pa] and ``support_fraction``, the weighted means
+    over the phases; ``n_samples``; ``status``, which is ``phase_invalid`` (with NaN) if any
+    phase is invalid, ``ok`` if a phase has fluid samples, else ``no_support``.
+    """
     phases = list(phases)
     if not phases:
         raise ValueError("no phase sample")
@@ -338,7 +229,7 @@ def union_fluid_traction(phases: Sequence[FluidTractionPhase], weights=None) -> 
 
 
 def shear_fields(union: dict) -> dict:
-    """The appended ``MicroTaskResult`` fields of a task's union (the worker's success return)."""
+    """Result entries of the fluid shear statistics, from the dict of ``union_fluid_traction``."""
     return {"shear_fluid_mean_local_Pa": tuple(float(v) for v in union["mean_local"]),
             "shear_fluid_support_fraction": float(union["support_fraction"]),
             "shear_extrema_status": str(union["status"]),
@@ -347,8 +238,7 @@ def shear_fields(union: dict) -> dict:
 
 
 def failed_shear_fields() -> dict:
-    """The worker's NaN return: every statistic NaN, status ``failed`` (run_micro's kNN fill then
-    writes neighbour estimates, never measured statistics)."""
+    """Result entries of the fluid shear statistics for a failed solve: NaN, status ``failed``."""
     nan = float("nan")
     return {"shear_fluid_mean_local_Pa": _NAN2, "shear_fluid_support_fraction": nan,
             "shear_extrema_status": SHEAR_FAILED, "shear_extrema_definition": SHEAR_EXTREMA_DEFINITION,
@@ -362,30 +252,29 @@ from typing import Sequence
 import numpy as np
 
 
-#: M3a's sampler (``samplers.CONTACT_SAMPLER``; equal by test) on M2b's sample set
+# ---- asperity and total traction of a cell ----
+#: contact pressure sampler (equal to ``samplers.CONTACT_SAMPLER``) on the fluid sample set
 CONTACT_SAMPLER = "fft_nodal_p1_periodic_v1"
-FLUID_SAMPLER = "fluid_quadrature_sharp_v1"            # SHEAR_SAMPLER above (equal by test)
+FLUID_SAMPLER = "fluid_quadrature_sharp_v1"            # equal to SHEAR_SAMPLER
 CONTACT_SHEAR_DEFINITION = f"{CONTACT_SAMPLER}@{FLUID_SAMPLER}/global_x/phase_union"
-#: M3a's gate-1 budget, stated before its comparison (M3a log 1.1): the sampled mean of p_a against the
-#: solution's own Pasp_hom, relative; exactly 0 when Pasp_hom is 0
+#: relative tolerance of the sampled mean of p_a against ``Pasp_hom`` of the contact solution
 MEAN_CHECK_BUDGET = 1e-12
 
-from microcell.contact import FFT as FFT_MODEL      # the one contact law (one definition)
+from microcell.contact import FFT as FFT_MODEL      # the only contact law
 
-# ----------------------------------------------------------------------------------------- statuses
-#: per component (asperity, total), per phase and per task; a fixed-width string array per node
+#: statuses of the asperity and total statistics, per phase and per cell
 OK = STATUS_OK                       # evaluated, some support
-NO_SUPPORT = STATUS_NO_SUPPORT       # a valid state without the contribution (asperity: p = 0 everywhere):
-                                     # whole-cell mean / min / max are the physical zero
-STATE_INVALID = "state_invalid"      # no current contact solution at the samples (missing, or its state key
-                                     # stale), or a fluid sample without a finite traction (total): NaN
-STATE_MISMATCH = "state_mismatch"    # the extraction refreshed the contact solution after the samples were
-                                     # taken: fluid and contact describe different states, NaN
-CHECK_FAILED = "check_failed"        # the common-support checks failed (grid, sampled mean vs Pasp_hom): NaN
-PHASE_INVALID = "phase_invalid"      # task: a phase was invalid (any of the three above)
-FAILED = "failed"                    # the micro solve failed (or, under dedup, its representative's)
-UNAVAILABLE = "unavailable"          # a result or a correction set without the fields (full film, older code)
-#: the phase statuses that invalidate a task
+NO_SUPPORT = STATUS_NO_SUPPORT       # valid state without the contribution (asperity: p = 0 everywhere):
+                                     # mean, min and max are zero
+STATE_INVALID = "state_invalid"      # no current contact solution at the samples, or (total) a fluid
+                                     # sample without a finite traction: NaN
+STATE_MISMATCH = "state_mismatch"    # the contact solution was replaced after the samples were taken, so
+                                     # fluid and contact describe different states: NaN
+CHECK_FAILED = "check_failed"        # the grid check or the mean check against Pasp_hom failed: NaN
+PHASE_INVALID = "phase_invalid"      # cell: a phase had one of the three statuses above
+FAILED = "failed"                    # the micro solve failed
+UNAVAILABLE = "unavailable"          # not computed: full film, or no friction coefficient
+#: phase statuses that make the cell ``phase_invalid``
 _PHASE_BAD = (STATE_INVALID, STATE_MISMATCH, CHECK_FAILED)
 
 
@@ -393,37 +282,38 @@ def _nan2():
     return (float("nan"), float("nan"))
 
 
-# ------------------------------------------------------------------------------------ one phase
 @dataclass(frozen=True)
 class ContactTractionPhase:
-    """One phase's asperity and total traction on the fluid sample set.  Pa; means in the micro's
-    local frame."""
+    """Asperity and total traction of one phase on the fluid sample set [Pa], with means in the
+    cell frame."""
     asperity_status: str
     total_status: str
-    asperity_mean_local: tuple            # (t_x, t_y) per total cell area
-    total_mean_local: tuple
+    asperity_mean_local: tuple            # (t_x, t_y) per cell area
+    total_mean_local: tuple               # (t_x, t_y) per cell area
     asperity_support_fraction: float
     overlap_fraction: float
     force_on_fluid_fraction: float
     obstruction_without_pressure_fraction: float
-    mean_check: float                     # relative |sampled mean - Pasp_hom| (NaN when not checked)
+    mean_check: float                     # relative |sampled mean - Pasp_hom|; NaN when not checked
     n_samples: int
     contact_model: str
     u_hat_local: tuple = (float("nan"), float("nan"), float("nan"))
     fluid_mean_local: tuple = (float("nan"), float("nan"))
     sampler: str = CONTACT_SAMPLER
-    # the stored contact solution these samples came from (identity only; never pickled through IPC)
+    # the contact solution the samples came from, held for an identity check only
     solution: object = field(default=None, compare=False, repr=False)
 
 
 def _contact_support_numbers(report: dict) -> tuple:
+    """(overlap fraction, contact force share on fluid samples, fraction obstructed without
+    pressure) from a ``samplers.support_report`` dict."""
     return (float(report["fluid_and_mech"]["fraction"]), float(report["contact_force_share_on_fluid_samples"]),
             float(report["obstruction_without_pressure"]["fraction"]))
 
 
 def invalid_phase(status: str, n_samples: int, contact_model: str, u_hat=None, fluid_mean=None,
                   mean_check: float = float("nan"), solution=None) -> ContactTractionPhase:
-    """A phase whose asperity and total statistics cannot be published (NaN, the given status)."""
+    """``ContactTractionPhase`` with NaN asperity and total statistics and the given status."""
     nan = float("nan")
     return ContactTractionPhase(
         asperity_status=status, total_status=status, asperity_mean_local=_nan2(), total_mean_local=_nan2(),
@@ -436,8 +326,10 @@ def invalid_phase(status: str, n_samples: int, contact_model: str, u_hat=None, f
 
 
 def mean_check(p, weights, pasp_hom: float) -> float:
-    """Relative difference of the weighted sample mean of ``p`` and the solution's ``Pasp_hom`` (0 when both
-    are exactly 0; inf when only the sample mean is nonzero)."""
+    """Relative difference between the weighted sample mean of ``p`` [Pa] and ``pasp_hom`` [Pa].
+
+    Returns 0 when both are zero and inf when only the sample mean is non-zero.
+    """
     w = np.asarray(weights, dtype=float)
     m = float(np.sum(w * np.asarray(p, dtype=float)) / np.sum(w))
     P = float(pasp_hom)
@@ -449,9 +341,15 @@ def mean_check(p, weights, pasp_hom: float) -> float:
 def phase_from_reductions(local, *, contact_status: str, contact_model: str, fluid_state_valid: bool,
                           mean_check_rel: float, u_hat, fluid_mean, solution=None,
                           grid_ok: bool = True) -> ContactTractionPhase:
-    """A phase from M3a's ``reduce_contact_and_total`` result on the common samples (``local``: the
-    local-frame means).  ``contact_status`` is the contact sampler's (``ok`` / ``no_support`` /
-    ``state_invalid``); the checks of the module docstring are applied here."""
+    """``ContactTractionPhase`` from the reductions on the common samples.
+
+    local: the ``ContactTotalReduction`` of ``samplers.reduce_contact_and_total``.
+    contact_status: status of the contact samples (``ok``, ``no_support`` or ``state_invalid``).
+    fluid_state_valid: the fluid traction of the phase is valid.
+    mean_check_rel, grid_ok: results of the mean check and the grid check; a failure of either
+        gives ``check_failed``.
+    u_hat, fluid_mean, solution: copied to the phase.
+    """
     n = int(local.asperity.n_samples)
     if contact_status not in (OK, NO_SUPPORT):
         return invalid_phase(STATE_INVALID, n, contact_model, u_hat, fluid_mean, solution=solution)
@@ -476,20 +374,26 @@ def phase_from_reductions(local, *, contact_status: str, contact_model: str, flu
 
 
 def mismatch(phase: ContactTractionPhase) -> ContactTractionPhase:
-    """The extraction refreshed the solution after the samples were taken: nothing is published."""
+    """The phase with NaN statistics and the status ``state_mismatch``."""
     return invalid_phase(STATE_MISMATCH, phase.n_samples, phase.contact_model, phase.u_hat_local,
                          phase.fluid_mean_local)
 
 
-# ----------------------------------------------------------------------------------- the union
 def _wmean(vals, w):
+    """Weighted mean of ``vals`` with the weights ``w``."""
     return float(sum(wi * float(v) for wi, v in zip(w, vals)) / float(np.sum(w)))
 
 
 def union_contact_traction(phases: Sequence[ContactTractionPhase], weights=None) -> dict:
-    """The task's asperity and total statistics from its phases (equal weights unless given): means by
-    weight; an invalid phase invalidates the task (``phase_invalid``); ``ok`` when a phase has support,
-    else ``no_support``."""
+    """Asperity and total traction statistics of the cell from its phases.
+
+    phases: ``ContactTractionPhase`` objects.  weights: one positive weight per phase; equal if None.
+    Returns a dict: ``asperity`` and ``total``, each with ``mean_local`` (t_x, t_y) [Pa] and a
+    ``status`` (``phase_invalid`` if any phase is invalid, ``unavailable`` if any was not
+    computed, ``ok`` if a phase has support, else ``no_support``); the weighted means of the
+    support fractions; ``mean_check``, the largest over the phases; ``n_samples``;
+    ``contact_model``.
+    """
     phases = list(phases)
     if not phases:
         raise ValueError("no phase sample")
@@ -505,7 +409,7 @@ def union_contact_traction(phases: Sequence[ContactTractionPhase], weights=None)
         res = dict(status=PHASE_INVALID, mean_local=_nan2())
         if any(s in _PHASE_BAD for s in st):
             return res
-        if any(s == UNAVAILABLE for s in st):            # not computed (no friction coefficient given)
+        if any(s == UNAVAILABLE for s in st):            # not computed: no friction coefficient
             res["status"] = UNAVAILABLE
             return res
         means = [getattr(p, f"{name}_mean_local") for p in phases]
@@ -521,12 +425,11 @@ def union_contact_traction(phases: Sequence[ContactTractionPhase], weights=None)
                       ("obstruction_without_pressure", "obstruction_without_pressure_fraction")):
         out[key] = _wmean([getattr(p, attr) for p in phases], w) if asp_ok else nan
     checks = [float(p.mean_check) for p in phases if np.isfinite(float(p.mean_check))]
-    out["mean_check"] = max(checks) if checks else nan      # the worst phase (kept for a failed check too)
+    out["mean_check"] = max(checks) if checks else nan      # largest over the phases
     return out
 
 
-# --------------------------------------------------------------------- the worker's result fields
-#: the appended ``MicroTaskResult`` fields, in their order (the worker's success and NaN returns)
+#: result entries of the asperity and total shear statistics, in order
 FIELDS = ("shear_asperity_mean_local_Pa", "shear_asperity_support_fraction", "shear_asperity_status",
           "shear_total_mean_local_Pa", "shear_total_status", "shear_contact_overlap_fraction",
           "shear_contact_force_on_fluid_fraction", "shear_contact_obstruction_without_pressure_fraction",
@@ -534,7 +437,7 @@ FIELDS = ("shear_asperity_mean_local_Pa", "shear_asperity_support_fraction", "sh
 
 
 def contact_shear_fields(union: dict) -> dict:
-    """The appended ``MicroTaskResult`` fields of a task's union."""
+    """Result entries (``FIELDS``) from the dict of ``union_contact_traction``."""
     a, t = union["asperity"], union["total"]
     return {"shear_asperity_mean_local_Pa": tuple(float(v) for v in a["mean_local"]),
             "shear_asperity_support_fraction": float(union["support_fraction"]),
@@ -550,7 +453,7 @@ def contact_shear_fields(union: dict) -> dict:
 
 
 def failed_contact_shear_fields() -> dict:
-    """The worker's NaN return: every statistic NaN, both statuses ``failed``."""
+    """Result entries (``FIELDS``) for a failed solve: NaN, both statuses ``failed``."""
     nan = float("nan")
     out = {k: nan for k in FIELDS}
     out.update(shear_asperity_mean_local_Pa=_nan2(), shear_total_mean_local_Pa=_nan2(),

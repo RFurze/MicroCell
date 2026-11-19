@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-"""Print one line per reference cell (tests/references/*.npz): status, mesh, iteration
-counts and the main homogenised outputs, at full precision.  Reads only the files."""
+"""Prints one tab-separated line per reference cell in ``tests/references/*.npz``: status, mesh,
+iteration counts and the main homogenised outputs, in full precision.  Reads only the files and
+exits 0."""
 import json
 import sys
 from pathlib import Path

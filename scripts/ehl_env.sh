@@ -1,23 +1,13 @@
-# Set up a shell for this repository: one command instead of three.
+# Sets up a shell for this repository.  The script is sourced, not run, as the activation
+# and exports of a script that is run are lost when it exits:
 #
-#     source scripts/ehl_env.sh          # from anywhere; note: SOURCE, not run
+#     source scripts/ehl_env.sh
 #
-# It does exactly what the runbooks list:
-#     cd <the clone root>
-#     conda activate ehl-fenics
-#     export PYTHONPATH=<the clone root>
-#     export DIJITSO_CACHE_DIR=$HOME/.cache/dijitso     (created if missing; survives reboots)
-#
-# It has to be sourced: a script that is *run* gets its own child shell, and the
-# activation / exports would vanish when it exits.  Jobs started afterwards with
-# nohup ... & inherit everything.
-#
-# Optional: EHL_CONDA_ENV=<name> source scripts/ehl_env.sh   (default ehl-fenics)
-#
-# To make it a single word in every new WSL shell, add an alias once:
-#     echo "alias ehl-env='source <clone root>/scripts/ehl_env.sh'" >> ~/.bashrc
+# It changes to the repository root, activates the conda environment (ehl-fenics, or the
+# name in EHL_CONDA_ENV), and exports PYTHONPATH (the repository root) and DIJITSO_CACHE_DIR
+# ($HOME/.cache/dijitso, created if missing).
 
-# refuse to be executed (it would change nothing in your shell)
+# Refuses to be run.
 if ! (return 0 2>/dev/null); then
     echo "ehl_env.sh: source it, do not run it:  source ${0}" >&2
     exit 1
@@ -26,7 +16,7 @@ fi
 _ehl_root="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 _ehl_envname="${EHL_CONDA_ENV:-ehl-fenics}"
 
-# make 'conda activate' available even where ~/.bashrc has not run 'conda init'
+# Makes 'conda activate' available where the shell has not run 'conda init'.
 if ! declare -F conda >/dev/null 2>&1; then
     if command -v conda >/dev/null 2>&1; then
         eval "$(command conda shell.bash hook)"

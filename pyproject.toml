@@ -3,7 +3,7 @@ name = "microcell"
 version = "0.1.0"
 description = "Standalone micro-cell solver for transient multiscale mixed lubrication (FEniCS 2019)"
 requires-python = ">=3.11"
-# FEniCS 2019.1.0 comes from conda (environment.yml), not from pip.
+# FEniCS 2019.1.0 is installed by conda (environment.yml), not by pip.
 dependencies = ["numpy"]
 
 [tool.setuptools]
@@ -12,5 +12,5 @@ packages = ["microcell", "microcell.roughness"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    "slow: the parent's long-running tests (T6 and T7 of test_micro_phase_neutral_steady.py); they run in the default suite here",
+    "slow: long-running tests (T6 and T7 of test_micro_phase_neutral_steady.py); included in the default suite",
 ]

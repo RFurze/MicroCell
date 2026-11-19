@@ -1,18 +1,19 @@
-"""MicroCell used as a library from another script: import it, call it in a loop, get plain numbers back.
+"""MicroCell used as a library: imported, called in a loop, plain numbers returned.
 
-This file does not touch ``sys.path`` and can be copied to, and run from, any folder.  The package
-only has to be importable, which either of these does:
+The loop solves a generated surface of Sa 10 nm at four films, each over three CFL steps ending
+at 0.02 s, and prints one line per film (dQx, dP, P_asp, tau_x, contact fraction, largest fluid
+pressure).  ``micro_model`` is a call that returns a tuple: ``microsolver`` returns a
+``MicroResult`` with named outputs, from which a script takes those it needs.
 
-    source /path/to/MicroCell/scripts/ehl_env.sh      # activates ehl-fenics, puts the repo on PYTHONPATH
+The file does not change ``sys.path`` and runs from any folder once the package can be imported,
+through either of:
+
+    source /path/to/MicroCell/scripts/ehl_env.sh      # activates ehl-fenics, puts the repository on PYTHONPATH
     python /anywhere/use_as_library.py
 
     conda activate ehl-fenics && pip install -e /path/to/MicroCell      # once; then no PYTHONPATH (not tested)
 
-``micro_model`` below is the pattern for a tuple-returning call: ``microsolver`` returns a
-``MicroResult`` with named outputs, and a script picks the ones it wants.  The loop solves the
-pendulum Sa 10 nm surface at four films (three CFL steps ending at 0.02 s each).
-
-exit 0 = every solve OK, 1 = a solve failed.
+Exit 0 = every solve OK, 1 = a solve failed.
 """
 from __future__ import annotations
 
@@ -20,19 +21,21 @@ import sys
 
 from microcell import MicroSettings, RippleSettings, Roughness, Zeta, microsolver
 
-#: built once, reused by every call (the Cup90 pendulum Sa 10 nm recipe)
+#: built once and used by every call
 ROUGHNESS = Roughness.generated(Sa=10e-9, seed=1000)
 SETTINGS = MicroSettings(abs_tolerance=1e-5, pattern_flux_contact=False, ripple=RippleSettings(tol=1e-4))
 
 
 def micro_model(H, P, Ux, Uy=0.0, dpdx=0.0, dpdy=0.0, t_end=0.02, roughness=ROUGHNESS, settings=SETTINGS):
-    """One micro cell.  Inputs in SI (``Ux``, ``Uy`` are the mean, entrainment, velocities).
+    """Solves one micro cell.  Inputs in SI; ``Ux``, ``Uy`` are the mean (entrainment) velocities.
 
-    Returns ``(dQx, dQy, dP, P_asp, tau_x, tau_y, contact_frac, fields)``: the flux and pressure
-    corrections [m^2/s, Pa], the asperity load per cell area [Pa], the total shear [Pa], the
-    contact area fraction, and the dict of field arrays (``p_fluid``, ``film``, ... on the cell grid).
-    Raises ``RuntimeError`` when the solve failed.  (In the full-film mode, ``MicroSettings(contact=None)``,
-    the total shear is NaN by definition; return ``out.tau_fluid`` there.)"""
+    Returns ``(dQx, dQy, dP, P_asp, tau_x, tau_y, contact_frac, fields)``: the flux corrections
+    [m^2/s], the pressure correction [Pa], the asperity load per cell area [Pa], the total shear
+    [Pa], the contact area fraction and the dict of field arrays on the cell grid (``p_fluid``,
+    ``film`` and others).
+    Raises ``RuntimeError`` if the solve fails.  In a full-film cell,
+    ``MicroSettings(contact=None)``, the total shear is NaN and ``out.tau_fluid`` is the shear.
+    """
     zeta = Zeta(H=H, P=P, Ux=Ux, Uy=Uy, dpdx=dpdx, dpdy=dpdy)
     out = microsolver(zeta, t_end=t_end, roughness=roughness, settings=settings, n_steps=3)
     if not out.ok:

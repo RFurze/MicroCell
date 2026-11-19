@@ -1,50 +1,38 @@
 """Parity gate: every reference cell through ``microsolver()`` against the parent's values.
 
-The references (``tests/references/*.npz``) were made by ``tools/make_references.py`` from the
-parent ``MultiscaleMixedBallinSocket`` at 2aaccad, one process per cell, at full double precision.
-``c5_cosine_fullfilm`` was re-made on 11 Nov 2026 with ``k_spring = 0`` (WP2, Rob's decision): the
-case's ``1e20`` "off" value still ran the parent's cell-average spring in that cell.
+The references (``tests/references/*.npz``) hold the inputs and results of single cells computed
+by the parent repository (``MultiscaleMixedBallinSocket``, commit ``2aaccad``) at full double
+precision.  ``tools/make_references.py`` writes them.
 
-The rule (plan D6; written before the first run, not fitted to it)
-------------------------------------------------------------------
-* Each cell is solved at the reference's ``mesh_used``, with ``MicroSettings`` built from the
-  reference's recorded case and settings, the roughness from the reference's stored surface
-  arrays (or cosine parameters), ``Zeta.from_task`` of its task tuple, its time window, its
-  ``n_steps`` and its offset.
-* Homogenised outputs (every field of the parent's ``MicroTaskResult``, read from where a
-  ``MicroResult`` holds it now: ``RESULT_NOW``, WP4) and the field diagnostics: floats and each component of a vector pass when
-  ``|a - b| <= 1e-12 * max(|a|, |b|)``; a NaN must be a NaN on both sides; integers and
+Each cell is solved with the mesh, settings, roughness, macro state (``Zeta.from_task``), time
+window, ``n_steps`` and offset stored in its reference.  Compared:
+
+* Homogenised outputs and field diagnostics.  Each reference result field is read from where a
+  ``MicroResult`` holds it (``RESULT_NOW``).  Floats and vector components pass when
+  ``|a - b| <= 1e-12 * max(|a|, |b|)``.  A NaN must be a NaN on both sides.  Integers and
   strings must be equal.
-  The eleven global-x shear statistics of the parent's result (``REMOVED_RESULT_FIELDS``, WP4) are
-  not in a ``MicroResult`` and are not compared; a reference that held a finite one, or a result
-  that still carried one, fails.  With them the parent's ``no_frame`` status is gone: where a
-  reference has it, the result must hold the status the reference's own support fractions give
-  (``STATUS_WITHOUT_FRAME``).
-* Fields (the ``_extract_fields`` arrays in SI, and the DG0 fluid indicator): same shape, the
-  same NaN pattern, and ``max|a - b| <= 1e-12 * max|reference|``.
-  ``p_fluid_masked`` is not held (``DERIVED_FIELDS``, WP4): the gate forms it from the held
-  ``p_fluid`` and ``chi_fluid`` and compares that with the reference's array.
-* Every field of the parent's settings dataclass that the reference stores must equal the value
-  the solver reads now, read from where it reads it (``SETTINGS_NOW``, WP4: a ``MicroSettings``
-  field, a fixed value of the solver module, or the call).  The ripple fields of a reference
-  made without the ripple were never read by the parent; they pass when the settings carry no
-  ripple (``RIPPLE_SETTINGS``).
-  A setting the pruned solver no longer has (``REMOVED_SETTINGS``, WP2) is not skipped: the
-  reference's stored value must equal the value the code now hard-wires, and ``SETTINGS_NOW``
-  must not carry it.  A setting carried under another name and type
-  (``REPLACED_SETTINGS``: the parent's ``phase_average`` tag is the flag ``pair_branch``) is
-  checked value for value through its stated map.
-* The cell-average spring is removed (WP2).  ``case.k_spring`` passes when the parent's spring
-  did not act on the reference cell (``spring_acted``), whatever value the case stored.
+* Fields (SI arrays and the DG0 fluid indicator): same shape, same NaN pattern and
+  ``max|a - b| <= 1e-12 * max|reference|``.  ``p_fluid_masked`` is formed here from ``p_fluid``
+  and ``chi_fluid`` (``DERIVED_FIELDS``).
+* Settings.  Every setting stored in the reference must equal the value the solver reads
+  (``SETTINGS_NOW``), exactly.  A setting the solver does not have must be stored at the value
+  fixed in the code (``REMOVED_SETTINGS``) or map onto its replacement (``REPLACED_SETTINGS``).
+  The ripple settings of a reference without ripple pass when the settings have no ripple.
+* ``case.k_spring``.  The solver has no cell-average spring.  The check passes when the spring
+  did not act on the reference cell (``spring_acted``).
 
-Not compared, by construction:
-  ``wall_time``, ``contact_eval_s``, ``pid``, ``task_id``, ``task``     timings and bookkeeping
-  ``h_geom_min``, ``escalated``                                      the two-tier predictor is not in the API (D9)
-  ``pasp_table``, ``pasp_coupled``, ``pasp_contact_only``, ``kasp_table``, ``amech_table``,
-  ``offset_x_m``, ``offset_y_m``, ``phase_average``                  the contact table is not in the API (D4)
-For the pair cell (a reference made with the contact table) ``Pasp_hom`` and ``k_asp_hom`` are
-compared with the solver's coupled values before table composition (``coupled_json``), and
-``contact_iters`` is not compared (the parent's count includes the table route's contact-only solve).
+Not compared:
+
+* timings and bookkeeping: ``wall_time``, ``contact_eval_s``, ``pid``, ``task_id``, ``task``;
+* outputs of the two-tier mesh predictor and of the contact table, which the API does not have:
+  ``h_geom_min``, ``escalated``, ``pasp_table``, ``pasp_coupled``, ``pasp_contact_only``,
+  ``kasp_table``, ``amech_table``, ``offset_x_m``, ``offset_y_m``, ``phase_average``;
+* the eleven global-x shear statistics (``REMOVED_RESULT_FIELDS``), which need the macro frame.
+  A reference that holds a finite one fails.  A reference status ``no_frame`` is replaced by the
+  status that its support fractions give (``STATUS_WITHOUT_FRAME``).
+
+For the pair cell, ``Pasp_hom`` and ``k_asp_hom`` are compared with the coupled values stored in
+the reference (``coupled_json``), and ``contact_iters`` is not compared.
 
 Script form:  python tests/test_parity.py [--cell ID ...] [--out report.tsv]
 exit 0 = PASS, 1 = FAIL, 2 = INCOMPLETE (no references, or a cell could not be run).
@@ -72,18 +60,17 @@ NOT_COMPARED = ("wall_time", "contact_eval_s", "pid", "task_id", "task", "h_geom
 PAIR_FROM_COUPLED = {"Pasp_hom": "Pasp_hom", "k_asp_hom": "k_asp_hom"}
 PAIR_NOT_COMPARED = ("contact_iters",)
 
-#: WP2: settings removed from the copied dataclasses, with the value the pruned code hard-wires.
-#: Every reference that stores the setting must store exactly this value (a reference that used
-#: the removed option fails the gate here).
+#: Reference settings the solver does not have -> the value fixed in the code.  A reference that
+#: stores the setting must store this value.
 REMOVED_SETTINGS = {
-    "spring_pointwise": False,          # group 2: the pointwise spring mode
-    "use_reduced_modulus": False,       # group 3: fft_elastic_v1 refused True
-    "overclosure_measure": "patch_max",  # group 3: fft_elastic_v1 refused anything else
-    "gauge_lift": False,                # group 5: ignored by the solver (True only warned)
+    "spring_pointwise": False,          # pointwise spring mode
+    "use_reduced_modulus": False,       # the FFT contact law takes False only
+    "overclosure_measure": "patch_max",  # the FFT contact law takes "patch_max" only
+    "gauge_lift": False,                # not read by the solver
 }
 
-#: WP2 group 3: settings that only the removed ``legacy_patch_v1`` law read, so there is no value
-#: to freeze.  The check is that the reference's own contact law is the kept one.
+#: Reference settings read only by a contact law the solver does not have.  The check is that the
+#: contact law of the reference is ``KEPT_CONTACT_MODEL``.
 REMOVED_UNREAD_SETTINGS = {
     "contact_E": "legacy_patch_v1 only (Young's modulus of its closure)",
     "contact_nu": "legacy_patch_v1 only (with use_reduced_modulus)",
@@ -91,20 +78,19 @@ REMOVED_UNREAD_SETTINGS = {
 }
 KEPT_CONTACT_MODEL = "fft_elastic_v1"
 
-#: WP2 group 8: a reference setting the pruned code carries under another name and type.
-#: reference key -> (built key, {reference value: built value}).  The built settings must carry the
-#: new key and not the old one, and the built value must be the image of the reference's.
+#: Reference settings held under another name and type:
+#: reference key -> (built key, {reference value: built value}).
 REPLACED_SETTINGS = {
     "phase_average": ("pair_branch", {"off": False, "contact_table_v1": True}),
 }
 _REPLACEMENT_KEYS = {new for new, _ in REPLACED_SETTINGS.values()}
 
-#: WP4: the parent's settings dataclass, field by field, and where the solver reads that value now.
-#:   "settings.<path>"  a field of the call's ``MicroSettings`` (``contact.`` and ``ripple.`` nested)
-#:   "fixed.<NAME>"     a fixed value (module constant) of ``microcell.micro_phase_neutral_class``
-#:   "contact law"      ``microcell.contact.FFT``, the one contact law
+#: Reference setting -> where the solver reads the value:
+#:   "settings.<path>"  a field of ``MicroSettings`` (``contact.`` and ``ripple.`` nested)
+#:   "fixed.<NAME>"     a module constant of ``microcell.solver_base``
+#:   "contact law"      ``microcell.contact.FFT``
 #:   "ripple on"        "ripple_halfspace" when ``MicroSettings.ripple`` is set, else "off"
-#:   "pair"             the call's roughness is a stationary + translating pair
+#:   "pair"             True when the roughness is a stationary + translating pair
 SETTINGS_NOW = {
     "relaxation_parameter": "settings.relaxation_parameter",
     "max_iterations": "settings.max_iterations",
@@ -133,7 +119,7 @@ SETTINGS_NOW = {
     "level_constraint": "settings.level_constraint",
     "patch_pin": "fixed.PATCH_PIN",
     "patch_pin_kappa": "fixed.PATCH_PIN_KAPPA",
-    # the mixed and contact classes
+    # mixed and contact solver classes
     "pattern_flux_contact": "settings.pattern_flux_contact",
     "sigma_yield": "settings.contact.sigma_yield",
     "k_asp_mode": "settings.contact.k_asp_mode",
@@ -144,66 +130,56 @@ SETTINGS_NOW = {
     "mu_material": "settings.contact.mu",
     "pair_branch": "pair",
 }
-#: the parent read these only with the ripple on; a reference made without it stores the
-#: parent's dataclass defaults, which nothing read
+#: read only with ripple on; a reference without ripple stores unused defaults
 RIPPLE_SETTINGS = ("fluid_E_star", "ripple_tol", "ripple_maxpass", "ripple_omega")
-#: fields of the parent's contact settings class (a full-film reference does not store them)
+#: stored only by a reference with contact
 CONTACT_CLASS_SETTINGS = ("pattern_flux_contact", "sigma_yield", "k_asp_mode", "contact_model", "contact_E_star",
                           "contact_tol", "contact_maxit", "mu_material", "pair_branch")
 
-#: WP2 group 2: the cell-average spring (``k_spring`` of the parent's case) is removed.  The parent
-#: ran it in a transient cell of the full-film class with ``k_spring > 0``; its steady full-film
-#: solve was raw, and its contact class never ran the spring and refused a stiffness between 0 and
-#: this value.
+#: Cell-average spring of the reference case (``k_spring``).  In a cell with contact the spring is
+#: off at 0 and at this value or above.  In a full-film cell it acts in a transient solve with
+#: ``k_spring > 0``.
 SPRING_OFF_IN_CONTACT_CLASS = 1e19
 
-#: WP2 group 3: ``contact_model`` of a full-film cell's result.  The parent's result carried its
-#: default tag there; that law is gone and the API reports "off".
+#: ``contact_model`` of a full-film result: reference tag -> the tag the API reports
 FULL_FILM_CONTACT_TAG = {"legacy_patch_v1": "off"}
 
-#: WP4: where a ``MicroResult`` holds each field of the parent's ``MicroTaskResult``.  A value is a
-#: named output of ``MicroResult`` or ``info.<key>``; a field not listed is ``info[<the same name>]``.
-#: Four of the parent's fields are no longer written because, with one phase per call, they are a
-#: second copy of an extremum (the parent wrote ``p_max`` twice, and its mean over the phases of
-#: the phase extrema is the extremum of the one phase); they are still compared, against the one
-#: place the number is held.
+#: Reference result field -> where a ``MicroResult`` holds it: a named output or ``info.<key>``.
+#: A field not listed is ``info[<same name>]``.  With one phase per call the sample and phase-mean
+#: pressure extrema equal ``p_max`` and ``p_min`` and are compared with them.
 RESULT_NOW = {
     "delta_Q": "dQ", "delta_P": "dP", "Q": "Q", "Pst": "Pst", "P_f": "P_f", "Fst": "Fst",
     "tau_res": "tau_fluid",
     "shear_asperity_mean_local_Pa": "tau_asperity", "shear_total_mean_local_Pa": "tau_total",
     "Pasp_hom": "P_asp", "contact_frac": "contact_frac", "A_mech_frac": "A_mech_frac", "k_asp_hom": "k_asp",
     "p_max": "p_max", "p_min": "p_min", "h_max": "h_max", "h_min": "h_min", "yield_flag": "yield_flag",
-    "p_fluid_sample_max_Pa": "p_max", "p_max_phase_mean": "p_max",     # second copies, one phase per call
+    "p_fluid_sample_max_Pa": "p_max", "p_max_phase_mean": "p_max",     # equal to p_max with one phase per call
     "p_fluid_sample_min_Pa": "p_min", "p_min_phase_mean": "p_min",
     "failure_reason": "reason",
     "mesh_used": "info.mesh_n",
 }
-#: ``info`` entries that are not a field of the parent's result: the call, and the field diagnostics
+#: ``info`` entries that are not reference result fields: the call and the field diagnostics
 INFO_OF_THE_CALL = ("steady", "t_end", "n_steps", "offset", "roughness_velocity_ratio", "t_start", "dt",
                     "fields", "paraview")
 
-#: WP4 (Rob, 11 Nov 2026): fields of the parent's result that left the result.  They are the
-#: global-x envelopes of the shear tractions, which need the macro frame ``R_inv``; a standalone
-#: cell has none, so each is NaN in every reference.  Not compared.  The gate fails a reference
-#: that holds a finite one (it would be an output this solver can no longer give) and a result
-#: that still carries one.
+#: Reference result fields a ``MicroResult`` does not have: the global-x envelopes of the shear
+#: tractions, which need the macro frame.  Each is NaN in every reference.  Not compared; a
+#: reference that holds a finite one, or a result that holds one, fails.
 REMOVED_RESULT_FIELDS = (
     "shear_fluid_gx_min_Pa", "shear_fluid_gx_max_Pa", "shear_fluid_gx_sample_mean_Pa",
     "shear_fluid_support_gx_min_Pa", "shear_fluid_support_gx_max_Pa",
     "shear_asperity_gx_min_Pa", "shear_asperity_gx_max_Pa", "shear_asperity_gx_sample_mean_Pa",
     "shear_total_gx_min_Pa", "shear_total_gx_max_Pa", "shear_total_gx_sample_mean_Pa",
 )
-#: WP4: the parent's status ``no_frame`` ("the local mean is computed, the global-x statistics are
-#: NaN") went with those statistics.  Where a reference stores it, the result holds the status of
-#: the local mean, which the reference's own support fractions fix: ``ok`` when one of the listed
-#: fractions is positive (the contribution is present at a sample), else ``no_support``.  Any
-#: other reference status is compared as it is.
+#: Status key -> support fractions of the reference result.  A reference status ``no_frame`` is
+#: compared as ``ok`` when one of the fractions is positive, else as ``no_support``.  Any other
+#: reference status is compared unchanged.
 STATUS_WITHOUT_FRAME = {
     "shear_extrema_status": ("shear_fluid_support_fraction",),
     "shear_asperity_status": ("shear_asperity_support_fraction",),
     "shear_total_status": ("shear_fluid_support_fraction", "shear_asperity_support_fraction"),
 }
-#: WP4: reference fields a ``MicroResult`` does not hold, formed here from the fields it holds
+#: Reference fields a ``MicroResult`` does not hold, formed here from the fields it holds
 DERIVED_FIELDS = {
     "p_fluid_masked": lambda f: np.where(f["chi_fluid"] > 0.5, f["p_fluid"], np.nan),
 }
@@ -211,7 +187,7 @@ _MISSING = object()
 
 
 def result_now(out, key: str):
-    """The parent's result field ``key`` as the ``MicroResult`` holds it (``_MISSING`` if it does not)."""
+    """Reference result field ``key`` as the ``MicroResult`` ``out`` holds it (``_MISSING`` when absent)."""
     where = RESULT_NOW.get(key, "info." + key)
     if where.startswith("info."):
         return out.info.get(where[len("info."):], _MISSING)
@@ -219,7 +195,7 @@ def result_now(out, key: str):
 
 
 def status_without_frame(result: dict, key: str) -> str:
-    """The reference's status ``result[key]`` with ``no_frame`` replaced (``STATUS_WITHOUT_FRAME``)."""
+    """Reference status ``result[key]``, with ``no_frame`` replaced as ``STATUS_WITHOUT_FRAME`` states."""
     want = result[key]
     if key in STATUS_WITHOUT_FRAME and want == "no_frame":
         return "ok" if any(float(result[f]) > 0.0 for f in STATUS_WITHOUT_FRAME[key]) else "no_support"
@@ -227,7 +203,7 @@ def status_without_frame(result: dict, key: str) -> str:
 
 
 def spring_acted(ref: dict) -> bool:
-    """True when the parent's cell-average spring changed this reference cell."""
+    """True when the cell-average spring of the reference case acted on the cell."""
     k = float(ref["micro_case"]["k_spring"])
     if bool(ref["micro_case"]["mixed_enabled"]):
         return 0.0 < k < SPRING_OFF_IN_CONTACT_CLASS
@@ -235,10 +211,13 @@ def spring_acted(ref: dict) -> bool:
 
 
 def reference_cells():
+    """Ids of the reference files in ``tests/references``, sorted."""
     return sorted(p.stem for p in REFERENCES.glob("*.npz"))
 
 
 def load_reference(cell: str) -> dict:
+    """Reads ``<cell>.npz``.  Returns the JSON blocks by name, the ``task`` vector and the
+    ``fields`` and ``surfaces`` arrays."""
     d = np.load(REFERENCES / f"{cell}.npz")
     ref = {k[:-5]: json.loads(str(d[k])) for k in d.files if k.endswith("_json")}
     ref["task"] = np.asarray(d["task"], dtype=float)
@@ -249,10 +228,12 @@ def load_reference(cell: str) -> dict:
 
 
 def settings_from_reference(ref: dict):
-    """``MicroSettings`` carrying exactly what the reference's case and settings recorded.  The one
-    modulus is the contact law's when the reference has contact, else the ripple's (the gate compares
-    both of the reference's moduli with it).  ``beta`` and ``rho0`` of the case are not passed: the
-    first is a fixed value the gate checks, the second was never read."""
+    """``MicroSettings`` from the case and settings stored in the reference.
+
+    ``E_star`` is the contact modulus when the reference has contact, else the ripple modulus;
+    the gate compares both reference moduli with it.  ``beta`` is not passed: it is a fixed
+    value of the solver, checked through ``SETTINGS_NOW``.
+    """
     from microcell import ContactSettings, MicroSettings, RippleSettings
 
     mc, sj, meta = ref["micro_case"], ref["settings"], ref["meta"]
@@ -276,9 +257,11 @@ def settings_from_reference(ref: dict):
 
 
 def settings_now(st, pair: bool) -> dict:
-    """The parent's settings dataclass by field name, each value read from where the solver reads it
-    now (``SETTINGS_NOW``).  A ripple field is absent when the settings carry no ripple, and a field
-    of the parent's contact class when they carry no contact (the parent's full-film class had none)."""
+    """Reference setting name -> the value the solver reads (``SETTINGS_NOW``).
+
+    st: the ``MicroSettings`` of the call.  pair: True for a stationary + translating pair.
+    Ripple settings are absent without ripple, and contact settings without contact.
+    """
     import microcell.solver_base as solver_module
     from microcell.contact import FFT
 
@@ -305,7 +288,7 @@ def settings_now(st, pair: bool) -> dict:
 
 
 def roughness_from_reference(ref: dict):
-    """The reference's roughness: its stored surface arrays, or its cosine parameters."""
+    """``Roughness`` from the surface arrays stored in the reference, or from its cosine parameters."""
     from microcell import Roughness
     from microcell.roughness.evaluator import Bandwidth
 
@@ -327,7 +310,7 @@ def roughness_from_reference(ref: dict):
 
 
 def _rel(a: np.ndarray, b: np.ndarray) -> float:
-    """max over components of |a - b| / max(|a|, |b|) (0 where equal)."""
+    """Largest ``|a - b| / max(|a|, |b|)`` over the components (0 where equal)."""
     with np.errstate(invalid="ignore", divide="ignore"):
         scale = np.maximum(np.abs(a), np.abs(b))
         r = np.where(a == b, 0.0, np.abs(a - b) / scale)
@@ -335,7 +318,10 @@ def _rel(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def compare_scalar(name: str, want, got) -> dict:
-    """One homogenised output: string, integer, float or short vector."""
+    """Compares one output (string, integer, float or short vector) with the reference value ``want``.
+
+    Returns a record ``{"name", "kind", "rel", "ok", "note"}``; ``rel`` is the relative difference.
+    """
     rec = {"name": name, "kind": "scalar", "rel": 0.0, "ok": True, "note": ""}
     if isinstance(want, str) or want is None:
         rec["ok"] = (got == want)
@@ -362,6 +348,8 @@ def compare_scalar(name: str, want, got) -> dict:
 
 
 def compare_field(name: str, want: np.ndarray, got) -> dict:
+    """Compares one field array with the reference array ``want``: shape, NaN pattern and
+    ``max|got - want| / max|want|``.  Returns a record as ``compare_scalar`` does."""
     rec = {"name": name, "kind": "field", "rel": 0.0, "ok": True, "note": ""}
     if got is None:
         rec.update(ok=False, rel=float("inf"), note="missing")
@@ -385,8 +373,11 @@ def compare_field(name: str, want: np.ndarray, got) -> dict:
 
 
 def run_cell(cell: str) -> dict:
-    """Solve one reference cell through the API and compare.  Returns
-    ``{"cell", "records": [...], "status", "wall_s"}``."""
+    """Solves one reference cell through ``microsolver()`` and compares it with the reference.
+
+    Returns ``{"cell", "records", "status", "wall_s"}``: one record per comparison, and
+    ``status`` "PASS" or "FAIL".
+    """
     from microcell import Zeta, microsolver
 
     ref = load_reference(cell)
@@ -397,7 +388,7 @@ def run_cell(cell: str) -> dict:
     rough = roughness_from_reference(ref)
     records = []
 
-    # the parent's settings dataclass, field by field, against what the solver reads now
+    # settings stored in the reference against the values the solver reads
     built = settings_now(st, rough.is_pair)
     want = {k: v for k, v in ref["settings"].items() if k != "__class__"}
     for k in sorted(set(want) | set(built)):
@@ -470,7 +461,7 @@ def run_cell(cell: str) -> dict:
 
     pair = rough.is_pair
     result = dict(ref["result"])
-    if st.contact is None:                          # full film: the parent's default tag of a dropped law
+    if st.contact is None:                          # full film: map the reference tag
         result["contact_model"] = FULL_FILM_CONTACT_TAG.get(result["contact_model"], result["contact_model"])
     if pair:
         for key, src in PAIR_FROM_COUPLED.items():
@@ -478,7 +469,7 @@ def run_cell(cell: str) -> dict:
     for key in sorted(result):
         if key in NOT_COMPARED or (pair and key in PAIR_NOT_COMPARED):
             continue
-        if key in REMOVED_RESULT_FIELDS:            # not a comparison: a record only when it does not hold
+        if key in REMOVED_RESULT_FIELDS:            # recorded only on failure
             finite = bool(np.any(np.isfinite(np.asarray(result[key], dtype=float))))
             if finite or key in out.info:
                 records.append({"name": key, "kind": "scalar", "rel": float("inf"), "ok": False,
@@ -490,7 +481,7 @@ def run_cell(cell: str) -> dict:
             records.append({"name": key, "kind": "scalar", "rel": float("inf"), "ok": False, "note": "missing"})
             continue
         records.append(compare_scalar(key, status_without_frame(result, key), got))
-    # each output once: nothing in info but the parent's fields (compared or listed as not) and the call
+    # info may hold only reference result fields and the entries of the call
     held = {RESULT_NOW.get(k, "info." + k) for k in result}
     unknown = sorted(k for k in out.info if "info." + k not in held and k not in INFO_OF_THE_CALL)
     if unknown:
@@ -520,7 +511,7 @@ def run_cell(cell: str) -> dict:
 
 
 def summarise(res: dict) -> dict:
-    """One row per cell: counts and the largest relative differences."""
+    """One summary row for a cell: comparison counts and the largest relative difference of each kind."""
     row = {"cell": res["cell"], "status": res["status"], "wall_s": res["wall_s"]}
     for kind in ("setting", "scalar", "diagnostic", "field"):
         recs = [r for r in res["records"] if r["kind"] == kind]
@@ -533,10 +524,9 @@ def summarise(res: dict) -> dict:
     return row
 
 
-# ---------------------------------------------------------------------------------------
-# pytest form
-# ---------------------------------------------------------------------------------------
+# ---- pytest form ----
 def pytest_generate_tests(metafunc):
+    """Parametrises ``cell`` over the reference cells."""
     if "cell" in metafunc.fixturenames:
         metafunc.parametrize("cell", reference_cells())
 
@@ -546,14 +536,15 @@ def test_references_present():
 
 
 def test_parity(cell):
+    """Every comparison of the cell passes the rule of the module docstring."""
     res = run_cell(cell)
     bad = [f"{r['name']}: rel {r['rel']:.3e} {r['note']}" for r in res["records"] if not r["ok"]]
     assert not bad, f"{cell}: {len(bad)} of {len(res['records'])} comparisons outside 1e-12:\n" + "\n".join(bad)
 
 
 def test_generated_surface_reproduces_reference():
-    """``Roughness.generated`` returns the array the parent prepared for the GenSa40 case
-    (the reference's stored stationary surface)."""
+    """``Roughness.generated(Sa=40e-9, seed=1000)`` matches the stationary surface stored in
+    reference c1, to a relative 1e-12 of its largest height."""
     from microcell import Roughness
 
     ref = load_reference("c1_gensa40_h200_ripple")
@@ -565,8 +556,8 @@ def test_generated_surface_reproduces_reference():
 
 
 def test_comparator_sees_a_perturbed_solve(monkeypatch):
-    """Negative control: with the film of one cell raised by 1e-9 (relative) the gate must FAIL,
-    on homogenised outputs and on fields."""
+    """Negative control: with the film of one cell raised by a relative 1e-9, the gate fails on
+    homogenised outputs and on fields, and on no setting."""
     original = load_reference
 
     def perturbed(cell):
@@ -584,17 +575,16 @@ def test_comparator_sees_a_perturbed_solve(monkeypatch):
 
 
 def test_removed_setting_is_checked(monkeypatch):
-    """Negative control of ``REMOVED_SETTINGS``: when a reference's stored value of a removed
-    setting is not the hard-wired one, the gate must FAIL on that setting and on nothing else."""
+    """Negative control of ``REMOVED_SETTINGS``: when the value stored in a reference differs from
+    the fixed one, the gate fails on that setting only."""
     monkeypatch.setitem(REMOVED_SETTINGS, "spring_pointwise", True)
     res = run_cell("c8_cosine_fullfilm_steady")
     assert [r["name"] for r in res["records"] if not r["ok"]] == ["settings.spring_pointwise"]
 
 
 def test_removed_spring_is_checked(monkeypatch):
-    """Negative control of the removed spring: a transient full-film reference whose case carries a
-    positive ``k_spring`` (as c5 did before it was re-made) must FAIL on ``case.k_spring`` and on
-    nothing else."""
+    """Negative control of ``case.k_spring``: a transient full-film reference with a positive
+    ``k_spring`` fails on ``case.k_spring`` only."""
     original = load_reference
 
     def with_spring(cell):
@@ -607,10 +597,10 @@ def test_removed_spring_is_checked(monkeypatch):
     assert [r["name"] for r in res["records"] if not r["ok"]] == ["case.k_spring"]
 
 
-# ---------------------------------------------------------------------------------------
-# script form
-# ---------------------------------------------------------------------------------------
+# ---- script form ----
 def main(argv=None) -> int:
+    """Runs the gate on the cells of ``--cell`` (default: all), prints one line per cell and
+    writes the TSV reports of ``--out``.  Returns the exit code."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--cell", action="append", help="reference id (default: all)")
     ap.add_argument("--out", help="write the per-cell summary (TSV) and the per-comparison detail beside it")
@@ -623,7 +613,7 @@ def main(argv=None) -> int:
     for cell in cells:
         try:
             res = run_cell(cell)
-        except Exception:                                    # could not be run: INCOMPLETE, not FAIL
+        except Exception:                                    # not run: INCOMPLETE, not FAIL
             traceback.print_exc()
             incomplete.append(cell)
             continue
@@ -650,6 +640,7 @@ def main(argv=None) -> int:
 
 
 def _fmt(v) -> str:
+    """Text of one TSV cell: ``repr`` of a float, else the string without tabs or newlines."""
     if isinstance(v, float):
         return repr(v)
     return str(v).replace("\t", " ").replace("\n", " ")

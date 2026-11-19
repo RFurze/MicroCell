@@ -1,20 +1,12 @@
-"""``Roughness`` -- the front end of the cell's roughness (new in MicroCell, WP1).
-
-Four constructors (plan D2):
+"""``Roughness``: the roughness of one cell, as the caller of ``microsolver`` defines it.
 
     Roughness.generated(Sa, corr_length, seed)      one generated Gaussian surface (IAAFT)
     Roughness.array(z, Lx, Ly)                      a height array supplied by the caller
     Roughness.pair(stationary, translating)         two of the above: one stationary, one translating
     Roughness.cosine(Ah, kx, ky)                    the analytic cosine cell
 
-Sign convention (the parent's): arrays are GAP perturbations ``z[j_y, i_x]`` [m],
-``h = H0 + HT*t + z``; ``z < 0`` is an asperity.
-
-The parent loads a generated surface from a prepared artefact on disk through a case
-descriptor (its ``roughness/case.py`` and ``roughness/runtime.py``).  Here the same
-``SurfaceField`` object is built in memory from the arrays; the solver reads the field's
-attributes only, never a file.  The parent's ``roughness/case.py``, its artefact store and
-the ``EHL_SURFACE_STORE`` read are not in this repo (removed in WP3).
+Height arrays are gap perturbations ``z[j_y, i_x]`` [m]: ``h = H0 + HT*t + z``, and ``z < 0`` is
+an asperity.  The solver reads a surface through the ``SurfaceField`` built here in memory.
 """
 from __future__ import annotations
 
@@ -27,27 +19,29 @@ import numpy as np
 from microcell.roughness.evaluator import Bandwidth, FourierSurface
 from microcell.roughness.runtime import SurfaceField
 
-#: the oversampling of the envelope estimate (the parent's roughness/case.py ENVELOPE_OVERSAMPLE)
+#: oversampling of the grid on which the surface minimum is sought for the envelope
 ENVELOPE_OVERSAMPLE = 8
 ROLES = ("stationary", "translating")
-#: acceptance of a generated surface's Sa: ``|got - want| <= max(atol, rtol * want)`` (the parent's
-#: ``SurfaceTargets`` defaults)
+#: acceptance of the Sa of a generated surface: ``|got - want| <= max(atol, rtol * want)``
 SA_RTOL = 1e-4
 SA_ATOL = 1e-13
 
 
 def _mean_abs(z: np.ndarray) -> float:
-    """Sa of ``z`` about its own mean (the parent's ``targets.realised_amplitudes``)."""
+    """Sa of ``z`` about its own mean [m]."""
     zc = np.asarray(z, dtype=float) - float(np.mean(z))
     return float(np.mean(np.abs(zc)))
 
 
 class ArrayField(SurfaceField):
-    """A ``SurfaceField`` built from arrays in memory.
+    """A ``SurfaceField`` built from height arrays in memory.
 
-    ``members``: role -> ``(z, (off_x, off_y))`` with role in ``("stationary", "translating")``.
-    Sets exactly the attributes the parent's ``SurfaceField.__init__`` set, with the same arithmetic
-    (the envelope as the parent's ``roughness/case.py`` computes it), without the descriptor or the store."""
+    members: role -> ``(z, (off_x, off_y))``, with role "stationary" or "translating",
+        ``z[j_y, i_x]`` the heights [m] and the offset the initial displacement [m].
+    Lx, Ly: cell size [m]; bandwidth: the ``Bandwidth`` of the Fourier reconstruction.
+    Sets ``members`` (role -> ``(FourierSurface, offset)``) and ``envelope_m``, the sum over the
+    surfaces of the deepest asperity, max(0, -min z) [m].
+    """
 
     def __init__(self, members: Dict[str, Tuple[np.ndarray, Tuple[float, float]]], Lx: float, Ly: float,
                  bandwidth: Optional[Bandwidth] = None):
@@ -60,7 +54,7 @@ class ArrayField(SurfaceField):
         envelope = 0.0
         source_n = 0
         ident = {}
-        for role in ROLES:                      # the parent's member order
+        for role in ROLES:                      # stationary first
             if role not in members:
                 continue
             z, off = members[role]
@@ -88,21 +82,27 @@ class ArrayField(SurfaceField):
 
 
 class Roughness:
-    """The roughness of one cell.  Build it with one of the constructors below."""
+    """The roughness of one cell.  It is built with one of the four constructors below."""
 
     def __init__(self, kind: str, **data):
-        self.kind = kind                    # "surface" | "cosine"
+        self.kind = kind                    # "surface" or "cosine"
         self._data = data
         self._field: Optional[ArrayField] = None
 
-    # -- constructors ---------------------------------------------------------------------
+    # Constructors
     @classmethod
     def array(cls, z, Lx: float, Ly: float, moving: bool = False, offset=(0.0, 0.0),
               bandwidth: Optional[Bandwidth] = None) -> "Roughness":
-        """A height array ``z[j_y, i_x]`` [m] (gap convention) on the periodic cell ``Lx x Ly`` [m].
-        ``moving=False``: the surface is stationary in the cell frame (the parent's "cup");
-        ``moving=True``: it translates at the full surface speed ``2 U`` (the parent's "ball").
-        ``offset``: the surface's initial displacement [m]."""
+        """A height array supplied by the caller.
+
+        z: heights ``z[j_y, i_x]`` [m] on the periodic cell, gap perturbations (``z < 0`` is an
+            asperity).
+        Lx, Ly: cell size [m].
+        moving: False, the surface is stationary in the cell frame; True, it translates at the
+            full surface speed ``2 U``.
+        offset: initial displacement of the surface ``(o_x, o_y)`` [m].
+        bandwidth: ``Bandwidth`` of the Fourier reconstruction (default ``Bandwidth()``).
+        """
         role = "translating" if moving else "stationary"
         return cls("surface", members={role: (np.array(z, dtype=float), (float(offset[0]), float(offset[1])))},
                    Lx=float(Lx), Ly=float(Ly), bandwidth=bandwidth)
@@ -110,14 +110,19 @@ class Roughness:
     @classmethod
     def generated(cls, Sa: float, corr_length: Optional[float] = None, seed: int = 1000, Lx: float = 5e-6,
                   Ly: float = 5e-6, n: int = 64, moving: bool = False, n_iter: int = 150) -> "Roughness":
-        """One generated surface: Gaussian autocorrelation of length ``corr_length`` [m] (default: the
-        parent's ``HDS_CORR_LEN``), Gaussian height distribution, scaled to ``Sa`` [m]; the parent's
-        recipe ``ehl/library/roughness.py:gaussian_generated``."""
+        """One generated surface: Gaussian autocorrelation, Gaussian height distribution (IAAFT).
+
+        Sa: arithmetic mean height of the surface [m]; the generated heights are scaled to it.
+        corr_length: correlation length of the autocorrelation [m] (default
+            ``generation.HDS_CORR_LEN``).
+        seed: seed of the random phases.
+        Lx, Ly: cell size [m]; n: grid points per side of the generated array.
+        moving: as in ``array``.
+        n_iter: IAAFT iterations.
+        """
         from microcell.roughness import generation as G
 
-        # [MicroCell WP3] The parent's path spec -> prepare.resolve -> targets.apply_policy, written
-        # out for this one recipe (IAAFT, take "Zh", fit "scale" on Sa) with the same arithmetic in the
-        # same order, so the array is the one that path returned, bit for bit.
+        # IAAFT surface with the exact height distribution, centred, then scaled to Sa
         Sa, Lx, Ly, n, seed, n_iter = float(Sa), float(Lx), float(Ly), int(n), int(seed), int(n_iter)
         corr_len = G.HDS_CORR_LEN if corr_length is None else float(corr_length)
         if not corr_len > 0.0:
@@ -134,7 +139,7 @@ class Roughness:
         amp = G.psd_gaussian_acf(G.wavenumber_grid(n, n, Ly, Lx), corr_len=corr_len, q1=None)
         vec = G.hpd_sorted_sample(n * n, "gaussian", None)
         res = G.iaaft(amp, vec, np.random.default_rng(seed), n_iter=n_iter)
-        zc = np.asarray(res.Zh, dtype=float) - float(np.mean(res.Zh))       # centred once
+        zc = np.asarray(res.Zh, dtype=float) - float(np.mean(res.Zh))       # zero mean
         now = _mean_abs(zc)
         if not now > 0.0:
             raise ValueError("cannot scale a zero field")
@@ -146,9 +151,12 @@ class Roughness:
 
     @classmethod
     def pair(cls, stationary: "Roughness", translating: "Roughness") -> "Roughness":
-        """A stationary and a translating surface (the parent's ``two_surface_split`` arrangement).
-        Both must be one-surface ``array`` / ``generated`` roughness on the same cell; the second
-        is used as the translating member whatever its own ``moving`` flag."""
+        """A stationary and a translating surface in one cell.
+
+        stationary, translating: one-surface roughnesses from ``array`` or ``generated``, on the
+            same cell and with the same bandwidth.  The first is used as the stationary surface
+            and the second as the translating surface, whatever their ``moving`` flags.
+        """
         for r in (stationary, translating):
             if r.kind != "surface" or len(r._data["members"]) != 1:
                 raise ValueError("pair() takes two one-surface array / generated roughnesses")
@@ -164,30 +172,35 @@ class Roughness:
     @classmethod
     def cosine(cls, Ah: float, kx: float = 1, ky: float = 1, phi_y: float = 0.0,
                moving: bool = False) -> "Roughness":
-        """The analytic cosine cell: amplitude ``Ah`` [m], ``kx`` and ``ky`` periods per cell.
-        ``moving`` as in :meth:`array` (False: the parent's "cup"; True: "ball")."""
+        """The analytic cosine cell:
+        ``z = (Ah/2) cos(2 pi kx x / xmax) + (Ah/2) cos(2 pi ky y / ymax + phi_y)``.
+
+        Ah: twice the amplitude of each cosine [m].
+        kx, ky: periods per cell in x and y; phi_y: phase of the y cosine [rad].
+        moving: as in ``array``.  The cell size is that of the settings (``xmax``, ``ymax``).
+        """
         return cls("cosine", Ah=float(Ah), kx=float(kx), ky=float(ky), phi_y=float(phi_y), moving=bool(moving))
 
-    # -- what the solver call needs ---------------------------------------------------------
+    # Read by ``microsolver``
     @property
     def is_pair(self) -> bool:
+        """True for a stationary and a translating surface together."""
         return self.kind == "surface" and len(self._data["members"]) == 2
 
     @property
     def velocity_ratio(self) -> float:
-        """The parent's ``roughness_velocity_ratio``: 0 for a stationary pattern, 1 when a
-        member translates (the parent's ``roughness/pair.py`` LEGACY_ROUGHNESS_MODES)."""
+        """Fraction of the roughness on the translating surface: 1 when a surface translates, else 0."""
         if self.kind == "cosine":
             return 1.0 if self._data["moving"] else 0.0
         return 1.0 if "translating" in self._data["members"] else 0.0
 
     @property
     def cell(self) -> Optional[Tuple[float, float]]:
-        """``(Lx, Ly)`` [m] of a surface; None for the cosine (it takes the settings' cell)."""
+        """``(Lx, Ly)`` [m] of a surface; None for the cosine cell."""
         return (self._data["Lx"], self._data["Ly"]) if self.kind == "surface" else None
 
     def field(self) -> ArrayField:
-        """The in-memory ``SurfaceField`` (built once)."""
+        """The ``ArrayField`` of a surface, built on the first call."""
         if self.kind != "surface":
             raise TypeError("the cosine cell has no surface field")
         if self._field is None:
@@ -196,6 +209,7 @@ class Roughness:
         return self._field
 
     def cosine_parameters(self) -> dict:
+        """``Ah``, ``kx``, ``ky``, ``phi_y`` and ``moving`` of the cosine cell."""
         if self.kind != "cosine":
             raise TypeError("not a cosine cell")
         return dict(self._data)

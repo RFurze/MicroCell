@@ -1,49 +1,20 @@
-"""The canonical surface evaluator: band-limited Fourier reconstruction.
+"""Band-limited Fourier reconstruction of a periodic surface (NumPy only).
 
-Decision D4 (16 October 2026, FFT contact plan): one evaluator for every
-consumer -- FE nodal refill, the contact solve, the predictor and reports.
-The parent's bilinear refill (its labelled legacy path ``bilinear_nodal``) is
-not in this repo (removed in MicroCell WP3).
-
-Reconstruction contract (R0 note §4)
-------------------------------------
-A source array ``z[j, i]`` on the half-open periodic grid
-``x_i = i*Lx/Nx``, ``y_j = j*Ly/Ny`` defines the real trigonometric polynomial
+A source array ``z[j, i]`` on the half-open periodic grid ``x_i = i*Lx/Nx``, ``y_j = j*Ly/Ny``
+defines the real trigonometric polynomial
 
     z(x, y) = sum_{(kx, ky) in K} c(kx, ky) exp(2*pi*i*(kx*x/Lx + ky*y/Ly))
 
-with ``c`` from ``fft2(z)/(Nx*Ny)`` and integer wavenumbers
-``|kx| <= Nx/2``, ``|ky| <= Ny/2``.  On an even axis the Nyquist coefficient
-is split equally between ``+N/2`` and ``-N/2`` (``nyquist="split"``): the
-symmetric, minimum-energy choice that keeps the polynomial real for every
-shift and derivative and reproduces the source exactly at the source nodes
-(adding ``sin(pi*N*x/L)`` would change no nodal value, so the split is a
-convention and part of the identity).
-``nyquist="drop"`` removes those modes instead (then the source is not
-reproduced unless it has no Nyquist content).  The retained set ``K`` is
-the explicit :class:`Bandwidth`: all source modes by default, or a
-rectangular (``kx_max``, ``ky_max``) and/or radial (``q_max`` [rad/m]) cut.
+with ``c`` from ``fft2(z)/(Nx*Ny)`` and integer wavenumbers ``|kx| <= Nx/2``, ``|ky| <= Ny/2``.
+On an even axis the Nyquist coefficient is split equally between ``+N/2`` and ``-N/2``
+(``nyquist="split"``), which keeps the polynomial real for every shift and derivative and
+reproduces the source at its nodes.  ``nyquist="drop"`` removes those modes.  The retained set
+K is given by a ``Bandwidth``.
 
-Properties (tested in ``tests/roughness``):
-
-* nodal values on the source grid at zero shift equal the source to round-off;
-* a shift by a whole period returns the source;
-* a shift by whole grid steps equals ``np.roll`` of the source;
-* nodal values on *any* ``mx x my`` grid, for any signed displacement
-  ``(sx, sy)`` [m], are exact samples of the polynomial (spectral fold, no
-  aliasing error), at FFT cost;
-* rectangular cells (``Lx != Ly``, ``Nx != Ny``) are supported.
-
-Translation convention: ``nodal(..., shift=(sx, sy))`` returns
-``z(x - sx, y - sy)``: the surface displaced by ``+s``.
-
-The continuous polynomial's mean square is the nodal (Parseval) mean square
-minus half the energy of single-axis Nyquist modes and three quarters of the
-(N/2, N/2) corner mode; :meth:`FourierSurface.variances` computes it exactly
-and reports both.  A Fourier interpolant can overshoot the source extrema between
-nodes; :meth:`FourierSurface.extrema` evaluates it on an oversampled grid.
-
-Only NumPy is imported.
+The values on any ``mx x my`` grid, for any displacement, are exact samples of the polynomial.
+``nodal(..., shift=(sx, sy))`` returns ``z(x - sx, y - sy)``: the surface displaced by ``+s``.
+The interpolant can exceed the source extrema between nodes; ``FourierSurface.extrema``
+evaluates it on an oversampled grid.
 """
 from __future__ import annotations
 
@@ -56,19 +27,19 @@ import numpy as np
 
 __all__ = ["EVALUATOR_REVISION", "Bandwidth", "FourierSurface"]
 
-#: Version tag of the reconstruction; part of cache and artefact identity.
+#: version tag of the reconstruction, written by ``FourierSurface.identity``
 EVALUATOR_REVISION = "ehl.roughness.fourier/1"
 
 
 @dataclass(frozen=True)
 class Bandwidth:
-    """Which Fourier modes the reconstruction retains.
+    """The Fourier modes that the reconstruction retains.
 
-    ``kx_max`` / ``ky_max``: keep integer wavenumbers ``|k| <= k_max`` along
-    each axis (None: all source modes).  ``q_max``: additionally keep only
-    ``2*pi*sqrt((kx/Lx)^2 + (ky/Ly)^2) <= q_max`` [rad/m] (None: no radial
-    cut).  ``nyquist``: ``"split"`` (default) or ``"drop"`` for the
-    ``|k| = N/2`` modes of an even source axis.
+    kx_max, ky_max: integer wavenumbers ``|k| <= k_max`` are kept along each axis (None: all
+        source modes).
+    q_max: modes with ``2*pi*sqrt((kx/Lx)^2 + (ky/Ly)^2) <= q_max`` [rad/m] are kept (None: no
+        radial cut).
+    nyquist: "split" or "drop", for the ``|k| = N/2`` modes of an even source axis.
     """
     kx_max: Optional[int] = None
     ky_max: Optional[int] = None
@@ -90,12 +61,11 @@ class Bandwidth:
 
 
 def _extended_axis(n: int) -> Tuple[np.ndarray, np.ndarray, Optional[int]]:
-    """Integer wavenumbers of the split representation of an n-point axis.
+    """Integer wavenumbers of an n-point axis with the Nyquist mode split.
 
-    Returns ``(k_ext, src_index, nyq_pos)``: ``k_ext[e]`` is the wavenumber of
-    extended entry ``e``, ``src_index[e]`` the FFT index it takes its
-    coefficient from, and ``nyq_pos`` the extended positions of +-N/2 (or
-    None for odd n)."""
+    Returns ``(k_ext, src_index, nyq_pos)``: ``k_ext[e]`` is the wavenumber of entry ``e``,
+    ``src_index[e]`` the FFT index its coefficient is taken from, and ``nyq_pos`` the positions
+    of -N/2 and +N/2 (None for odd n)."""
     k = np.rint(np.fft.fftfreq(n) * n).astype(int)          # FFT order
     src = np.arange(n)
     if n % 2 == 0:
@@ -108,10 +78,10 @@ def _extended_axis(n: int) -> Tuple[np.ndarray, np.ndarray, Optional[int]]:
 class FourierSurface:
     """Band-limited trigonometric reconstruction of a periodic height field.
 
-    Construct from a source array ``z[j_y, i_x]`` (metres, any mean -- it is
-    centred, and the removed mean is kept in ``mean_removed``) on an
-    ``Lx x Ly`` cell, or from a cosine mode list with :meth:`from_modes`.
-    Instances are immutable.
+    z: source heights ``z[j_y, i_x]`` [m].  The mean is removed and kept in ``mean_removed``.
+    Lx, Ly: cell size [m]; bandwidth: the modes retained.
+    ``from_modes`` builds a surface from a list of cosine modes instead.  The stored arrays
+    are read-only.
     """
 
     def __init__(self, z: np.ndarray, Lx: float, Ly: float,
@@ -133,9 +103,11 @@ class FourierSurface:
         zc.setflags(write=False)
         self._source = zc
 
-    # -- construction helpers ------------------------------------------------
+    # Construction
     def _init_from_fft(self, C: np.ndarray, Lx: float, Ly: float,
                        bandwidth: Bandwidth) -> None:
+        """Stores the retained coefficients and wavenumbers of the FFT coefficients ``C``
+        (``fft2(z)/(nx*ny)``, shape (ny, nx)), and the energies that ``variances`` reports."""
         ny, nx = C.shape
         kx, sx, nyqx = _extended_axis(nx)
         ky, sy, nyqy = _extended_axis(ny)
@@ -159,7 +131,7 @@ class FourierSurface:
                 keep[list(nyqy), :] = False
         self._energy_all = float(np.sum(np.abs(Ce) ** 2))
         Ce = np.where(keep, Ce, 0.0)
-        # drop all-zero rows/columns to keep the fold small
+        # rows and columns that are all zero are not stored
         cols = np.nonzero(np.any(Ce != 0.0, axis=0))[0]
         rows = np.nonzero(np.any(Ce != 0.0, axis=1))[0]
         if cols.size == 0:
@@ -188,10 +160,12 @@ class FourierSurface:
     @classmethod
     def from_modes(cls, modes: Iterable[Tuple[int, int, float, float]],
                    Lx: float, Ly: float) -> "FourierSurface":
-        """Exact surface ``sum a*cos(2*pi*(m*x/Lx + n*y/Ly) + phi)`` from
-        ``(m, n, a, phi)`` modes on the half-plane (n > 0, or n == 0 and m > 0;
-        no repeats), as ``tests/micro_roughness_study/surfaces.py`` uses.
-        Built on an odd grid, so no Nyquist mode is involved."""
+        """Surface ``sum a*cos(2*pi*(m*x/Lx + n*y/Ly) + phi)`` from a list of modes.
+
+        modes: ``(m, n, a, phi)`` with integer wavenumbers m, n on the half-plane (n > 0, or
+            n == 0 and m > 0; no repeats), amplitude a [m] and phase phi [rad].
+        The source grid is odd, so there is no Nyquist mode.
+        """
         modes = [(int(m), int(n), float(a), float(p)) for m, n, a, p in modes]
         seen = set()
         for m, n, _a, _p in modes:
@@ -216,26 +190,29 @@ class FourierSurface:
         self._source = src
         return self
 
-    # -- information ------------------------------------------------------------
+    # Information
     @property
     def source(self) -> np.ndarray:
-        """Centred source array (read-only)."""
+        """Source array with its mean removed (read-only)."""
         return self._source
 
     @property
     def kx(self) -> np.ndarray:
+        """Retained integer wavenumbers along x."""
         return self._kx
 
     @property
     def ky(self) -> np.ndarray:
+        """Retained integer wavenumbers along y."""
         return self._ky
 
     def variances(self) -> dict:
-        """``nodal``: Parseval mean square of the source array;
-        ``continuous``: mean square of the retained trigonometric polynomial
-        over the cell; ``nyquist_fraction``: share of the nodal variance in
-        the Nyquist modes; ``retained_fraction``: continuous / full split
-        polynomial."""
+        """Mean squares of the surface [m^2] and two fractions.
+
+        ``nodal``: mean square of the source array; ``continuous``: mean square of the retained
+        polynomial over the cell; ``nyquist_fraction``: share of the nodal value in the Nyquist
+        modes; ``retained_fraction``: ``continuous`` over that of the polynomial with all modes.
+        """
         cont = float(np.sum(np.abs(self._C) ** 2))
         nod = self._nodal_energy
         return {
@@ -246,7 +223,7 @@ class FourierSurface:
         }
 
     def identity(self) -> dict:
-        """Reconstruction descriptor for cache/artefact identity."""
+        """Descriptor of the reconstruction: revision, bandwidth, cell, source shape and sha256."""
         src = np.ascontiguousarray(self._source, dtype="<f8")
         h = hashlib.sha256(f"float64-le:{src.shape[0]}x{src.shape[1]}:".encode()
                            + src.tobytes()).hexdigest()
@@ -259,8 +236,10 @@ class FourierSurface:
             "source_array_sha256": h,
         }
 
-    # -- evaluation -------------------------------------------------------------
+    # Evaluation
     def _shifted(self, shift: Sequence[float], deriv: Tuple[int, int]) -> np.ndarray:
+        """Coefficients of the surface displaced by ``shift`` [m] and differentiated ``deriv``
+        times in x and y."""
         sx, sy = float(shift[0]), float(shift[1])
         px = np.exp(-2j * np.pi * self._kx * (sx / self.Lx))
         py = np.exp(-2j * np.pi * self._ky * (sy / self.Ly))
@@ -273,6 +252,8 @@ class FourierSurface:
         return C
 
     def _fold(self, C: np.ndarray, mx: int, my: int) -> np.ndarray:
+        """Coefficients ``C`` summed into the FFT layout of an ``my x mx`` grid (wavenumbers
+        modulo the grid size)."""
         Fx = np.zeros((self._kx.size, mx))
         Fx[np.arange(self._kx.size), self._kx % mx] = 1.0
         Fy = np.zeros((self._ky.size, my))
@@ -283,12 +264,13 @@ class FourierSurface:
               shift: Sequence[float] = (0.0, 0.0),
               deriv: Tuple[int, int] = (0, 0),
               return_imag: bool = False):
-        """Values ``z(x_i - sx, y_j - sy)`` [m] on the ``my x mx`` half-open
-        grid ``x_i = i*Lx/mx``, ``y_j = j*Ly/my``; array ``[j_y, i_x]``.
+        """Values ``z(x_i - sx, y_j - sy)`` [m] on the half-open grid ``x_i = i*Lx/mx``,
+        ``y_j = j*Ly/my`` (``my = mx`` by default).  Returns an array ``[j_y, i_x]``.
 
-        ``deriv=(ax, ay)`` returns the ``d^ax/dx^ax d^ay/dy^ay`` derivative
-        instead.  ``return_imag`` also returns the max |imaginary| residual of
-        the inverse FFT (round-off; a diagnostic of conjugate symmetry).
+        shift: displacement ``(sx, sy)`` [m].
+        deriv: ``(ax, ay)`` returns the derivative ``d^ax/dx^ax d^ay/dy^ay`` instead.
+        return_imag: also returns the largest imaginary part of the inverse FFT, which is
+            rounding error.
         """
         mx = int(mx)
         my = mx if my is None else int(my)
@@ -303,7 +285,8 @@ class FourierSurface:
 
     def at_points(self, x, y, shift: Sequence[float] = (0.0, 0.0),
                   deriv: Tuple[int, int] = (0, 0), chunk: int = 4096) -> np.ndarray:
-        """Direct evaluation at arbitrary points (x, y) [m] (any shape)."""
+        """Values at the points (x, y) [m], arrays of any shape, with ``shift`` and ``deriv`` as in
+        ``nodal``.  The points are evaluated ``chunk`` at a time."""
         x = np.asarray(x, dtype=float)
         y = np.asarray(y, dtype=float)
         shape = np.broadcast(x, y).shape
@@ -319,9 +302,8 @@ class FourierSurface:
 
     def extrema(self, oversample: int = 4,
                 shift: Sequence[float] = (0.0, 0.0)) -> Tuple[float, float]:
-        """(min, max) of the reconstruction on an ``oversample``-times finer
-        grid than the source -- an estimate of the continuous extrema (the
-        exact extrema lie between samples)."""
+        """(min, max) of the reconstruction [m] on a grid ``oversample`` times finer than the
+        source: an estimate of the extrema of the continuous surface."""
         ny, nx = self.source_shape
         v = self.nodal(oversample * nx, oversample * ny, shift=shift)
         return float(v.min()), float(v.max())

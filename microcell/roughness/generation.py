@@ -1,27 +1,11 @@
-"""Random rough-surface generation: the IAAFT port, Gaussian case only.
+"""Random rough-surface generation by IAAFT, for a Gaussian autocorrelation function (ACF) and a
+Gaussian height probability distribution (HPD).
 
-This is a port of the numerical core of the old tree's generator
-(EHLBase-DispatchHeavy ``microscale/src/functions/rough_surface.py``,
-sha256 ``3d9b481d…0590``, 15 July 2026), which implements
+The method is that of Pérez-Ràfols & Almqvist, *Generating randomly rough surfaces with given
+height probability distribution and power spectrum*, Tribology International 131 (2019) 591-604.
+``Roughness.generated`` calls ``psd_gaussian_acf``, ``hpd_sorted_sample`` and ``iaaft`` in turn.
 
-    Pérez-Ràfols & Almqvist, *Generating randomly rough surfaces with given
-    height probability distribution and power spectrum*, Tribology
-    International 131 (2019) 591-604.
-
-What is the same as the old code: the Gaussian-ACF PSD model, the Parseval
-normalisation, the IAAFT loop (seed draw, stable arg-sort rank remap,
-iteration order) and the Gaussian height distribution, evaluated by
-:mod:`microcell.roughness.quantiles` (NumPy only) instead of ``scipy.stats``.
-
-[MicroCell WP3] Kept: what ``Roughness.generated`` calls (the Gaussian-ACF
-spectrum, the Gaussian HPD and IAAFT; its two legacy error metrics went in WP5).  Removed:
-the other PSD models and radial-PSD tables, the other HPD families and their
-shape fit, the Sm fit, ``generate_rough_surface``, the filtered Gaussian
-generator, ``spectral_energy_error`` and the revision / provenance constants;
-they are in the parent (``ehl/roughness/generation.py``).
-
-All arrays are ``z[j_y, i_x]`` on the half-open periodic grid, SI units.
-Only NumPy is imported.
+All arrays are ``z[j_y, i_x]`` on the half-open periodic grid, in SI units.  NumPy only.
 """
 from __future__ import annotations
 
@@ -37,29 +21,25 @@ __all__ = [
     "hpd_sorted_sample", "IAAFTResult", "iaaft", "rank_remap",
 ]
 
-#: Correlation length fitted for the WTC26 HDS gaussian family (Sm target
-#: 0.78 um on the 5 um, N = 64 cell; ``wtc26_hds/meta.json``).
+#: default correlation length of the Gaussian ACF [m]: fitted for a mean spacing Sm of 0.78 um on
+#: the 5 um cell with 64 points per side
 HDS_CORR_LEN = 3.2633555700856686e-07
 
 
-# ---------------------------------------------------------------------------
-# Wavenumber grids
-# ---------------------------------------------------------------------------
+# Wavenumber grid
 def wavenumber_grid(ny: int, nx: int, Ly: float, Lx: float) -> np.ndarray:
-    """Radial wavenumber |q| = 2*pi*sqrt(fx^2 + fy^2) [rad/m], shape (ny, nx),
-    FFT-ordered (q[0, 0] = 0).  Same signature and values as the old code."""
+    """Radial wavenumber |q| = 2*pi*sqrt(fx^2 + fy^2) [rad/m] of an ``ny x nx`` grid on an
+    ``Ly x Lx`` cell [m].  Shape (ny, nx), FFT order (q[0, 0] = 0)."""
     fx = np.fft.fftfreq(nx, d=Lx / nx)      # cycles per metre
     fy = np.fft.fftfreq(ny, d=Ly / ny)
     QX, QY = np.meshgrid(2.0 * np.pi * fx, 2.0 * np.pi * fy, indexing="xy")
     return np.sqrt(QX ** 2 + QY ** 2)
 
 
-# ---------------------------------------------------------------------------
-# PSD models -> amplitude arrays |Z(q)|, normalised to a unit-rms surface
-# ---------------------------------------------------------------------------
+# Power spectrum: amplitude array |Z(q)| of a surface with unit rms
 def normalise_amplitude(A: np.ndarray) -> np.ndarray:
-    """Scale an amplitude array so the realised surface has unit rms
-    (Parseval for NumPy's unnormalised FFT); zero mean."""
+    """Amplitude array scaled so that the surface has zero mean and unit rms (Parseval, for the
+    unnormalised FFT of NumPy)."""
     A = np.array(A, dtype=float)
     A[0, 0] = 0.0
     n = A.size
@@ -71,8 +51,12 @@ def normalise_amplitude(A: np.ndarray) -> np.ndarray:
 
 def psd_gaussian_acf(q: np.ndarray, corr_len: float = 1e-4,
                      q1: Optional[float] = None) -> np.ndarray:
-    """PSD of the Gaussian ACF R(r) = exp(-(r/corr_len)^2):
-    C(q) ~ exp(-q^2 corr_len^2 / 4)."""
+    """Normalised amplitude array of the Gaussian ACF R(r) = exp(-(r/corr_len)^2), whose power
+    spectrum is C(q) ~ exp(-q^2 corr_len^2 / 4).
+
+    q: radial wavenumbers [rad/m] from ``wavenumber_grid``; corr_len [m]; q1: optional cut-off
+    [rad/m], above which the spectrum is zero.
+    """
     C = np.exp(-(q ** 2) * (float(corr_len) ** 2) / 4.0)
     C[0, 0] = 0.0
     if q1 is not None:
@@ -80,18 +64,12 @@ def psd_gaussian_acf(q: np.ndarray, corr_len: float = 1e-4,
     return normalise_amplitude(np.sqrt(C))
 
 
-# ---------------------------------------------------------------------------
-# HPD models -> sorted, standardised height vectors
-# ---------------------------------------------------------------------------
+# Height distribution: sorted, standardised height vector
 def hpd_sorted_sample(n: int, family: str = "gaussian",
                       shape: Any = None) -> np.ndarray:
-    """Sorted, standardised (mean 0, rms 1) quantile vector of an HPD family
-    at probabilities (i + 0.5)/n -- the old ``hpd_sorted_sample``.
-
-    Only ``gaussian`` (no shape) is in this repo; the parent's other families
-    (``gennorm``, ``skewnorm``, ``weibull``, ``johnsonsu``) were removed in
-    MicroCell WP3.
-    """
+    """Sorted quantiles of the height distribution at probabilities (i + 0.5)/n, i = 0 to n - 1,
+    standardised to mean 0 and rms 1.  Only ``family="gaussian"`` is available; ``shape`` is
+    not used by it."""
     p = (np.arange(n) + 0.5) / n
     fam = family.lower()
     if fam == "gaussian":
@@ -107,27 +85,26 @@ def hpd_sorted_sample(n: int, family: str = "gaussian",
     return np.sort(z)
 
 
-# ---------------------------------------------------------------------------
-# IAAFT (paper Section 2)
-# ---------------------------------------------------------------------------
+# IAAFT
 @dataclass
 class IAAFTResult:
-    Zh: np.ndarray          # exact HPD, approximate PSD
-    Zs: np.ndarray          # exact PSD, approximate HPD
-    n_iter: int
-    history: list = field(default_factory=list)
+    """Result of ``iaaft``: two surfaces of unit rms, ``[j_y, i_x]``."""
+    Zh: np.ndarray          # exact height distribution, approximate spectrum
+    Zs: np.ndarray          # exact spectrum, approximate height distribution
+    n_iter: int             # iterations used
+    history: list = field(default_factory=list)     # fraction of ranks changed per iteration (tol > 0)
 
 
 def _apply_order(order: np.ndarray, target_sorted: np.ndarray,
                  shape: Tuple[int, int]) -> np.ndarray:
+    """Array of ``shape`` with ``target_sorted`` placed in the rank order ``order``."""
     out = np.empty(order.size, dtype=float)
     out[order] = target_sorted
     return out.reshape(shape)
 
 
 def rank_remap(Z: np.ndarray, target_sorted: np.ndarray) -> np.ndarray:
-    """Replace the values of Z by ``target_sorted`` in Z's rank order
-    (stable arg-sort, as the old code)."""
+    """Z with its values replaced by ``target_sorted`` in the rank order of Z (stable sort)."""
     order = np.argsort(Z, axis=None, kind="stable")
     return _apply_order(order, target_sorted, Z.shape)
 
@@ -135,8 +112,14 @@ def rank_remap(Z: np.ndarray, target_sorted: np.ndarray) -> np.ndarray:
 def iaaft(amp: np.ndarray, target_sorted: np.ndarray,
           rng: np.random.Generator, n_iter: int = 200,
           tol: float = 0.0) -> IAAFTResult:
-    """Iterative amplitude-adjusted Fourier transform on a periodic 2-D grid
-    (identical to the old ``rough_surface.iaaft``)."""
+    """Iterative amplitude-adjusted Fourier transform on a periodic 2-D grid.
+
+    amp: amplitude array, shape (ny, nx), from ``psd_gaussian_acf``.
+    target_sorted: sorted heights, length ny * nx, from ``hpd_sorted_sample``.
+    rng: generator of the random starting phases.
+    n_iter: iterations; with tol > 0 the loop stops when the fraction of ranks changed in an
+        iteration falls below tol.
+    """
     ny, nx = amp.shape
     npts = ny * nx
     if target_sorted.size != npts:

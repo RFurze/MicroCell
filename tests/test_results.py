@@ -1,19 +1,17 @@
-"""The layout of a ``MicroResult`` (WP4): an OK and a failed result of the same cell.
+"""The layout of a failed ``MicroResult`` and the status behind every NaN.
 
-The parity gate (``test_parity.py``) only reaches OK results.  Here a failure is forced in a
-reference cell by replacing one solver method with one that raises, and the failed result is
-checked against the OK result of the same cell:
+Layout.  A failure is forced in a reference cell by replacing one solver method with one that
+raises.  The failed result is compared to the OK result of the same cell:
 
 * the status is the one the exception maps to;
 * every named homogenised output is NaN, ``yield_flag`` is 0 and there are no fields;
-* ``info`` carries the same entries as the OK result's, each of the same kind
-  (string, integer, float, pair, dict or None).
+* ``info`` has the same entries as the OK result, each of the same kind (string, integer, float,
+  pair, dict or None).
 
-And the rule of WP4 group 4 (the second half of this file): every NaN of a result -- homogenised
-outputs, ``info``, fields -- has a status that is not OK and says why: the result's own
-``status``, or the per-quantity status that the one table ``microcell.api.NAN_STATUS`` ties the
-output to.  It is checked on every reference cell, on the forced failures, and on a NaN put into
-a converged solve (``FAILED_NONFINITE``).
+NaN rule.  Every NaN in the homogenised outputs, ``info`` or the fields is explained by a status
+that is not OK: the result's ``status``, or the per-quantity status that
+``microcell.api.NAN_STATUS`` ties the output to.  The rule is checked on every reference cell, on
+the forced failures and on a NaN put into a converged solve (``FAILED_NONFINITE``).
 """
 from __future__ import annotations
 
@@ -31,10 +29,10 @@ for p in (ROOT, ROOT / "tests"):
 
 import test_parity as tp  # noqa: E402
 
-MIXED_CELL = "c2_gensa40_h130_ripple"       # fft_elastic_v1 with the ripple, transient
-FULL_FILM_CELL = "c5_cosine_fullfilm"       # no contact law, no ripple, transient
+MIXED_CELL = "c2_gensa40_h130_ripple"       # elastic contact with ripple, transient
+FULL_FILM_CELL = "c5_cosine_fullfilm"       # no contact, no ripple, transient
 
-#: (cell, the method replaced, the exception it raises, the status expected)
+#: case -> (cell, method replaced, exception raised, expected status)
 FORCED = {
     "newton": (MIXED_CELL, "run", "RuntimeError", "FAILED_NEWTON"),
     "ripple": (MIXED_CELL, "run", "RippleNotConvergedError", "FAILED_RIPPLE"),
@@ -46,7 +44,8 @@ _OK = {}
 
 
 def solve(cell: str):
-    """The reference cell through ``microsolver()``, as the parity gate calls it."""
+    """Solves reference cell ``cell`` through ``microsolver()`` with the inputs stored in its
+    reference file.  Returns the ``MicroResult``."""
     from microcell import Zeta, microsolver
 
     ref = tp.load_reference(cell)
@@ -60,6 +59,7 @@ def solve(cell: str):
 
 
 def solve_ok(cell: str):
+    """The OK result of ``cell``, solved once and cached."""
     if cell not in _OK:
         _OK[cell] = solve(cell)
         assert _OK[cell].status == "OK", _OK[cell].reason
@@ -67,7 +67,7 @@ def solve_ok(cell: str):
 
 
 def solve_forced(case: str, monkeypatch):
-    """The cell of ``FORCED[case]`` with the named solver method raising the named exception."""
+    """Solves the cell of ``FORCED[case]`` with its solver method replaced by one that raises."""
     from microcell import solver_base as base
     from microcell import solver_contact as con
     from microcell import ripple
@@ -88,12 +88,14 @@ def solve_forced(case: str, monkeypatch):
 
 
 def named_outputs():
+    """Names of the homogenised outputs of ``MicroResult``."""
     from microcell import MicroResult
 
     return [f.name for f in dataclasses.fields(MicroResult) if f.name not in ("status", "reason", "fields", "info")]
 
 
 def kind(value) -> str:
+    """Kind of an ``info`` entry: its type name, "int", "float" or "<n> floats"."""
     if value is None or isinstance(value, (str, dict)):
         return type(value).__name__
     if isinstance(value, (bool, int, np.integer)):
@@ -122,10 +124,8 @@ def test_failed_result_layout(case, monkeypatch):
     assert not different, different
 
 
-# ---------------------------------------------------------------------------------------
-# WP4 group 4: every NaN has a status that says why (``microcell.api.NAN_STATUS``)
-# ---------------------------------------------------------------------------------------
-#: a NaN put into an OK solve: (cell, what is replaced, the output the reason must name)
+# ---- NaN rule: every NaN has a status that explains it (``microcell.api.NAN_STATUS``) ----
+#: case -> (cell, function replaced, output that the reason must name)
 NONFINITE = {
     "number": (MIXED_CELL, "spatial_homogenisation", "Fst"),
     "field": (MIXED_CELL, "extract_fields", "fields.film"),
@@ -133,12 +133,12 @@ NONFINITE = {
 }
 PER_QUANTITY_STATUSES = ("pressure_extrema_status", "shear_extrema_status", "shear_asperity_status",
                          "shear_total_status")
-#: the per-quantity statuses under which the numbers are physical: never an explanation of a NaN
+#: per-quantity statuses with physical values: these never explain a NaN
 PHYSICAL = ("ok", "no_support")
 
 
 def solve_nonfinite(case: str, monkeypatch):
-    """The cell of ``NONFINITE[case]`` with one NaN put into a converged solve."""
+    """Solves the cell of ``NONFINITE[case]`` with one NaN put into the converged solve."""
     from microcell import fields as fields_module
     from microcell import solver_base as base
     from microcell import solver_contact as con
@@ -170,8 +170,8 @@ def solve_nonfinite(case: str, monkeypatch):
 
 
 def nan_outputs(out) -> list:
-    """(where, name) of every output of ``out`` that holds a NaN or an infinity: named outputs,
-    ``info`` entries, ``info["fields"]`` entries and ``fields`` arrays."""
+    """Returns (where, name) for every output of ``out`` that is not finite, over the named
+    outputs, ``info``, ``info["fields"]`` and the ``fields`` arrays."""
     places = [("named", n, getattr(out, n)) for n in named_outputs()]
     places += [("info", k, v) for k, v in out.info.items() if k != "fields"]
     places += [("info.fields", k, v) for k, v in out.info["fields"].items()]
@@ -187,8 +187,8 @@ def nan_outputs(out) -> list:
 
 
 def check_every_nan_has_a_status(out):
-    """The rule: a NaN is explained by a status that is not OK -- the result's own ``status``, or
-    the per-quantity status the table ``NAN_STATUS`` ties the output to."""
+    """Asserts the NaN rule on ``out``: each NaN is explained by the result's ``status`` or by the
+    per-quantity status that ``NAN_STATUS`` ties the output to.  Returns the list of ``nan_outputs``."""
     from microcell import NAN_STATUS, OK
 
     found = nan_outputs(out)
@@ -205,8 +205,8 @@ def check_every_nan_has_a_status(out):
 
 
 def test_table_names_outputs_and_statuses():
-    """The table's keys are outputs of a result, its statuses are the four per-quantity ones, and
-    no status under which the numbers are physical explains a NaN."""
+    """The keys of ``NAN_STATUS`` are outputs of a result, its statuses are the four per-quantity
+    statuses, and no status with physical values explains a NaN."""
     from microcell import NAN_STATUS
 
     out = solve_ok(MIXED_CELL)
@@ -222,7 +222,7 @@ def test_every_nan_has_a_status_reference_cell(cell):
     out = solve_ok(cell)
     found = check_every_nan_has_a_status(out)
     mixed = tp.settings_from_reference(tp.load_reference(cell)).contact is not None
-    # a full-film cell has no contact law: its asperity and total shear are NaN, "unavailable"
+    # full film: the asperity and total shear are NaN with status "unavailable"
     assert bool(found) == (not mixed), found
 
 
@@ -235,8 +235,8 @@ def test_every_nan_has_a_status_forced_failure(case, monkeypatch):
 
 @pytest.mark.parametrize("case", sorted(NONFINITE))
 def test_unexplained_nan_fails_the_result(case, monkeypatch):
-    """A NaN the table does not explain, in a converged solve: ``FAILED_NONFINITE``, laid out as
-    every failed result."""
+    """A NaN that ``NAN_STATUS`` does not explain gives ``FAILED_NONFINITE``, with the layout of a
+    failed result."""
     from microcell import FAILED_NONFINITE
 
     cell, _, name = NONFINITE[case]
@@ -253,8 +253,8 @@ def test_unexplained_nan_fails_the_result(case, monkeypatch):
 
 
 def test_listed_output_needs_its_status():
-    """A listed output is explained only by its own status: NaN with ``ok`` is unexplained, NaN with
-    ``unavailable`` (a full-film cell's asperity shear) is explained."""
+    """An output in ``NAN_STATUS`` is explained only by its own status: NaN with ``ok`` is
+    unexplained, NaN with ``unavailable`` (the asperity shear of a full-film cell) is explained."""
     from microcell.api import unexplained_nonfinite
 
     nan2 = np.array([float("nan"), float("nan")])

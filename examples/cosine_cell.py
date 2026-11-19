@@ -1,14 +1,16 @@
-"""The analytic cosine cell: amplitude 42.3 nm, one period per cell in x and y, on the stationary
-surface, full film (no contact, no ripple), with the film closing at 100 nm/s.  Solved over a
-0.02 s window (the last 3 CFL steps) and once steady (a steady solve carries no rates), with the
-transient end-state fields written for ParaView.
+"""The analytic cosine cell, full film (no contact, no ripple), with the film closing at 100 nm/s.
 
-Run in WSL from the repo root:
+The cosine has amplitude 42.3 nm and one period per cell in x and y, on the stationary surface.
+Solved over a 0.02 s window (the last 3 CFL steps) and once steady; a steady solve carries no
+rates.  Prints a table of both solves (status, dP, Qx, tau_fluid_x, p_min, p_max, h_min, Newton
+iterations, wall time) and writes the fields at the end of the transient window for ParaView.
+
+Run in WSL from the repository root:
 
     source scripts/ehl_env.sh
     python examples/cosine_cell.py               # writes examples/output/cosine_h120/
 
-exit 0 = both solves OK, 1 = a solve failed.
+Exit 0 = both solves OK, 1 = a solve failed.
 """
 from __future__ import annotations
 
@@ -26,8 +28,8 @@ OUT = ROOT / "examples" / "output" / "cosine_h120"
 
 def main() -> int:
     rough = Roughness.cosine(Ah=42.3e-9, kx=1, ky=1)        # stationary pattern (moving=False)
-    settings = MicroSettings(mesh_n=60, contact=None, ripple=None)      # full film; the cell is settings.xmax x ymax
-    zeta = Zeta(H=120e-9, P=40.8e6, Ux=0.02, Hdot=-1e-7)    # Ux is the mean (entrainment) velocity
+    settings = MicroSettings(mesh_n=60, contact=None, ripple=None)      # full film; cell size settings.xmax by settings.ymax
+    zeta = Zeta(H=120e-9, P=40.8e6, Ux=0.02, Hdot=-1e-7)    # Ux: mean (entrainment) velocity
 
     transient = microsolver(zeta, t_end=0.02, roughness=rough, settings=settings, n_steps=3,
                             save_paraview=True, output_dir=OUT)

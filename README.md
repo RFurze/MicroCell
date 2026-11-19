@@ -1,241 +1,179 @@
 # MicroCell
 
-The micro-cell solver of Rob Furze's transient multiscale mixed-lubrication model, as a
-standalone Python call: one periodic rough cell, a macro state in, homogenised corrections
-and fields out.  FEniCS 2019.1.0 (conda env `ehl-fenics`, `environment.yml`), run in WSL/Linux.
-
-Extracted from `MultiscaleMixedBallinSocket` at commit `2aaccad`.  State: WP5, the last work
-package of `docs/notes/micro_standalone_plan_2026-11-11.md`.  WP2 pruned the physics and hooks
-the plan dropped.  WP3 pruned or removed the helpers the solve does not reach.  WP4 collapsed
-the settings and results: each setting is defined once, each output is written once.  WP5 put
-the files into the plan's layout and added the march from t = 0, the parent's invariant tests
-and the examples.  The provenance table marks what each work package did to each file.
+The microscale cell solver of a transient multiscale mixed-lubrication model, as one Python
+call: one periodic rough cell, a macroscale state in, homogenised corrections and fields out.
+FEniCS 2019.1.0 is required, in Linux or WSL.  The code was extracted from
+`MultiscaleMixedBallinSocket` (the parent) at commit `2aaccad`.
 
 ## Getting started
 
-**What you need.**  Linux, or WSL2 on Windows (legacy FEniCS 2019.1.0 has no native Windows
-build); `git`; and conda (Miniforge is enough).  Every command below is typed in a Linux or
-WSL shell.
-
-**1. Download the repository.**
+Linux or WSL2 is required, as FEniCS 2019.1.0 has no native Windows build, with `git` and
+conda (Miniforge is enough).  The repository is private, so GitHub asks for a login.
 
 ```bash
 git clone https://github.com/RFurze/MicroCell.git
 cd MicroCell
-```
-
-The repository is private: GitHub asks for a login with access to it.  With an SSH key on
-your GitHub account, `git clone git@github.com:RFurze/MicroCell.git` does the same.
-
-**2. Create the environment** (once per machine; it downloads FEniCS from conda-forge).
-
-```bash
-conda env create -f environment.yml
-```
-
-This makes a conda environment named `ehl-fenics`: Python 3.11, FEniCS 2019.1.0, numpy, scipy,
-h5py, matplotlib and pytest.
-
-**3. Start the environment** (in every new shell).
-
-```bash
-source scripts/ehl_env.sh
+conda env create -f environment.yml                # once per machine: creates the env ehl-fenics
+source scripts/ehl_env.sh                          # in every new shell; sourced, not run
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
+python -m pytest tests/ -q -p no:cacheprovider     # every test should pass
+python examples/run_cell.py                        # one cell, transient and steady
 ```
 
-The script must be sourced, not run.  It activates `ehl-fenics`, changes to the repo root, puts
-the repo on `PYTHONPATH` and sets the FEniCS form cache (`~/.cache/dijitso`).  It prints
-`ehl env ready` with the paths it set.  The second line keeps each solve on one thread.
-Without the script, `conda activate ehl-fenics` followed by `export PYTHONPATH=$PWD` from the
-repo root does the same job.
+`scripts/ehl_env.sh` activates `ehl-fenics`, changes to the repository root, puts it on
+`PYTHONPATH` and sets the FEniCS form cache.  The exports keep each solve on one thread.  The
+first run on a machine compiles the FEniCS forms and takes minutes; later test runs take
+about 30 s.
 
-**4. Check the install.**
-
-```bash
-python -m pytest tests/ -q -p no:cacheprovider
-```
-
-Every test should pass.  The first run on a machine compiles the FEniCS forms and takes
-minutes; later runs take about 30 s.
-
-**5. Launch a case.**
-
-```bash
-python examples/run_cell.py
-```
-
-This solves one cell (a generated Gaussian surface, Sa 40 nm, in mixed contact) over a 0.02 s
-window and once steady.  It prints one row per solve (status, `dP`, `P_asp`, contact fraction,
-Newton iterations, wall time) and exits 0 when both are OK.  The fields are written to
-`examples/output/gensa40_h130/`: open `cell.vts` or `cell.xdmf` in ParaView.  The other
-examples are listed under "The call".
-
-**6. Run your own case.**  Save this as `my_cell.py` in the repo root and run `python my_cell.py`:
-
-```python
-from microcell import microsolver, Zeta, Roughness, MicroSettings
-
-zeta = Zeta(H=130e-9, P=40.8e6, Ux=0.02)              # film [m], pressure [Pa], mean velocity [m/s]
-rough = Roughness.generated(Sa=40e-9, seed=1000)      # or .array(...), .pair(...), .cosine(...)
-out = microsolver(zeta, t_end=0.02, roughness=rough, settings=MicroSettings(),
-                  save_paraview=True, output_dir="output/my_cell")   # output/ is not tracked
-
-print(out.status, out.reason)
-print("dQ", out.dQ, "dP", out.dP, "P_asp", out.P_asp, "contact_frac", out.contact_frac)
-```
-
-Check `out.status` first: a failed solve returns NaN outputs and says why in `out.reason`.
-The inputs, the conventions and every setting are described under "The call".
+`examples/run_cell.py` prints one row per solve and writes `cell.vts` and `cell.xdmf` to
+`examples/output/gensa40_h130/` for ParaView.
 
 ## The model
 
-One periodic rough cell, `xmax` by `ymax`, stands for one point of the bearing.  The macro
-state `zeta` gives the cell its mean film `H`, its pressure `P`, the mean (entrainment)
-velocity `U = (Ux, Uy)`, the macro pressure gradient `G = (dpdx, dpdy)`, and the rate of each.
-One surface is at rest in the cell frame and the other slides at `2 U`.
+One periodic rough cell, `xmax` by `ymax`, stands for one point of the bearing.  The
+macroscale state `zeta` gives the cell its mean film `H`, its pressure `P`, the mean
+(entrainment) velocity `U = (Ux, Uy)`, the macroscale pressure gradient `G = (dpdx, dpdy)`
+and the rate of each.  One surface is at rest in the cell frame and the other slides at `2 U`.
 
-**Film.**  `h = H + Hdot t + z + u_r + u_c`.
+**Film.**  `h = H + Hdot t + z + u_r + u_c`, where:
 
 - `z` is the roughness, a gap perturbation (`z < 0` is an asperity).  The roughness of the
-  stationary surface is fixed in the cell.  The roughness of the translating surface moves
-  with it, at `2 U`.
+  stationary surface is fixed in the cell and that of the translating surface moves at `2 U`.
 - `u_r` is the ripple deformation and `u_c` the contact deformation.  Both have zero mean,
   and each is zero when its part is off.
 
-**Pressure.**  `p = P + Pdot t + G . (x - x_c) + lambda + w`, with `x_c` the cell centre.
-`w` is periodic.  `lambda` is one number: the level of the cell's pressure against the macro
-pressure.  Both are unknowns.
+**Pressure.**  `p = P + Pdot t + G . (x - x_c) + lambda + w`, where `x_c` is the cell centre,
+`w` is periodic and `lambda` is the level of the cell pressure against the macroscale
+pressure.  `w` and `lambda` are the unknowns.
 
-**Flow.**  The Reynolds equation on the cell, isoviscous with viscosity `eta0`:
+**Flow.**  The isoviscous Reynolds equation on the cell, with viscosity `eta0`:
 
     div( h^3 / (12 eta0) grad p ) = div( U h ) + dh/dt
 
-The cell mean of `dh/dt` is subtracted, which a periodic problem needs to be solvable.  The
-time derivative is a backward difference on CFL steps: first order on the first step,
-second order (BDF2) after it.  A transient solve starts from a seed solve at the start of
-its window.  A steady solve drops `dh/dt` and the rates.
+The cell mean of `dh/dt` is subtracted, as a periodic problem is only solvable with zero net
+source.  The time derivative is a backward difference on CFL steps: first order on the first
+step and second order (BDF2) after it.  A transient solve starts from a seed solve at the
+start of its window.  A steady solve drops `dh/dt` and the rates.
 
-**Cavitation.**  A penalty: the term `penalty_gamma * spos(-p)` pushes negative pressure
-back to zero.  `spos` is a smoothed positive part of width `eps_smooth`.  The `"spline"` form
-is zero at positive pressure; the `"sqrt"` form leaves `eps_smooth^2 / (4 p)` there.  `lambda`
-is closed by the same term: it is proportional to the cell mean of `spos(-p)`, so a cell that
-does not cavitate has no level shift from it.
+**Cavitation.**  A penalty term `penalty_gamma * spos(-p)` pushes negative pressure back to
+zero, where `spos` is a smoothed positive part of width `eps_smooth`.  The `"spline"` form is
+zero at positive pressure; the `"sqrt"` form leaves `eps_smooth^2 / (4 p)` there.  `lambda`
+is proportional to the cell mean of `spos(-p)`, so a cell that does not cavitate has no level
+shift from it.
 
-**Level constraint.**  `"whole_cell"`: `w` has zero mean over the cell, so the cell-mean
-pressure is `P + lambda`.  `"fluid_mean_v1"`: the mean is taken over the fluid region, so
-the fluid-region mean pressure is `P + lambda`.  The two are the same in a full-film cell.
+**Level constraint.**  With `"whole_cell"`, `w` has zero mean over the cell and the cell-mean
+pressure is `P + lambda`.  With `"fluid_mean_v1"`, the mean is taken over the fluid region.
+The two are the same in a full-film cell.
 
-**Contact** (`settings.contact`; `None` is the full-film mode).  The surfaces touch where
-the gap would fall below `h_min`.  One periodic elastic half-space problem (FFT, modulus
-`E_star`) on the mesh nodes gives the contact pressure and `u_c`.  It is elastic only:
+**Contact** (`settings.contact`; `None` is the full-film mode).  The surfaces touch where the
+film would fall below `h_min`.  One periodic elastic half-space problem (FFT, modulus
+`E_star`) on the mesh nodes gives the contact pressure and `u_c`.  The model is elastic only:
 `sigma_yield` sets `yield_flag` when the peak contact pressure passes it and never limits
-the pressure.  The flow is switched off in the contact region (its mobility is multiplied by
+the pressure.  The flow is switched off in the contact region (mobility multiplied by
 `eps_solid`).  With `pattern_flux_contact`, the contact patch of a translating surface
 carries its film with it.  The asperity shear is `mu` times the contact pressure, along the
 sliding direction.
 
 **Ripple** (`settings.ripple`; `None` is off).  `u_r` is the zero-mean periodic half-space
-response (modulus `E_star`) to the cell's own fluid pressure.  It is held fixed during a
-pass and updated between passes.  A pass is accepted when `max|H[s] - u_r| <= ripple.tol * H`
-(`H[s]` the response to that pass's pressure), the residual has at least halved since the
-pass before, and the contact set at the end state did not change.  There are at most
-`ripple.maxpass` passes.
+response (modulus `E_star`) to the fluid pressure of the cell.  It is held fixed during a
+pass and updated between passes, for at most `ripple.maxpass` passes.  A pass is accepted
+when `max|H[s] - u_r| <= ripple.tol * H` (`H[s]` is the response to the pressure of that
+pass), the residual has at least halved since the previous pass, and the contact set at the
+end state is unchanged.
 
 **Outputs.**  All are the end state, in SI.
 
 | Output | Meaning |
 |---|---|
 | `Q` | cell-mean flux [m^2/s] |
-| `dQ` | `Q - Q_Reynolds`, with `Q_Reynolds = U H - H^3 G / (12 eta0)` of the smooth film at the end state |
+| `dQ` | `Q - Q_Reynolds`, where `Q_Reynolds = U H - H^3 G / (12 eta0)` is the smooth-film flux |
 | `P_f` | fluid pressure integrated over the fluid region, per cell area [Pa] |
-| `dP` | `P_f - P` at the end state [Pa] |
+| `dP` | `P_f - P` [Pa] |
 | `P_asp` | asperity load per cell area [Pa] |
 | `k_asp` | closure tangent `-dP_asp/dH` [Pa/m] |
 | `contact_frac`, `A_mech_frac` | obstructed area fraction; mechanical contact area fraction |
-| `tau_fluid` | mean over the cell area of `eta0 (2 U) / h + (h / 2) grad p` in the fluid region [Pa] |
-| `tau_asperity`, `tau_total` | sampled asperity shear mean, and fluid + asperity [Pa] |
+| `tau_fluid` | cell-area mean of `eta0 (2 U) / h + (h / 2) grad p` over the fluid region [Pa] |
+| `tau_asperity`, `tau_total` | sampled asperity shear mean; fluid + asperity [Pa] |
 
 The frictional torque $\mathcal{T}$ of a bearing is a macroscale integral of the shear
-stress.  This package returns the cell's shear stress only.
+stress.  This package returns the shear stress of the cell only.
 
 ## The call
 
 ```python
 from microcell import microsolver, Zeta, Roughness, MicroSettings, ContactSettings, RippleSettings
 
-zeta = Zeta(H=130e-9, P=40.8e6, Ux=0.02)                 # SI; Ux, Uy are mean (entrainment) velocities
+zeta = Zeta(H=130e-9, P=40.8e6, Ux=0.02)                 # film [m], pressure [Pa], mean velocity [m/s]
 rough = Roughness.generated(Sa=40e-9, seed=1000)         # or .array(z, Lx, Ly), .pair(a, b), .cosine(Ah, kx, ky)
 settings = MicroSettings(mesh_n=100, contact=ContactSettings(mu=0.8), ripple=RippleSettings())
-out = microsolver(zeta, t_end=0.02, roughness=rough, settings=settings, n_steps=3)
+out = microsolver(zeta, t_end=0.02, roughness=rough, settings=settings, n_steps=3,
+                  save_paraview=True, output_dir="output/my_cell")
 out = microsolver(zeta, roughness=rough, steady=True)    # a steady solve, default settings
 
-out.status, out.reason                                   # "OK", or a FAILED_* code and why
+out.status, out.reason                                   # "OK", or a FAILED_* code and the reason
 out.dQ, out.dP, out.P_asp, out.contact_frac              # homogenised outputs (18 named, SI)
 out.fields["p_fluid"], out.fields["film"]                # (n+1, n+1) arrays [i_x, j_y], SI
-out.info["newton_iters"], out.info["shear_asperity_status"]   # everything else, each once
+out.info["newton_iters"], out.info["shear_asperity_status"]   # counters, statuses, diagnostics
 ```
 
-Conventions:
+`out.status` should be checked first: a failed solve returns NaN outputs and gives the reason
+in `out.reason`.
 
 - **Velocities.**  `Ux`, `Uy` are the mean (entrainment) velocities.  The moving surface
   slides at `2 Ux`, `2 Uy`.
-- **Window.**  `zeta` is the state at t = 0, so the end state is `zeta + rate * t_end`.  The
-  outputs are the end state.  The CFL step is
+- **Window.**  `zeta` is the state at t = 0 and the outputs are the end state,
+  `zeta + rate * t_end`.  The CFL step is
   `dt_cfl = cfl_target * min(xmax, ymax) / mesh_n / (2 max|U|)` (`t_end / 10` when U = 0).
-  - `n_steps=N` (default 3): the last `N` CFL steps ending at `t_end` are solved, from
-    `t_start = t_end - N dt_cfl`.  If they do not fit in `[0, t_end]`, the solve starts at
-    t = 0 and takes `ceil(t_end / dt_cfl)` equal steps.
-  - `n_steps=None`: the march from t = 0, in `ceil(t_end / dt_cfl)` equal steps.
-    There is no cap, and the cost grows with the
-    count: the default settings at `t_end = 0.02` s and `Ux = 0.02` m/s give 16000 steps,
-    about 11 minutes for the cell of `examples/run_cell.py` (an estimate from runs of 11 and
-    21 steps, about 0.04 s per step).
-  - `info["n_steps"]`, `info["t_start"]` and `info["dt"]` report the steps marched and the
-    window solved.
-- **Steady.**  `steady=True`: one steady solve.  Rates, `t_end` and `n_steps` are not used.
+  - `n_steps=N` (default 3) solves the last `N` CFL steps ending at `t_end`.  If they do not
+    fit in `[0, t_end]`, the solve starts at t = 0 and takes `ceil(t_end / dt_cfl)` equal steps.
+  - `n_steps=None` marches from t = 0 in `ceil(t_end / dt_cfl)` equal steps, with no cap.
+    The default settings at `t_end = 0.02` s and `Ux = 0.02` m/s give 16000 steps, estimated
+    at about 11 minutes for the cell of `examples/run_cell.py`.
+  - `info["n_steps"]`, `info["t_start"]` and `info["dt"]` report the window solved.
+- **Steady.**  `steady=True` is one steady solve.  Rates, `t_end` and `n_steps` are not used.
 - **Roughness.**  Height arrays are gap perturbations `z[j_y, i_x]` (`z < 0` is an asperity).
-  `moving=False` puts a surface on the stationary side, `moving=True` on the translating
-  side.  A stationary + translating pair takes one `offset=(o_x, o_y)` per call; loop to
-  average.
+  `moving=False` puts a surface on the stationary side and `moving=True` on the translating
+  side.  A stationary + translating pair takes one `offset=(o_x, o_y)` per call; an average
+  over offsets is a loop in the calling script.
 - **ParaView.**  `save_paraview=True` writes `cell.vts` and `cell.xdmf` (+ `.h5`) of the end
-  state (the files also carry `p_fluid_masked`, which `out.fields` does not).
+  state to `output_dir`.  The files also carry `p_fluid_masked`, which `out.fields` does not.
 
-Examples, one per kind of roughness, and one of the package used as a library from another script.  Each prints its outputs with units and writes ParaView
-files under `examples/output/` (not tracked):
+Each example prints its outputs with units.  The first four write ParaView files under
+`examples/output/` (not tracked).
 
-| Script | Cell | Output folder |
-|---|---|---|
-| `examples/run_cell.py` | a generated Gaussian surface, Sa 40 nm, mixed contact with ripple; transient and steady | `gensa40_h130/` |
-| `examples/pair_cell.py` | a stationary + translating pair, composite Sa 10 nm, with an offset | `pair_sa10_h25/` |
-| `examples/array_cell.py` | a height array (one pocket), full film; on the stationary and on the translating surface | `pocket_stationary/`, `pocket_translating/` |
-| `examples/cosine_cell.py` | the analytic cosine cell, full film, with a film rate; transient and steady | `cosine_h120/` |
-| `examples/use_as_library.py` | the package imported from a script in any folder: a function returning a tuple, called over four films (pendulum Sa 10 nm surface) | none |
-| `examples/source_term.py` | a source term added to the Reynolds equation from outside the package, checked against its analytic pressure ("Changing the equations") | none |
+| Script | Cell |
+|---|---|
+| `examples/run_cell.py` | generated Gaussian surface, Sa 40 nm, mixed contact with ripple; transient and steady |
+| `examples/pair_cell.py` | stationary + translating pair, composite Sa 10 nm, with an offset |
+| `examples/array_cell.py` | height array (one pocket), full film; stationary and translating |
+| `examples/cosine_cell.py` | analytic cosine cell, full film, with a film rate; transient and steady |
+| `examples/use_as_library.py` | the package imported from a script in any folder: a function returning a tuple, called over four films |
+| `examples/source_term.py` | a source term added to the Reynolds equation, checked against its analytic pressure |
 
 ### Settings
 
-Every setting is a field of `MicroSettings` (or of its `contact` / `ripple` part), defined once
-in `microcell/api.py` with its one default: the parent's `GenSa40-ripple` case.
-`MicroSettings.check()` refuses, before a mesh is built, every value the solver would refuse.
+Every setting is a field of `MicroSettings`, or of its `contact` or `ripple` part, defined
+once in `microcell/api.py`.  `MicroSettings.check()` refuses invalid values before a mesh is
+built.
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `mesh_n` | 100 | cells per side of the micro mesh |
+| `mesh_n` | 100 | mesh divisions per side of the cell |
 | `xmax`, `ymax` | 5e-6 | cell size [m] |
 | `eta0` | 1e-3 | viscosity [Pa s] (isoviscous) |
 | `penalty_gamma` | 1e10 | cavitation penalty |
 | `h_min` | 1.0331e-11 | contact onset film [m] |
-| `E_star` | 203775203775.2038 | reduced two-body modulus [Pa]: the one modulus of the contact law and the ripple |
+| `E_star` | 203775203775.2038 | reduced two-body modulus [Pa], used by the contact and the ripple |
 | `delta_h` | 0.0 | width of the contact mask transition [m] (0: sharp) |
 | `eps_solid` | 1e-8 | mobility factor inside contact |
-| `eps_smooth` | 1e-3 | smoothing of the cavitation switch [Pa] |
+| `eps_smooth` | 1e-3 | smoothing width of the cavitation switch [Pa] |
 | `spos_form` | `"sqrt"` | `"sqrt"` or `"spline"` |
-| `level_constraint` | `"whole_cell"` | pressure-level constraint (`"fluid_mean_v1"`: over the fluid region) |
+| `level_constraint` | `"whole_cell"` | `"whole_cell"` or `"fluid_mean_v1"` |
 | `pattern_flux_contact` | True | flux pattern in the contact region |
 | `jacobian_reg_eps` | -1e-7 | shift of the Jacobian (0: none) |
-| `relaxation_parameter`, `max_iterations`, `abs_tolerance`, `rel_tolerance` | 1.0, 300, 1e-6, 1e-6 | Newton solve; the parent's Sa 8, Sa 10 and Wang cases run `abs_tolerance=1e-5` |
+| `relaxation_parameter`, `max_iterations`, `abs_tolerance`, `rel_tolerance` | 1.0, 300, 1e-6, 1e-6 | Newton solve; the parent's Sa 8, Sa 10 and Wang cases use `abs_tolerance=1e-5` |
 | `cfl_target` | 1.0 | CFL number of the transient steps |
-| `roughness_velocity_ratio` | None | None: the roughness's own ratio |
+| `roughness_velocity_ratio` | None | None: the ratio of the roughness itself |
 | `contact` | `ContactSettings()` | `None` is the full-film mode |
 | `contact.tol`, `.maxit` | 1e-11, 500 | contact solve |
 | `contact.sigma_yield` | 250e6 | yield flag threshold [Pa] |
@@ -244,224 +182,107 @@ in `microcell/api.py` with its one default: the parent's `GenSa40-ripple` case.
 | `ripple` | `RippleSettings()` | `None` turns the ripple deformation off |
 | `ripple.tol`, `.maxpass`, `.omega` | 1e-6, 12, 1.0 | ripple fixed point |
 
-Not settings: the Newton damping and backtracking values, `BETA` and the patch pin are fixed
-values at the top of `microcell/solver_base.py`.
+The Newton damping and backtracking values, `BETA` and the patch pin are fixed values at the
+top of `microcell/solver_base.py`, not settings.
 
 ### Result
 
 - `out.status` is `OK`, `FAILED_NEWTON`, `FAILED_RIPPLE`, `FAILED_CONTACT` or
-  `FAILED_NONFINITE`.  A failed result has every homogenised output NaN and no fields; its
-  `info` has the same entries as an OK result's.
+  `FAILED_NONFINITE`.  A failed result has every homogenised output NaN and no fields.  Its
+  `info` has the same entries as that of an OK result.
 - Each output is in one place: a named output, an array of `out.fields`, or an entry of
-  `out.info` (statuses and tags, counters, the pressure ledger, the ripple and contact numbers,
-  the sampled shear statistics, the call, and the field diagnostics in `info["fields"]`).
-- On an OK result an output is NaN only where the table `microcell.NAN_STATUS` ties it to a
-  per-quantity status in `info` that says why (`pressure_extrema_status`,
-  `shear_extrema_status`, `shear_asperity_status`, `shear_total_status`: `no_fluid`,
-  `phase_invalid`, `unavailable`).  A full-film cell's `tau_asperity` and `tau_total` are NaN
-  with `unavailable`.  A NaN the table does not explain gives `FAILED_NONFINITE`.
-- The parent's global-x shear envelopes are not produced: a standalone cell has no macro frame.
+  `out.info` (statuses, counters, the pressure ledger, the ripple and contact numbers, the
+  sampled shear statistics, the call, and the field diagnostics in `info["fields"]`).
+- On an OK result an output is NaN only where `microcell.NAN_STATUS` ties it to a status in
+  `info` (`pressure_extrema_status`, `shear_extrema_status`, `shear_asperity_status`,
+  `shear_total_status`, with values `no_fluid`, `phase_invalid`, `unavailable`).  In a
+  full-film cell `tau_asperity` and `tau_total` are NaN with `unavailable`.  Any other NaN
+  gives `FAILED_NONFINITE`.
 
 ## Changing the equations
 
-The equations are UFL forms in two files; `microcell/solver_base.py` holds the full-film
-problem and `microcell/solver_mixed.py` overrides the parts that change with contact.
+The equations are UFL forms.  `microcell/solver_base.py` holds the full-film problem and
+`microcell/solver_mixed.py` overrides the parts that change with contact.
 
 | What | Where (method of the solver class) |
 |---|---|
-| Pressure `p = P + G . (x - x_c) + lambda + w`; mobility `K = omega h^3 mask`; advective flux `U h mask`; the cavitation term `spos(-p)` | `_setup_pressure_expressions` (base; the mixed class replaces the transport and the cavitation weight) |
+| Pressure `p`, mobility `K = omega h^3 mask`, advective flux `U h mask`, cavitation term `spos(-p)` | `_setup_pressure_expressions` (the mixed class replaces the transport and the cavitation weight) |
 | Film `h`, the fluid indicator and the contact mask | `_setup_film_and_mask` |
-| The residual `R = Reynolds + cavitation - squeeze` and its Jacobian | `_build_forms` (base only, about 25 lines) |
-| The squeeze term `dh/dt` and its mean | `_squeeze_residual_terms`, `_update_squeeze_mean` (base and mixed) |
-| The scales of the non-dimensional problem | `_nondim_scalars` |
-| The Newton solve for `(w, lambda)` | `_newton_solve`, `_schur_step`, `_closure_G` |
-| The homogenised outputs | `spatial_homogenisation` (base, mixed and contact) |
+| Residual `R = Reynolds + cavitation - squeeze` and its Jacobian | `_build_forms` (base only) |
+| Squeeze term `dh/dt` and its mean | `_squeeze_residual_terms`, `_update_squeeze_mean` (base and mixed) |
+| Scales of the non-dimensional problem | `_nondim_scalars` |
+| Newton solve for `(w, lambda)` | `_newton_solve`, `_schur_step`, `_closure_G` |
+| Homogenised outputs | `spatial_homogenisation` (base, mixed and contact) |
 
 The Jacobian of the field residual is derived automatically (`derivative(R, w)`), so a new
 term in `R` needs no hand-written linearisation with respect to `w`.
 
-The forms are non-dimensional and the equation is solved as twice the one in "The model":
-lengths by the cell size, film by `H`, pressure by `p_scale`, time by `t0 = 2 Lx / Uref`,
-with `U_nd = 2 U / Uref` and `omega = H^2 p_scale / (6 eta0 Lx Uref)`.  A rate in m/s that
-stands beside `dh/dt` is multiplied by `t0 / H`.
+The forms are non-dimensional and the equation is solved as twice the one in "The model".
+Lengths are scaled by the cell size, the film by `H`, the pressure by `p_scale` and time by
+`t0 = 2 Lx / Uref`, with `U_nd = 2 U / Uref` and `omega = H^2 p_scale / (6 eta0 Lx Uref)`.
+A rate in m/s that stands beside `dh/dt` is multiplied by `t0 / H`.
 
 **Worked example: a source term.**  With a source `s` [m/s] the equation is
 
     div( h^3 / (12 eta0) grad p ) = div( U h ) + dh/dt - s
 
-so the change is `dh_dt - s_nd` where `_build_forms` passes `dh_dt` to
+The change is `dh_dt - s_nd` where `_build_forms` passes `dh_dt` to
 `_squeeze_residual_terms`, with `s_nd = s t0 / H` a UFL expression of the unit-cell
-coordinates `self.x`, `self.y`.  `examples/source_term.py` does this from outside the package,
-by wrapping that method, and checks the result against the analytic pressure of a sinusoidal
-source in a flat film (they agree to better than 1e-6 of the amplitude).
+coordinates `self.x`, `self.y`.  `examples/source_term.py` does this from outside the package
+and agrees with the analytic pressure of a sinusoidal source in a flat film to better than
+1e-6 of the amplitude.
 
-**What to watch.**
+The following points apply to any change:
 
-- *Solvability.*  The cell is periodic, so the net source over the cell must be zero.
-  The squeeze term has its cell mean subtracted at every step (`_update_squeeze_mean`); a
-  source routed through it, as above, gets the same treatment, and a source added elsewhere
-  needs its own.  The mean part of a source belongs to the macroscale equation.
-- *Steady solves.*  The squeeze term is switched off in a steady solve (`transient_on`), and
-  a source routed through it goes with it.
-- *Pressure-dependent terms.*  `lambda` is a scalar solved beside `w` by a hand-written Schur
-  step.  Its derivative forms (`_c_form`, `_g_form_raw` in `_setup_forms`, and `_closure_G`,
-  `_closure_d_scalar`) are written by hand and cover the cavitation term only.  A term that
-  depends on the pressure value (compressibility, a pressure-dependent viscosity) must be
-  added to them; one that depends on the film, the position, the time or `grad p` need not.
-- *Contact.*  The mixed class overrides `_setup_pressure_expressions`,
-  `_squeeze_residual_terms`, `_update_squeeze_mean` and the closure.  A change to one of
+- **Solvability.**  The cell is periodic, so the net source over the cell must be zero.  The
+  squeeze term has its cell mean subtracted at every step (`_update_squeeze_mean`), and a
+  source routed through it is treated the same.  A source added elsewhere needs its own
+  subtraction.  The mean part of a source belongs to the macroscale equation.
+- **Steady solves.**  The squeeze term is switched off in a steady solve (`transient_on`),
+  and a source routed through it is switched off with it.
+- **Pressure-dependent terms.**  `lambda` is solved beside `w` by a hand-written Schur step.
+  Its derivative forms (`_c_form`, `_g_form_raw`, `_closure_G`, `_closure_d_scalar`) cover
+  the cavitation term only.  A term that depends on the pressure value, such as
+  compressibility or a pressure-dependent viscosity, must be added to them.  A term that
+  depends on the film, the position, the time or `grad p` need not.
+- **Contact.**  The mixed class overrides `_setup_pressure_expressions`,
+  `_squeeze_residual_terms`, `_update_squeeze_mean` and the closure, so a change to one of
   those is made in both classes.
-- *Outputs.*  `Q`, `dQ`, `dP` and the shear are computed from the standard terms in
-  `spatial_homogenisation`.  They do not pick up a new term by themselves.
-- *Time-dependent coefficients* are dolfin `Constant`s assigned in `_set_time_level`; a new
-  one is assigned there.
-- *Parity.*  Any change to an existing form moves the reference cells.  Keep the existing
-  path identical when the new term is off, and run `tests/test_parity.py`.
+- **Outputs.**  `Q`, `dQ`, `dP` and the shear are computed from the standard terms in
+  `spatial_homogenisation` and do not include a new term.
+- **Time-dependent coefficients** are dolfin `Constant`s assigned in `_set_time_level`.
+- **Parity.**  A change to an existing form moves the reference cells.  The existing path
+  should stay identical when the new term is off; `tests/test_parity.py` checks this.
 
-## Running
-
-From the repo root, with the environment started as in "Getting started":
+## Tests
 
 ```bash
-source scripts/ehl_env.sh
-python -m pytest tests/ -q -p no:cacheprovider      # the parity gate and the other tests, about 30 s
-python tests/test_parity.py                         # the gate as a script: exit 0 PASS, 1 FAIL, 2 INCOMPLETE
-python examples/run_cell.py                         # each example: under 10 s, exit 0 OK, 1 a solve failed
+python -m pytest tests/ -q -p no:cacheprovider      # all tests, about 30 s
+python tests/test_parity.py                         # the parity gate alone: exit 0 PASS, 1 FAIL, 2 INCOMPLETE
 ```
 
-The parity gate (`tests/test_parity.py`) solves each reference cell in `tests/references/`
-through `microsolver()` and compares every homogenised output and field with the parent's
-value to a relative 1e-12.  The references were made from the parent at `2aaccad` by
-`tools/make_references.py`.
-
-The other tests:
-
-| File | Covers |
-|---|---|
-| `tests/test_settings.py` | `MicroSettings.check()` |
-| `tests/test_results.py` | the layout of a failed result and the NaN-to-status rule |
-| `tests/test_march.py` | `n_steps=None`: the march from t = 0 |
-| `tests/test_micro_phase_neutral_steady.py` | the parent's steady checks of the full-film cell (the plan's "steady conservation checks") |
-| `tests/test_fft_micro_fenics.py` | the parent's checks of the elastic contact solve in the cell |
-| `tests/test_fluid_mean_fenics.py` | the parent's checks of the fluid-mean level constraint |
-| `tests/test_ripple_micro_fenics.py` | the parent's checks of the ripple deformation |
-
-The four files of the parent's tests are copied with the settings renamed and the expected
-numbers and tolerances unchanged.  They set the parent's test-time values explicitly
-(`tests/parent_fixtures.py`).  The tests of the parent that need something this repo does
-not have are left out; the list, with reasons, is in
-`docs/notes/micro_standalone_wp5_implementation_log_2026-11-11.md`.  The two tests marked
-`slow` run in the default suite.
+The parity gate solves each reference cell in `tests/references/` through `microsolver()`
+and compares every homogenised output and field with the value from the parent to a relative
+1e-12.  The references were made from the parent at `2aaccad` by `tools/make_references.py`.
 
 ## Layout
 
 | Path | Contents |
 |---|---|
-| `microcell/api.py` | `microsolver()`, `Zeta`, `MicroSettings`, `MicroResult` (new; written from the parent's worker `run_micro_task_phase_neutral`) |
-| `microcell/fields.py` | field extraction and the ParaView writers (ported from the parent's `scripts/run/run_micro_cells.py`) |
+| `microcell/api.py` | `microsolver()`, `Zeta`, `MicroSettings`, `MicroResult` |
+| `microcell/fields.py` | field extraction and the ParaView writers |
 | `microcell/solver_base.py` | `MicroPhaseNeutralSolver`: the full-film cell, the Newton solve, the time stepping, the ripple loop |
 | `microcell/solver_mixed.py` | `MicroPhaseNeutralMixedSolver`: the contact mask and the fluid-mean level constraint |
 | `microcell/solver_contact.py` | `MicroPhaseNeutralContactSolver`: the elastic contact solve in the cell |
-| `microcell/samplers.py` | fluid pressure and traction samples, contact samples (was `micro_diagnostics.py` + `contact_sample.py`) |
-| `microcell/film.py` | the film callbacks: the cosine cell and the generated surfaces (was `ideal_ht.py` + `surface_ht.py`) |
-| `microcell/contact.py` | the periodic elastic (FFT) contact solve (was `contact.py` + `elastic_contact.py`) |
-| `microcell/ripple.py` | the ripple operator and its acceptance checks |
-| `microcell/pressure.py` | the pressure ledger and the pressure extrema |
-| `microcell/shear.py` | shear traction: reduction, fluid, asperity and total (was `shear_reduce.py` + `fluid_shear.py` + `contact_shear.py`) |
-| `microcell/roughness/` | `generation.py` and `quantiles.py` (the Gaussian IAAFT generator), `evaluator.py`, `runtime.py` and `pair.py` (the surface field and its motion), `frontend.py` (`Roughness`, new) |
-| `microcell/form_compiler.py`, `microcell/process_settings.py` | the process state set before the first form |
-| `tests/` | the parity gate and its references, and the other tests (see Running) |
-| `examples/` | one script per kind of roughness; `examples/output/` is not tracked |
-| `tools/` | `make_references.py` (run from the parent's root), `show_references.py` |
-| `docs/notes/` | the plan, the session prompts and the implementation logs |
-
-## Provenance
-
-Every file below started as the parent's file at commit
-`2aaccad2724c051c0f774cbe7b19b5183edf4720`, unchanged except for import paths (`ehl.` /
-`microscale.src.functions.` / `utils.` -> `microcell.`).  The blob is the parent's git blob id
-(first 10 characters); the full ids and the parent's line counts are in
-`docs/notes/provenance.tsv`.
-
-The five files marked "pruned" were cut in WP2 (11 Nov 2026) and are no longer the parent's
-text: the spring film coupling (`k_spring`), the `legacy_patch_v1` and `hertz_summit_v1` contact laws, the
-Roelands and compressibility stubs, `gauge_lift`, the `c2` cavitation form, the solver's export
-hooks, the warm-start plumbing, the contact-table code and the solver's environment reads are
-gone.  What went, group by group, with the parity after each:
-`docs/notes/micro_standalone_wp2_implementation_log_2026-11-11.md`.
-
-WP3 (11 Nov 2026) pruned the helpers.  The files marked "pruned in WP3" lost the code the
-micro solve does not reach: the macro-frame and batch code of the shear modules, the remains
-of the removed contact laws, the macro-side helpers of `pressure.py`, the surface store and its
-`EHL_SURFACE_STORE` read, and in `roughness/` everything but the Gaussian IAAFT generator, the
-Fourier evaluator, the in-memory surface field and the translating surface's kinematics
-(`ideal_ht.py`: a docstring only).  The eight files marked "removed in WP3" are no longer in
-the repo; their rows stay as the record of what was copied.  `Roughness.generated` calls the
-generator directly and returns the same arrays, bit for bit.  What went, group by group, with
-the parity after each: `docs/notes/micro_standalone_wp3_implementation_log_2026-11-11.md`.
-
-WP4 (11 Nov 2026) collapsed the settings and the results.  The solver classes read `Zeta` and
-`MicroSettings` directly (their own settings and parameter classes are gone), and the global-x
-shear envelopes with their macro-frame rotation are removed.  That touched the files already
-marked, and two that were still the parent's: `shear_reduce.py` (marked "pruned in WP4") and
-`surface_ht.py` (marked "edited in WP4": two lines, the solver attribute it reads).  What
-changed, group by group, with the parity after each:
-`docs/notes/micro_standalone_wp4_implementation_log_2026-11-11.md`.
-
-WP5 (11 Nov 2026) put the files into the plan's layout.  The three solver files are renamed.
-Nine files are merged into four (`samplers.py`, `film.py`, `contact.py`, `shear.py`), each
-part in the order of its rows below.  The code moved verbatim: only module docstrings (the old
-ones are kept inside the new one), import lines and `__all__` changed.  The paragraphs above
-use the file names of their time; the table gives each file's name now, and
-`docs/notes/provenance.tsv` has both (`file`, `file_since_wp5`).  After the move, WP5 removed
-names that nothing reads: the Newton prints, the timing summary and the Newton trace
-(`solver_base.py`), a back-compat alias (`solver_mixed.py`), `SAMPLER_DEFINITION` and an
-`as_dict` (`samplers.py`), an `as_dict` (`shear.py`), `FLUID_DEFORMATION_MODES` and
-`deformation_model_tag` (`ripple.py`, marked "pruned in WP5"), `h_geom_min_bound`
-(`roughness/runtime.py`), the two legacy error metrics of the generator
-(`roughness/generation.py`), and three unused imports.  The checks and the parity:
-`docs/notes/micro_standalone_wp5_implementation_log_2026-11-11.md`.
-
-Still the parent's text: `form_compiler.py`, `process_settings.py`, `scripts/ehl_env.sh`, and
-the `elastic_contact.py` part of `contact.py`.
-
-| File | Parent path | Parent blob |
-|---|---|---|
-| `microcell/solver_base.py` (pruned; renamed in WP5) | `microscale/src/functions/micro_phase_neutral_class.py` | ca5040d93a |
-| `microcell/solver_mixed.py` (pruned; renamed in WP5) | `microscale/src/functions/micro_phase_neutral_class_mixed.py` | 8feecdbaff |
-| `microcell/solver_contact.py` (pruned; renamed in WP5) | `microscale/src/functions/micro_phase_neutral_class_contact.py` | eea045cf74 |
-| `microcell/samplers.py`, first part (pruned; merged in WP5) | `microscale/src/functions/micro_diagnostics.py` | a09479ce6b |
-| `microcell/samplers.py`, second part (pruned in WP3; merged in WP5) | `microscale/src/functions/contact_sample.py` | 4f77a66bac |
-| `microcell/film.py`, first part (pruned in WP3; merged in WP5) | `microscale/src/functions/ideal_ht.py` | f314c7af1b |
-| `microcell/film.py`, second part (edited in WP4; merged in WP5) | `microscale/src/functions/surface_ht.py` | 6775f693ea |
-| `microcell/contact.py`, first part (pruned, and again in WP3; merged in WP5) | `ehl/contact.py` | 1ac7dff6ec |
-| `microcell/contact.py`, second part (merged in WP5) | `ehl/elastic_contact.py` | 95ed9d78bf |
-| `microcell/ripple.py` (pruned in WP5) | `ehl/ripple.py` | a869e99b30 |
-| `microcell/pressure.py` (pruned in WP3) | `ehl/pressure.py` | 1c7da166fc |
-| `microcell/shear.py`, first part (pruned in WP4; merged in WP5) | `ehl/shear_reduce.py` | ca9e9f9984 |
-| `microcell/shear.py`, second part (pruned in WP3; merged in WP5) | `ehl/fluid_shear.py` | d927ff9942 |
-| `microcell/shear.py`, third part (pruned in WP3; merged in WP5) | `ehl/contact_shear.py` | e659bf06ee |
-| `microcell/roughness/__init__.py` (pruned in WP3) | `ehl/roughness/__init__.py` | 8b51a21a22 |
-| `microcell/roughness/assets.py` (removed in WP3) | `ehl/roughness/assets.py` | bfe9e91419 |
-| `microcell/roughness/case.py` (removed in WP3) | `ehl/roughness/case.py` | c17eb1b970 |
-| `microcell/roughness/evaluator.py` (pruned in WP3) | `ehl/roughness/evaluator.py` | 7e9c2e37b5 |
-| `microcell/roughness/generation.py` (pruned in WP3) | `ehl/roughness/generation.py` | e504b70d2a |
-| `microcell/roughness/modes.py` (removed in WP3) | `ehl/roughness/modes.py` | f536399412 |
-| `microcell/roughness/pair.py` (pruned in WP3) | `ehl/roughness/pair.py` | 4ccdc3b411 |
-| `microcell/roughness/prepare.py` (removed in WP3) | `ehl/roughness/prepare.py` | a295e10e72 |
-| `microcell/roughness/quantiles.py` (pruned in WP3) | `ehl/roughness/quantiles.py` | b6404d1533 |
-| `microcell/roughness/report.py` (removed in WP3) | `ehl/roughness/report.py` | d07a6018a7 |
-| `microcell/roughness/runtime.py` (pruned in WP3) | `ehl/roughness/runtime.py` | 5bf5215837 |
-| `microcell/roughness/spec.py` (removed in WP3) | `ehl/roughness/spec.py` | f8692c4625 |
-| `microcell/roughness/stats.py` (removed in WP3) | `ehl/roughness/stats.py` | 0fab7913cb |
-| `microcell/roughness/targets.py` (removed in WP3) | `ehl/roughness/targets.py` | 63449dd2ef |
-| `microcell/form_compiler.py` | `utils/form_compiler.py` | 583df10d92 |
-| `microcell/process_settings.py` | `macroscale/src/functions/process_settings.py` | 3893447028 |
-| `scripts/ehl_env.sh` | `scripts/ehl_env.sh` | 1c7dca4e8f |
-
-Written from parent code at the same commit, not copied:
-
-| File | Parent source | Parent blob |
-|---|---|---|
-| `microcell/api.py` | `scripts/run/run_microscale_phase_neutral.py` (`run_micro_task_phase_neutral`, `_build_phase_neutral_settings`), `scripts/run/micro_task_helpers.py` (`_parse_task`, `q_re`) | ecc05c13f6, 98ec12d1b5 |
-| `microcell/fields.py` | `scripts/run/run_micro_cells.py` (`_extract_fields`, `_write_vts`, `_write_xdmf`) | c154ba5308 |
+| `microcell/samplers.py` | fluid pressure, traction and contact samples |
+| `microcell/film.py` | film callbacks: the cosine cell and the generated surfaces |
+| `microcell/contact.py` | periodic elastic (FFT) contact solve |
+| `microcell/ripple.py` | ripple operator and its acceptance checks |
+| `microcell/pressure.py` | pressure ledger and pressure extrema |
+| `microcell/shear.py` | shear traction: reduction, fluid, asperity and total |
+| `microcell/roughness/` | the Gaussian surface generator, the surface field and its motion, and `Roughness` |
+| `microcell/form_compiler.py`, `microcell/process_settings.py` | process state set before the first form |
+| `tests/` | the parity gate, its references and the other tests |
+| `examples/` | example scripts; `examples/output/` is not tracked |
+| `tools/` | `make_references.py` (run from the root of the parent), `show_references.py` |
+| `docs/notes/` | the plan and the implementation logs |

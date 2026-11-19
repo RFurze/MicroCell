@@ -1,49 +1,34 @@
-"""
-Stage 1 steady-state test suite for MicroPhaseNeutralSolver
-============================================================
+"""Steady checks of ``MicroPhaseNeutralSolver``: the full-film cell with a cosine roughness.
 
-Copied in WP5 from the parent ``MultiscaleMixedBallinSocket`` at 2aaccad,
-``tests/test_micro_phase_neutral_steady.py``.  Expected numbers and tolerances are the parent's.
-Changed: the imports; the parameter and settings helpers return the parent's values by the parent's
-names and ``_make_solver`` puts them into a ``Zeta`` and a ``MicroSettings``
-(``tests/parent_fixtures.py``); ``rho0`` (never read) and ``k_spring`` (0; the spring is removed)
-are not carried, ``beta`` (1.0) and ``print_newton`` (False) are fixed in this package.  The
-full-film class takes no contact onset film here; the parent's ``h_min`` (0.05 or 0.1 um) was below
-the minimum film of every cell in this file, so it masked nothing there either.
+The helpers return the case values as dicts in SI, and ``_make_solver`` puts them into a
+``Zeta`` and a ``MicroSettings`` through ``tests/parent_fixtures.py``.  ``h_min`` of the case
+dicts is not read by the full-film class.
 
-Test matrix (the parent's plan section 1.10), and what is here:
-  T1  Flooded baseline     — non-cavitating case: lambda ≈ 0 and zero mean (the comparison with the
-                             old pinned-BC solver ``MicroMixedSolver`` is left out: not in this package)
-  T2  Cavitating baseline  — left out (compares with ``MicroMixedSolver``)
-  T3  Phase sweep          — left out (``MicroMixedSolver``)
-  T4  Phase-averaged match — left out (``MicroMixedSolver``)
-  T5  Beta sensitivity     — left out (``beta`` is fixed at 1.0 in this package)
-  T6  Mesh convergence     — Qx, Qy, Pst converge under refinement
-  T7  Newton robustness    — no convergence failures across phase sweep
-  T8  Zero-mean verify     — |mean(w_fluc)| < machine precision after solve
-  T9  Symmetric gradient   — consistent in x and y directions
+  T1  flooded baseline     no cavitation: ``lambda`` near 0 and ``w`` with zero mean
+  T6  mesh convergence     ``Qx`` and ``Pst`` at 10 and at 40 cells per side
+  T7  phase sweep          the solve converges at eight roughness phases
+  T8  zero mean            ``|mean(w)|`` after a cavitating solve
+  T9  symmetric gradient   ``Pst`` with the gradient along x and along y
 """
 
 import math
 import numpy as np
 import pytest
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# ---- Helpers ----
 
 def _make_mesh(ncells: int):
-    """Return a UnitSquareMesh with ncells × ncells cells."""
+    """Unit-square mesh of ``ncells`` by ``ncells`` cells."""
     from fenics import UnitSquareMesh
     return UnitSquareMesh(ncells, ncells)
 
 
 def _make_ideal_ht(Ah: float = 0.0, kx: float = 1.0, ky: float = 1.0,
                    phi_x: float = 0.0, phi_y: float = 0.0):
-    """Canonical sinusoidal roughness film-thickness callback.
+    """Film callback of the cosine roughness, from ``microcell.film.make_ideal_ht``.
 
-    Uses the same expression as ``microcell/ideal_ht.py``
-    so results are directly comparable to existing tests.
+    Ah: amplitude [m].  kx, ky: wavenumbers.  phi_x, phi_y: phases [rad].
+    Returns (callback, the ``Constant`` holding ``phi_x``).
     """
     try:
         from microcell.film import make_ideal_ht
@@ -55,7 +40,7 @@ def _make_ideal_ht(Ah: float = 0.0, kx: float = 1.0, ky: float = 1.0,
     except ImportError:
         pass
 
-    # Fallback: inline implementation
+    # used if the import fails: an inline sine-squared film, not the expression of ``make_ideal_ht``
     from fenics import sin, pi, Constant
 
     phi_x_c = Constant(phi_x)
@@ -82,12 +67,8 @@ def _make_ideal_ht(Ah: float = 0.0, kx: float = 1.0, ky: float = 1.0,
 
 
 def _default_new_settings():
-    """The parent's default ``PhaseNeutralSettings`` for the new solver, by the parent's names
-    (``beta = 1.0`` and ``print_newton = False`` are fixed in this package).
-
-    Closure: G = beta * lambda_nd - gamma_nd * mean(spos(-P_nd)) = 0.
-    At equilibrium lambda = gamma * mean(spos) / beta ≥ 0.
-    """
+    """Newton and smoothing settings shared by the tests, as keyword arguments of
+    ``parent_settings``."""
     return dict(
         relaxation_parameter=0.7,
         max_iterations=100,
@@ -102,7 +83,7 @@ def _default_new_settings():
 def _make_flooded_params(p0: float = 1e8, Ux: float = 0.5,
                           dpdx: float = 0.0, dpdy: float = 0.0,
                           H0: float = 2e-6, Ah: float = 0.0):
-    """Physical parameters for a flooded (non-cavitating) case (the parent's names)."""
+    """Case values of a flooded cell (no cavitation), in SI.  ``Ah`` is not read."""
     return dict(
         Ux=Ux, Uy=0.0,
         eta0=0.01,
@@ -117,7 +98,7 @@ def _make_flooded_params(p0: float = 1e8, Ux: float = 0.5,
 def _make_cavitating_params(p0: float = 1e6, Ux: float = 1.0,
                               dpdx: float = 0.0, H0: float = 1e-6,
                               Ah: float = 0.8e-6):
-    """Physical parameters likely to produce cavitation (the parent's names)."""
+    """Case values of a cell that is likely to cavitate, in SI.  ``Ah`` is not read."""
     return dict(
         Ux=Ux, Uy=0.0,
         eta0=0.01,
@@ -130,8 +111,11 @@ def _make_cavitating_params(p0: float = 1e6, Ux: float = 1.0,
 
 
 def _make_solver(params, settings, mesh, ht):
-    """``MicroPhaseNeutralSolver`` from the parent's parameter and settings values.  The parent's
-    ``MicroPhysicalParameters.roughness_velocity_ratio`` default is 1.0."""
+    """``MicroPhaseNeutralSolver``, not yet solved.
+
+    params: case values (a dict from the helpers above).  settings: solver settings.
+    mesh: the micro mesh.  ht: film callback.  The roughness velocity ratio is 1.0.
+    """
     from parent_fixtures import ensure_process, parent_settings, parent_zeta
     ensure_process()
     from microcell.solver_base import MicroPhaseNeutralSolver
@@ -152,7 +136,8 @@ def _make_solver(params, settings, mesh, ht):
 
 def _run_new_solver(params, settings, ncells: int = 20,
                     Ah: float = 0.0, phi_x: float = 0.0):
-    """Instantiate and run MicroPhaseNeutralSolver; return the solver."""
+    """Runs the steady solve on an ``ncells`` by ``ncells`` mesh with a cosine roughness of
+    amplitude ``Ah`` [m] and phase ``phi_x`` [rad].  Returns (solver, the phase ``Constant``)."""
     from fenics import UnitSquareMesh
 
     mesh = UnitSquareMesh(ncells, ncells)
@@ -162,13 +147,10 @@ def _run_new_solver(params, settings, ncells: int = 20,
     return solver, phi_x_c
 
 
-# ---------------------------------------------------------------------------
-# T1: Flooded baseline
-# ---------------------------------------------------------------------------
+# ---- T1: flooded baseline ----
 
 def test_flooded_baseline():
-    """T1: Non-cavitating case — lambda ≈ 0 and zero mean.  (The parent also compared Qx, Qy with
-    the old pinned-BC solver to <0.1%; that solver is not in this package.)"""
+    """T1: without cavitation, ``|lambda| < 0.01 p0`` and ``|mean(w)| < 1e-10``."""
     params = _make_flooded_params(p0=5e8, Ux=0.5, Ah=0.0)
     new_s = _default_new_settings()
 
@@ -178,12 +160,12 @@ def test_flooded_baseline():
 
     Qx_new, Qy_new, Pst_new = new_res[0], new_res[1], new_res[2]
 
-    # lambda should be ≈ 0 for non-cavitating case
+    # pressure level [Pa]: near 0 without cavitation
     lambda_dim = new_solver.dP
     assert abs(lambda_dim) < 0.01 * abs(params["p0"]), (
         f"Flooded lambda too large: {lambda_dim:.4e}  (p0={params['p0']:.4e})")
 
-    # Mean of w_fluc should be ≈ 0 (zero-mean constraint)
+    # cell mean of w: 0 by the zero-mean constraint
     from fenics import assemble, dx, Constant
     area = float(assemble(Constant(1.0) * dx(domain=new_solver.mesh_m)))
     mean_w = float(new_solver._mean_vec.inner(new_solver.w.vector())) / area
@@ -195,13 +177,11 @@ def test_flooded_baseline():
     print(f"[T1 Flooded] mean(w_fluc) = {mean_w:.4e}  (should ≈ 0)")
 
 
-# ---------------------------------------------------------------------------
-# T6: Mesh convergence
-# ---------------------------------------------------------------------------
+# ---- T6: mesh convergence ----
 
 @pytest.mark.slow
 def test_mesh_convergence():
-    """T6: Qx, Qy, Pst converge under refinement."""
+    """T6: ``Qx`` and ``Pst`` at 10 cells per side are within a relative 0.5 of the values at 40."""
     params = _make_cavitating_params(p0=5e5, Ux=1.0, H0=1e-6, Ah=0.8e-6)
     new_s = _default_new_settings()
     ncells_list = [10, 20, 40]
@@ -212,8 +192,7 @@ def test_mesh_convergence():
         res = solver.spatial_homogenisation()
         results[n] = {"Qx": res[0], "Qy": res[1], "Pst": res[2]}
 
-    # Compare coarse vs fine: each quantity should be within 20% (loose bound)
-    # (tight convergence needs larger meshes which are slow)
+    # coarse against fine, with a loose bound: tight convergence needs larger meshes
     Qx_coarse = results[10]["Qx"]
     Qx_fine = results[40]["Qx"]
     Pst_coarse = results[10]["Pst"]
@@ -230,13 +209,11 @@ def test_mesh_convergence():
             f"Pst not converging: coarse={Pst_coarse:.4e}  fine={Pst_fine:.4e}")
 
 
-# ---------------------------------------------------------------------------
-# T7: Newton robustness across phase sweep
-# ---------------------------------------------------------------------------
+# ---- T7: Newton solve over a phase sweep ----
 
 @pytest.mark.slow
 def test_newton_robustness_phase_sweep():
-    """T7: No convergence failures across phase sweep; iteration count stable."""
+    """T7: the Newton solve converges at eight roughness phases from 0 up to pi."""
     params = _make_cavitating_params(p0=5e5, Ux=1.0, H0=1e-6, Ah=0.8e-6)
     new_s = _default_new_settings()
     ncells = 20
@@ -253,12 +230,10 @@ def test_newton_robustness_phase_sweep():
     print(f"\n[T7 Newton robustness] All {n_phi} phase points converged.")
 
 
-# ---------------------------------------------------------------------------
-# T8: Zero-mean verification
-# ---------------------------------------------------------------------------
+# ---- T8: zero mean ----
 
 def test_zero_mean_w_fluc():
-    """T8: After solve, |mean(w_fluc)| < 1e-10 (Lagrange multiplier enforcement)."""
+    """T8: after a cavitating solve, ``|mean(w)| < 1e-8`` (enforced by the Lagrange multiplier)."""
     params = _make_cavitating_params(p0=5e5, Ux=1.0, H0=1e-6, Ah=0.8e-6)
     new_s = _default_new_settings()
 
@@ -272,15 +247,14 @@ def test_zero_mean_w_fluc():
         f"Zero-mean constraint not satisfied: mean(w_fluc) = {mean_w:.4e}")
 
 
-# ---------------------------------------------------------------------------
-# T9: Symmetric gradient
-# ---------------------------------------------------------------------------
+# ---- T9: symmetric gradient ----
 
 def test_symmetric_gradient():
-    """T9: Results are consistent with dpdx > 0 vs dpdy > 0 (by symmetry, Pst ≈ same)."""
+    """T9: ``Pst`` with the gradient and velocity along x, and along y, differ by a relative
+    2.0 at most."""
     H0 = 1e-6
     Ah = 0.6e-6
-    # params with gradient in x direction
+    # gradient and velocity along x
     params_x = dict(
         Ux=0.5, Uy=0.0,
         eta0=0.01,
@@ -290,7 +264,7 @@ def test_symmetric_gradient():
         H0=H0, h_min=0.05e-6,
         HT=0.0, PT=0.0, Tend=0.0,
     )
-    # params with gradient in y direction (swap dpdx/dpdy and Ux/Uy)
+    # gradient and velocity along y
     params_y = dict(
         Ux=0.0, Uy=0.5,
         eta0=0.01,
@@ -314,21 +288,18 @@ def test_symmetric_gradient():
     print(f"\n[T9 Symmetric] dpdx case: Pst={Pst_x:.4e}  Fst={Fst_x:.3f}  dP={dP_x:.4e}")
     print(f"[T9 Symmetric] dpdy case: Pst={Pst_y:.4e}  Fst={Fst_y:.3f}  dP={dP_y:.4e}")
 
-    # Both should solve without errors and produce physically similar Pst
     ref = max(abs(Pst_x), abs(Pst_y), 1e-6)
     rel_diff = abs(Pst_x - Pst_y) / ref
-    # No strict tolerance here (x and y are not exactly equivalent when Ux/Uy differ),
-    # but both should be in the same ballpark
+    # loose bound: the x and y cases are not equivalent
     assert rel_diff < 2.0, (
         f"Pst too different between dpdx and dpdy cases: x={Pst_x:.4e}  y={Pst_y:.4e}")
 
 
-# ---------------------------------------------------------------------------
-# Quick smoke test (always runs, no @pytest.mark.slow)
-# ---------------------------------------------------------------------------
+# ---- Smoke test ----
 
 def test_import_and_instantiate():
-    """Smoke test: class imports and instantiates without error on a tiny mesh."""
+    """The class builds and solves a flat film on a 4 by 4 mesh; ``spatial_homogenisation``
+    returns 14 values and ``dP`` is a float."""
     from fenics import UnitSquareMesh
 
     mesh = UnitSquareMesh(4, 4)
@@ -359,7 +330,6 @@ def test_import_and_instantiate():
     result = solver.spatial_homogenisation()
     assert len(result) == 14, f"Expected 14-tuple, got {len(result)}"
 
-    # dP property
     dp = solver.dP
     assert isinstance(dp, float), f"dP should be float, got {type(dp)}"
 

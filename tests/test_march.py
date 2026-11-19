@@ -1,21 +1,20 @@
-"""``n_steps=None``: the march from t = 0 to ``t_end`` (plan D3; WP5 group 2).
+"""``n_steps=None``: the march from t = 0 to ``t_end``.
 
-The cell: a translating cosine in full film, mesh 32, with a film rate, so the film changes at
-every step and the end state depends on where the window starts.  ``t_end`` is 8.5 CFL steps.
+The cell is a translating cosine in full film on mesh 32, with a film rate, so the end state
+depends on where the window starts.  ``t_end`` is 8.5 CFL steps.
 
-What is expected, and where each expectation comes from:
+Checked:
 
-* the step count ``N = ceil(t_end / dt_cfl) = 9``, with ``dt_cfl = cfl_target * min(xmax, ymax) /
-  mesh_n / (2 |Ux|)`` worked out here from the settings, not read from the solver;
-* ``t_start = 0`` and ``N * dt = t_end``: the march covers the whole window;
-* the result is bitwise the result of ``n_steps=N`` and of ``n_steps=N + 3``.  Those are the same
-  problem by construction: a window of ``n`` CFL steps ending at ``t_end`` with ``n >= N`` does not
-  fit in ``[0, t_end]``, and the solver then starts at t = 0 and takes ``N`` equal steps.  The
-  integer path is the one the parity gate covers; ``n_steps=None`` reaches it by its own count;
-* the result differs from the default 3-step window (which starts at ``t_end - 3 dt_cfl > 0``), so
-  the comparison above is not passing because the window does not matter.
+* the step count is ``N = ceil(t_end / dt_cfl) = 9``, with ``dt_cfl = cfl_target * min(xmax, ymax) /
+  mesh_n / (2 |Ux|)`` computed here from the settings;
+* ``t_start = 0`` and ``N * dt = t_end``;
+* the result is bitwise equal to that of ``n_steps=N`` and of ``n_steps=N + 3``: a window of ``N``
+  or more CFL steps does not fit in ``[0, t_end]``, so the solver starts at t = 0 and takes ``N``
+  equal steps;
+* the result differs from that of the default window of 3 steps, which starts at
+  ``t_end - 3 dt_cfl > 0``.
 
-Run from the repo root::
+Run from the repository root::
 
     python -m pytest tests/test_march.py -q
 """
@@ -31,10 +30,11 @@ from microcell import MicroResult, MicroSettings, Roughness, Zeta, microsolver
 
 SETTINGS = dict(mesh_n=32, contact=None, ripple=None)
 ZETA = dict(H=200e-9, P=1.0e6, Ux=0.02, Hdot=-1.0e-4)
-N_CFL = 8.5                      # the window in CFL steps
+N_CFL = 8.5                      # window length in CFL steps
 
 
 def _cell():
+    """Returns (settings, zeta, roughness, t_end [s], dt_cfl [s]) of the test cell."""
     st = MicroSettings(**SETTINGS)
     zeta = Zeta(**ZETA)
     dt_cfl = float(st.cfl_target) * min(st.xmax, st.ymax) / int(st.mesh_n) / (2.0 * abs(zeta.Ux))
@@ -42,7 +42,7 @@ def _cell():
 
 
 def _same(a: MicroResult, b: MicroResult) -> bool:
-    """Every named output and every field of the two results is bitwise equal."""
+    """True when every named output and every field of the two results is bitwise equal."""
     for f in dc_fields(MicroResult):
         if f.name in ("status", "reason", "fields", "info"):
             continue
@@ -67,7 +67,7 @@ def test_march_covers_the_whole_window(march):
     assert march.info["n_steps"] == n
     assert march.info["t_start"] == 0.0
     assert march.info["dt"] * n == pytest.approx(t_end, rel=1e-14, abs=0.0)
-    assert march.info["dt"] < dt_cfl                     # 8.5 CFL steps in 9 equal steps
+    assert march.info["dt"] < dt_cfl                     # 8.5 CFL steps taken as 9 equal steps
 
 
 @pytest.mark.parametrize("extra", [0, 3])
@@ -78,7 +78,7 @@ def test_march_equals_the_integer_window_that_does_not_fit(march, extra):
     assert out.ok, out.reason
     assert out.info["t_start"] == 0.0 and out.info["dt"] == march.info["dt"]
     assert out.info["newton_iters"] == march.info["newton_iters"]
-    assert out.info["n_steps"] == math.ceil(t_end / dt_cfl)      # the count marched, not the count asked for
+    assert out.info["n_steps"] == math.ceil(t_end / dt_cfl)      # steps marched, not steps requested
     assert _same(march, out)
 
 
@@ -102,7 +102,7 @@ def test_a_steady_solve_ignores_n_steps():
 
 
 def test_a_failed_newton_solve_reports_its_iterations():
-    """Tolerances no solve can meet: the result is FAILED_NEWTON and counts the iterations it made."""
+    """With tolerances no solve can meet, the status is FAILED_NEWTON and ``info`` counts the iterations."""
     _st, zeta, rough, _t_end, _dt_cfl = _cell()
     st = MicroSettings(**SETTINGS, max_iterations=3, abs_tolerance=1e-300, rel_tolerance=1e-300)
     out = microsolver(zeta, roughness=rough, settings=st, steady=True)

@@ -267,3 +267,56 @@ term), and chose a README section over a hook in the solver ("Yes, docs only").
   analytic pressure. Run through `wslrun`: exit 0, in `F/logs/source_term_example.log`
   (the relative error is in that log; the README quotes only "better than 1e-6").
 - Gate after both: `F/logs/gate_changing_equations.log`.
+
+## 13. Addendum, 19 Nov 2026: comment and README rewrite
+
+Rob asked for every code comment to be rewritten (brief, what the code does, where inputs come
+from and what outputs are, no development history, in his writing voice) and for the README to
+be shortened, without the provenance section and the list of tests.
+
+- Comments and docstrings were rewritten in every tracked `.py` file outside `docs/notes/` and
+  in `scripts/ehl_env.sh`. No code changed: `F/check_comments_only.py` compares the syntax tree
+  of each file, docstrings removed, with `git archive 71669f7`
+  (`_to_delete/comment_rewrite_2026-11-19/base_source_71669f7/`, not tracked).
+- README rewritten: "Provenance" removed (the table stays in `docs/notes/provenance.tsv`), the
+  list of tests removed, "Running" became "Tests", the getting-started steps became one block.
+- `environment.yml` and `pyproject.toml`: comments shortened; the text of the `slow` marker
+  no longer names the parent.
+- The dated records in `docs/notes/` were not rewritten.
+
+| Quantity | Value | Source |
+|---|---|---|
+| Files checked, code identical | 39 of 39 | `F/comment_counts.tsv`, column `code` |
+| Comment and docstring lines, base and now | 4015, 2918 | `F/comment_counts.tsv`, row TOTAL |
+| Comment and docstring characters, base and now | 242938, 161412 | `F/comment_counts.tsv`, row TOTAL |
+| Lines of the checked files, base and now | 11714, 10597 | `F/comment_counts.tsv`, row TOTAL |
+| README lines, base and now | 467, 288 | `git show 71669f7:README.md`, `README.md` |
+| Gate | 112 passed in 34.72s | `F/logs/gate_comment_rewrite.log` |
+
+Old comments that disagreed with the code; the new comment follows the code:
+
+- `microcell/film.py`, counter-propagating branch of `make_ideal_ht`: the comment gave surface 1
+  the velocity -U; `cos(alpha_x (x_d - T Ux))` moves at +U.
+- `microcell/solver_base.py`: `_schur_step` was documented as returning four values (it returns
+  `(d_lambda, d_mu)`); `smooth_pos` placed its residue at z -> +inf; `smooth_pos_deriv_spline`
+  gave zero for P >= eps (the code gives zero for P >= 0).
+- `tests/test_micro_phase_neutral_steady.py`: T6 was described as "within 20%" (the assert is a
+  relative 0.5) and T8 as 1e-10 (the assert is 1e-8).
+- `tests/test_parity.py` and `tests/test_micro_phase_neutral_steady.py` named modules by their
+  old names (`micro_phase_neutral_class`, `ideal_ht.py`).
+- `Roughness.cosine`: `Ah` was called the amplitude; each cosine has amplitude `Ah/2`.
+
+Seen and not changed, as each is code:
+
+- `_assemble_newton_rhs` is annotated `-> float` in `solver_base.py` and returns nothing; the
+  override in `solver_mixed.py` returns that `None` (left by item 13).
+- `_build_forms` takes `dt_nd` and does not use it.
+- Error, assert and print strings that carry development wording, such as "plan O3", "(O6)",
+  "D8)", "the parent's ...", "stage 1" and a printed "target: < 1e-10" beside an assert of 1e-8:
+  in `solver_base.py`, `contact.py`, `roughness/runtime.py`, `form_compiler.py`,
+  `solver_contact.py`, `api.py`, `tests/test_parity.py`, `tests/test_ripple_micro_fenics.py`
+  and `tests/test_micro_phase_neutral_steady.py`.
+
+Not run after the rewrite: the six example scripts (their code is identical by the check).
+
+Second reader (19 Nov 2026): no mismatches in this section or in the README numbers. Not checked by it: the timing statements of the README and the source-term agreement, which need a run.
