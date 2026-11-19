@@ -254,3 +254,16 @@ Rob asked for an example that imports the package from another script and gets a
   `F/logs/use_as_library_from_tmp.log`. The two docstring qualifications ("not tested" on the
   `pip install -e` route; the full-film note on the total shear) were made after that run.
 - Not tested: `pip install -e .`.
+
+## 12. Addendum, 19 Nov 2026: "Changing the equations"
+
+Rob asked whether it is clear where and how to change the mathematics (for example a source
+term), and chose a README section over a hook in the solver ("Yes, docs only").
+
+- README: new section "Changing the equations" (where each part of the equations is, the
+  scales, a worked source term, what to watch). No change under `microcell/`.
+- Added `examples/source_term.py`, the worked example: it wraps `_squeeze_residual_terms`
+  from outside the package and compares a flat film with a sinusoidal source against the
+  analytic pressure. Run through `wslrun`: exit 0, in `F/logs/source_term_example.log`
+  (the relative error is in that log; the README quotes only "better than 1e-6").
+- Gate after both: `F/logs/gate_changing_equations.log`.

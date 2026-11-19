@@ -1,0 +1,8 @@
+Calling FFC just-in-time (JIT) compiler, this may take some time.
+Calling FFC just-in-time (JIT) compiler, this may take some time.
+Calling FFC just-in-time (JIT) compiler, this may take some time.
+source amplitude s0            1.315947e-01 m/s
+without the source: max|p - P| 1.267e-07 Pa
+with the source:    p range    3.980000e+07 .. 4.180000e+07 Pa
+max|p - analytic| / amplitude  3.134e-08   (pass below 1e-2)
+dP with the source             7.451e-09 Pa   (a zero-mean source leaves the level alone)

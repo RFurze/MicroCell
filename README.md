@@ -210,6 +210,7 @@ files under `examples/output/` (not tracked):
 | `examples/array_cell.py` | a height array (one pocket), full film; on the stationary and on the translating surface | `pocket_stationary/`, `pocket_translating/` |
 | `examples/cosine_cell.py` | the analytic cosine cell, full film, with a film rate; transient and steady | `cosine_h120/` |
 | `examples/use_as_library.py` | the package imported from a script in any folder: a function returning a tuple, called over four films (pendulum Sa 10 nm surface) | none |
+| `examples/source_term.py` | a source term added to the Reynolds equation from outside the package, checked against its analytic pressure ("Changing the equations") | none |
 
 ### Settings
 
@@ -260,6 +261,62 @@ values at the top of `microcell/solver_base.py`.
   `phase_invalid`, `unavailable`).  A full-film cell's `tau_asperity` and `tau_total` are NaN
   with `unavailable`.  A NaN the table does not explain gives `FAILED_NONFINITE`.
 - The parent's global-x shear envelopes are not produced: a standalone cell has no macro frame.
+
+## Changing the equations
+
+The equations are UFL forms in two files; `microcell/solver_base.py` holds the full-film
+problem and `microcell/solver_mixed.py` overrides the parts that change with contact.
+
+| What | Where (method of the solver class) |
+|---|---|
+| Pressure `p = P + G . (x - x_c) + lambda + w`; mobility `K = omega h^3 mask`; advective flux `U h mask`; the cavitation term `spos(-p)` | `_setup_pressure_expressions` (base; the mixed class replaces the transport and the cavitation weight) |
+| Film `h`, the fluid indicator and the contact mask | `_setup_film_and_mask` |
+| The residual `R = Reynolds + cavitation - squeeze` and its Jacobian | `_build_forms` (base only, about 25 lines) |
+| The squeeze term `dh/dt` and its mean | `_squeeze_residual_terms`, `_update_squeeze_mean` (base and mixed) |
+| The scales of the non-dimensional problem | `_nondim_scalars` |
+| The Newton solve for `(w, lambda)` | `_newton_solve`, `_schur_step`, `_closure_G` |
+| The homogenised outputs | `spatial_homogenisation` (base, mixed and contact) |
+
+The Jacobian of the field residual is derived automatically (`derivative(R, w)`), so a new
+term in `R` needs no hand-written linearisation with respect to `w`.
+
+The forms are non-dimensional and the equation is solved as twice the one in "The model":
+lengths by the cell size, film by `H`, pressure by `p_scale`, time by `t0 = 2 Lx / Uref`,
+with `U_nd = 2 U / Uref` and `omega = H^2 p_scale / (6 eta0 Lx Uref)`.  A rate in m/s that
+stands beside `dh/dt` is multiplied by `t0 / H`.
+
+**Worked example: a source term.**  With a source `s` [m/s] the equation is
+
+    div( h^3 / (12 eta0) grad p ) = div( U h ) + dh/dt - s
+
+so the change is `dh_dt - s_nd` where `_build_forms` passes `dh_dt` to
+`_squeeze_residual_terms`, with `s_nd = s t0 / H` a UFL expression of the unit-cell
+coordinates `self.x`, `self.y`.  `examples/source_term.py` does this from outside the package,
+by wrapping that method, and checks the result against the analytic pressure of a sinusoidal
+source in a flat film (they agree to better than 1e-6 of the amplitude).
+
+**What to watch.**
+
+- *Solvability.*  The cell is periodic, so the net source over the cell must be zero.
+  The squeeze term has its cell mean subtracted at every step (`_update_squeeze_mean`); a
+  source routed through it, as above, gets the same treatment, and a source added elsewhere
+  needs its own.  The mean part of a source belongs to the macroscale equation.
+- *Steady solves.*  The squeeze term is switched off in a steady solve (`transient_on`), and
+  a source routed through it goes with it.
+- *Pressure-dependent terms.*  `lambda` is a scalar solved beside `w` by a hand-written Schur
+  step.  Its derivative forms (`_c_form`, `_g_form_raw` in `_setup_forms`, and `_closure_G`,
+  `_closure_d_scalar`) are written by hand and cover the cavitation term only.  A term that
+  depends on the pressure value (compressibility, a pressure-dependent viscosity) must be
+  added to them; one that depends on the film, the position, the time or `grad p` need not.
+- *Contact.*  The mixed class overrides `_setup_pressure_expressions`,
+  `_squeeze_residual_terms`, `_update_squeeze_mean` and the closure.  A change to one of
+  those is made in both classes.
+- *Outputs.*  `Q`, `dQ`, `dP` and the shear are computed from the standard terms in
+  `spatial_homogenisation`.  They do not pick up a new term by themselves.
+- *Time-dependent coefficients* are dolfin `Constant`s assigned in `_set_time_level`; a new
+  one is assigned there.
+- *Parity.*  Any change to an existing form moves the reference cells.  Keep the existing
+  path identical when the new term is off, and run `tests/test_parity.py`.
 
 ## Running
 
